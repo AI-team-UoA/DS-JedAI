@@ -7,3 +7,5 @@ target:
   path: "../../Datasets/GEOFABRIK/waterways_gr.csv"
   realIdField: "osm_id"
   geometryField: "WKT"
+
+relation: "covers"
