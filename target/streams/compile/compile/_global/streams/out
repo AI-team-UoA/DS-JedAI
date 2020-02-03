@@ -1,6 +1,0 @@
-[0m[[0m[31merror[0m] [0m[0m/home/gmandi/Documents/Extreme_Earth/Entity_Resolution/DS-JedAI/src/main/scala/utils/ConfigurationParser.scala:5:8: encountered unrecoverable cycle resolving import.[0m
-[0m[[0m[31merror[0m] [0m[0mNote: this is often due in part to a class depending on a definition nested within its companion.[0m
-[0m[[0m[31merror[0m] [0m[0mIf applicable, you may wish to try moving some members into another object.[0m
-[0m[[0m[31merror[0m] [0m[0mimport ConfigurationYAML._[0m
-[0m[[0m[31merror[0m] [0m[0m       ^[0m
-[0m[[0m[31merror[0m] [0m[0mone error found[0m
