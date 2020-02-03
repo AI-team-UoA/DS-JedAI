@@ -1,0 +1,10 @@
+Manifest-Version: 1.0
+Implementation-Title: moultingyaml
+Implementation-Version: 0.4.0
+Specification-Vendor: net.jcazevedo
+Specification-Title: moultingyaml
+Implementation-Vendor-Id: net.jcazevedo
+Specification-Version: 0.4.0
+Implementation-URL: https://github.com/jcazevedo/moultingyaml
+Implementation-Vendor: net.jcazevedo
+
