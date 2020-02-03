@@ -75,7 +75,7 @@ object Main {
 		val targetCount = targetRDD.setName("TargetRDD").cache().count()
 		log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
-		val sourceETH = RADON.getETH(sourceRDD, sourceCount)
-		val targetETH = RADON.getETH(targetRDD, targetCount)
+		val radon = new RADON(sourceRDD, targetRDD, conf.relation)
+		radon.sparseSpaceTiling()
 	}
 }
