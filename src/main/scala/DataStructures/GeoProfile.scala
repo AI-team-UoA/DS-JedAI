@@ -5,7 +5,7 @@ import com.vividsolutions.jts.io.WKTReader
 import org.datasyslab.geospark.formatMapper.WktReader
 
 case class GeoProfile( id: Int, originalID: String = "", attributes: Array[KeyValue] = Array(), geometry: Geometry,
-                       maxX:Double, minX:Double, maxY:Double, minY:Double)
+                       maxX:Double, minX:Double, maxY:Double, minY:Double, crossesMeridian: Boolean)
 
 object GeoProfile {
 
@@ -15,6 +15,9 @@ object GeoProfile {
         val geometry: Geometry = wktReader.read(wkt)
         val env = geometry.getEnvelopeInternal
 
-        GeoProfile(id, originalID, attributes, geometry, env.getMaxX, env.getMinX, env.getMaxY, env.getMinY)
+        // TODO test if crosses MERIDIAN
+        val crossesMeridian =  env.getMinX < 180d && env.getMaxX > 180d
+
+        GeoProfile(id, originalID, attributes, geometry, env.getMaxX, env.getMinX, env.getMaxY, env.getMinY, crossesMeridian)
     }
 }
