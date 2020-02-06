@@ -1,4 +1,4 @@
-package Blocking
+package Algorithms
 
 import DataStructures.{SpatialEntity, MBB}
 import org.apache.spark.rdd.RDD

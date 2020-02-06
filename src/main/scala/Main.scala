@@ -1,4 +1,4 @@
-import Blocking.RADON
+import Algorithms.RADON
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.{SparkConf, SparkContext}
