@@ -3,10 +3,10 @@ package DataStructures
 import com.vividsolutions.jts.geom.Geometry
 import com.vividsolutions.jts.io.WKTReader
 
-case class GeoProfile( id: Int, originalID: String = "", attributes: Array[KeyValue] = Array(), geometry: Geometry,
+case class SpatialEntity( id: Int, originalID: String = "", attributes: Array[KeyValue] = Array(), geometry: Geometry,
                        mbb: MBB, crossesMeridian: Boolean)
 
-object GeoProfile {
+object SpatialEntity {
 
 
     def apply(id: Int, originalID: String, attributes: Array[KeyValue], wkt: String): GeoProfile ={
@@ -17,7 +17,7 @@ object GeoProfile {
         // TODO test if crosses MERIDIAN
         val crossesMeridian =  mbb.crossesMeridian
 
-        GeoProfile(id, originalID, attributes, geometry, mbb, crossesMeridian)
+        SpatialEntity(id, originalID, attributes, geometry, mbb, crossesMeridian)
     }
 
 
