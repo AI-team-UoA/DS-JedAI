@@ -8,13 +8,11 @@ case class SpatialEntity( id: Int, originalID: String = "", attributes: Array[Ke
 
 object SpatialEntity {
 
-
-    def apply(id: Int, originalID: String, attributes: Array[KeyValue], wkt: String): GeoProfile ={
+    def apply(id: Int, originalID: String, attributes: Array[KeyValue], wkt: String): SpatialEntity ={
         val wktReader = new WKTReader()
         val geometry: Geometry = wktReader.read(wkt)
         val mbb = MBB(geometry)
 
-        // TODO test if crosses MERIDIAN
         val crossesMeridian =  mbb.crossesMeridian
 
         SpatialEntity(id, originalID, attributes, geometry, mbb, crossesMeridian)

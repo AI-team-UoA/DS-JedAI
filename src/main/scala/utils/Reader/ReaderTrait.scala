@@ -1,6 +1,6 @@
 package utils.Reader
 
-import DataStructures.GeoProfile
+import DataStructures.SpatialEntity
 import org.apache.spark.rdd.RDD
 
 trait ReaderTrait {
@@ -8,5 +8,5 @@ trait ReaderTrait {
   def loadProfiles( filePath: String,
                     realID_field: String,
                     geometryField: String
-                  ): RDD[GeoProfile]
+                  ): RDD[SpatialEntity]
 }
