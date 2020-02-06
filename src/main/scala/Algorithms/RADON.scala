@@ -6,7 +6,7 @@ import org.apache.spark.rdd.RDD
 import utils.Constant
 
 class RADON	(var sourceRDD: RDD[SpatialEntity], var targetRDD: RDD[SpatialEntity], var relation: String, theta_msr: String) {
-
+	var blocks: RDD[((Int, Int), Array[Int])] = _
 	var swapped = false
 	var thetaX: Double = 0d
 	var thetaY: Double = 0d
@@ -82,12 +82,12 @@ class RADON	(var sourceRDD: RDD[SpatialEntity], var targetRDD: RDD[SpatialEntity
 	}
 
 
-	def sparseSpaceTiling(): Unit = {
+	def sparseSpaceTiling(): RDD[((Int, Int), Array[Int])] = {
 		initTheta()
 		swappingStrategy()
 
 		val broadcastedTheta = SparkContext.getOrCreate().broadcast((thetaX, thetaY))
-		val blocks = sourceRDD
+		blocks = sourceRDD
 			.map {
 				se =>
 					val (thetaX, thetaY) = broadcastedTheta.value
@@ -124,8 +124,7 @@ class RADON	(var sourceRDD: RDD[SpatialEntity], var targetRDD: RDD[SpatialEntity
 			}
     		.flatMap(p => p._1.map(blockID => (blockID, Array(p._2))))
 			.reduceByKey(_++_)
-    		.collect()
 
-			print()
+			blocks
 		}
 }
