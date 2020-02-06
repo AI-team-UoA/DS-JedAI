@@ -1,6 +1,7 @@
 import Algorithms.RADON
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.serializer.KryoSerializer
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}
 import utils.ConfigurationParser
 import utils.Reader.CSVReader
@@ -42,7 +43,6 @@ object Main {
 			System.exit(1)
 		}
 
-		// TODO: Check if YAML is valid
 		val conf_path = options("conf")
 		val conf = ConfigurationParser.parse(conf_path)
 
@@ -75,7 +75,7 @@ object Main {
 		val targetCount = targetRDD.setName("TargetRDD").cache().count()
 		log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
-		val radon = new RADON(sourceRDD, targetRDD, conf.relation)
+		val radon = new RADON(sourceRDD, targetRDD, conf.relation, conf.theta_measure)
 		radon.sparseSpaceTiling()
 	}
 }

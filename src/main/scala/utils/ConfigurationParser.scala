@@ -9,11 +9,11 @@ import scala.io.Source
 
 case class Dataset(path: String, realIdField: String, geometryField: String)
 
-case class Configuration(source: Dataset, target:Dataset, relation: String)
+case class Configuration(source: Dataset, target:Dataset, relation: String, theta_measure: String)
 
 object ConfigurationYAML extends DefaultYamlProtocol {
 	implicit val DatasetFormat = yamlFormat3(Dataset)
-	implicit val ConfigurationFormat = yamlFormat3(Configuration)
+	implicit val ConfigurationFormat = yamlFormat4(Configuration)
 }
 
 object ConfigurationParser {
@@ -30,6 +30,11 @@ object ConfigurationParser {
 			relation == Constant.COVERS
 	}
 
+	def checkThetaMeasure(theta_measure: String): Boolean ={
+		theta_measure == Constant.AVG || theta_measure == Constant.MAX ||
+		theta_measure == Constant.MIN || theta_measure == Constant.NO_USE
+	}
+
 	def parse(conf_path:String): Configuration ={
 		val bufferedConf = Source.fromFile(conf_path)
 		val yaml_str = bufferedConf.getLines().mkString("\n")
@@ -37,6 +42,11 @@ object ConfigurationParser {
 
 		if (!checkRelation(conf.relation)) {
 			log.error("DS-JEDAI: Not Supported Relation")
+			System.exit(1)
+		}
+
+		if (!checkThetaMeasure(conf.theta_measure)) {
+			log.error("DS-JEDAI: Not valid measure for theta")
 			System.exit(1)
 		}
 		conf
