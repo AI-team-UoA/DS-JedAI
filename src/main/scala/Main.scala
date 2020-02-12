@@ -1,10 +1,11 @@
 import Algorithms.RADON
+import DataStructures.Comparison
 import org.apache.log4j.{Level, LogManager, Logger}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
-import utils.ConfigurationParser
+import utils.{BlockUtils, ConfigurationParser}
 import utils.Reader.CSVReader
 
 
@@ -80,6 +81,8 @@ object Main {
 		val radon = new RADON(sourceRDD, targetRDD, conf.relation, conf.theta_measure)
 		val blocks = radon.sparseSpaceTiling().persist(StorageLevel.MEMORY_AND_DISK)
 		log.info("DS-JEDAI: Number of Blocks: " + blocks.count())
-		print()
+
+		val comparisons = BlockUtils.cleanBlocks2(blocks).count
+		log.info("Total comparisons " + comparisons)
 	}
 }
