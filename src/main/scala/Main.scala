@@ -2,6 +2,7 @@ import Algorithms.RADON
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import utils.ConfigurationParser
 import utils.Reader.CSVReader
@@ -51,31 +52,34 @@ object Main {
 		val sourceRDD =
 			sourceFileExtension match {
 				case "csv" => CSVReader.loadProfiles(sourcePath, conf.source.realIdField, conf.source.geometryField)
-				case _ => {
+				case _ =>
 					log.error("DS-JEDAI: This filetype is not supported yet")
 					System.exit(1)
 					null
-				}
 			}
 		val sourceCount = sourceRDD.setName("SourceRDD").cache().count()
 		log.info("DS-JEDAI: Number of ptofiles of Source: " + sourceCount)
+
+		val indexSeparator = sourceCount.toInt
 
 		val targetPath = conf.target.path
 		val targetFileExtension = targetPath.toString.split("\\.").last
 		val targetRDD =
 			targetFileExtension match {
-				case "csv" => CSVReader.loadProfiles(targetPath, conf.target.realIdField, conf.target.geometryField)
-				case _ => {
+				case "csv" => CSVReader.loadProfiles2(targetPath, conf.target.realIdField, conf.target.geometryField, startIdFrom=indexSeparator)
+				case _ =>
 					log.error("DS-JEDAI: This filetype is not supported yet")
 					System.exit(1)
 					null
-				}
 			}
 
 		val targetCount = targetRDD.setName("TargetRDD").cache().count()
 		log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
+
 		val radon = new RADON(sourceRDD, targetRDD, conf.relation, conf.theta_measure)
-		radon.sparseSpaceTiling()
+		val blocks = radon.sparseSpaceTiling().persist(StorageLevel.MEMORY_AND_DISK)
+		log.info("DS-JEDAI: Number of Blocks: " + blocks.count())
+		print()
 	}
 }

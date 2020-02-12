@@ -16,8 +16,8 @@ object CSVReader extends ReaderTrait {
         loadProfiles2(filePath, realIdField, geometryField)
     }
 
-    def loadProfiles2(filePath: String, realIdField: String, geometryField: String, header: Boolean = true,
-                              separator: String = ",", startIdFrom: Int = 0): RDD[SpatialEntity] = {
+    def loadProfiles2(filePath: String, realIdField: String, geometryField: String,  startIdFrom: Int = 0, header: Boolean = true,
+                              separator: String = ","): RDD[SpatialEntity] = {
 
         val dt = spark.read.option("header", header).option("sep", separator).option("delimiter", "\"").csv(filePath)
         val attrColumns: Array[(String, Int)] = dt.columns.zipWithIndex.filter{ case(col, i) => col != realIdField && col != geometryField}
