@@ -1,4 +1,4 @@
-package Algorithms
+package Blocking
 
 import DataStructures.{Block, SpatialEntity}
 import org.apache.spark.SparkContext
@@ -47,41 +47,6 @@ class RADON	(var sourceRDD: RDD[SpatialEntity], var targetRDD: RDD[SpatialEntity
 	}
 
 
-	def getETH(seRDD: RDD[SpatialEntity]): Double ={
-		getETH(seRDD, seRDD.count())
-	}
-
-	def getETH(seRDD: RDD[SpatialEntity], count: Double): Double ={
-		val denom = 1/count
-		val coords_sum = seRDD
-			.map(se => (se.mbb.maxX - se.mbb.minX, se.mbb.maxY - se.mbb.minY))
-    		.fold((0, 0)) { case ((x1, y1), (x2, y2)) => (x1 + x2, y1 + y2) }
-
-		val eth = count * ( (denom * coords_sum._1) * (denom * coords_sum._2) )
-		eth
-	}
-
-
-	def swappingStrategy(): Unit= {
-		val sourceETH = getETH(sourceRDD)
-		val targetETH = getETH(targetRDD)
-
-		if (targetETH < sourceETH){
-			swapped = true
-			val temp = sourceRDD
-			sourceRDD = targetRDD
-			targetRDD = temp
-
-			relation =
-				relation match {
-				case Constant.WITHIN => Constant.CONTAINS
-				case Constant.CONTAINS => Constant.WITHIN
-				case Constant.COVERS => Constant.COVEREDBY
-				case Constant.COVEREDBY => Constant.COVERS;
-				case _ => relation
-			}
-		}
-	}
 
 	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[Int])] ={
 		val blocks = spatialEntitiesRDD
@@ -132,7 +97,6 @@ class RADON	(var sourceRDD: RDD[SpatialEntity], var targetRDD: RDD[SpatialEntity
 
 	def sparseSpaceTiling(): RDD[Block] = {
 		initTheta()
-		swappingStrategy()
 
 		val sourceIndex = index(sourceRDD)
 		val sourceBlocks: Set[(Int, Int)] = sourceIndex.map(b => Set(b._1)).reduce(_++_)

@@ -1,6 +1,6 @@
 package DataStructures
 
-import utils.BlockUtils
+import Blocking.BlockUtils
 
 case class Comparison(id: Int, entity1_id: Int, entity2_id: Int)
 

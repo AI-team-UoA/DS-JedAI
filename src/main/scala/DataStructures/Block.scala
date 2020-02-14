@@ -1,6 +1,6 @@
 package DataStructures
 
-import utils.BlockUtils
+import Blocking.BlockUtils
 
 case class Block(id: Int, coords: (Int, Int), sourceSet: Set[Int], targetSet: Set[Int]){
 
