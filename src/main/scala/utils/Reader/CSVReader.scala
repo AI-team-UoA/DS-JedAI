@@ -34,7 +34,7 @@ object CSVReader extends ReaderTrait {
                     SpatialEntity(id.toInt, originalID, attr, geometry)
             }
 
-        SpatialEntitys
+        SpatialEntitys.filter(!_.geometry.isEmpty)
     }
 
 }
