@@ -7,7 +7,7 @@ import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
 import org.apache.spark.sql.{Encoder, Encoders, Row, SQLContext, SparkSession}
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
-import utils.ConfigurationParser
+import utils.{ConfigurationParser, Utils}
 import utils.Reader.CSVReader
 
 import scala.reflect.ClassTag
@@ -84,41 +84,11 @@ object Main {
 		val targetCount = targetRDD.setName("TargetRDD").cache().count()
 		log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
-/*
-
-		implicit def single[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
-		implicit def singleSE[A](implicit c: ClassTag[A]): Encoder[A] = Encoders.kryo[A](c)
-		implicit def tuple[String, SpatialEntity](implicit e1: Encoder[String], e2: Encoder[String], e3: Encoder[SpatialEntity]): Encoder[(String,String, SpatialEntity)] = Encoders.tuple[String,String, SpatialEntity](e1, e2, e3)
-
-		val unifiedRDD = sourceRDD.map(se => (se.geometry.toText,"S", se))
-			.union(targetRDD.map(se => (se.geometry.toText,"T", se)))
-		val dt = spark.createDataset(unifiedRDD)
-		dt.show()
-
-		    val spark: SparkSession = SparkSession.builder().getOrCreate()
-    val geometryQuery =  """SELECT ST_GeomFromWKT(inputtable.GEOMETRY_COL) AS WKT FROM inputtable""".stripMargin
-
-    def spatialLoad(filePath: String, realIdField: String, geometryField: String, partitions: Int = 8) : RDD[SpatialEntity] = {
-        GeoSparkSQLRegistrator.registerAll(spark)
-        val df = spark.read.format("csv").option("delimiter", ",").option("header", "true").load(filePath)
-        df.createOrReplaceTempView("inputtable")
-
-
-        val spatialDf = spark.sql(geometryQuery.replace("GEOMETRY_COL", geometryField))
-        val spatialRDD = new SpatialRDD[Geometry]
-        spatialRDD.rawSpatialRDD = Adapter.toRdd(spatialDf)
-        val buildOnSpatialPartitionedRDD = true // Set to TRUE only if run join query
-        spatialRDD.analyze()
-        spatialRDD.spatialPartitioning(GridType.QUADTREE, partitions)
-        spatialRDD.buildIndex(IndexType.QUADTREE, buildOnSpatialPartitionedRDD)
-
-        null
-    }
-
-*/
-
 
 		val (source, target, relation) = BlockUtils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
+
+		Utils.spatialPartition(source, target)
+
 		val radon = new RADON(source, target, relation, conf.theta_measure)
 		val blocks = radon.sparseSpaceTiling().persist(StorageLevel.MEMORY_AND_DISK)
 		log.info("DS-JEDAI: Number of Blocks: " + blocks.count())
