@@ -1,6 +1,5 @@
 package utils
 
-import java.util.Calendar
 
 import DataStructures.SpatialEntity
 import com.vividsolutions.jts.geom.Geometry
@@ -8,9 +7,8 @@ import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{HashPartitioner, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{Encoder, Encoders, SparkSession}
-import org.datasyslab.geospark.enums.{GridType, IndexType}
+import org.datasyslab.geospark.enums.GridType
 import org.datasyslab.geospark.spatialRDD.SpatialRDD
 import org.datasyslab.geosparksql.utils.{Adapter, GeoSparkSQLRegistrator}
 
@@ -32,7 +30,7 @@ object Utils {
 
 
 	def spatialPartition(source: RDD[SpatialEntity], target:RDD[SpatialEntity], partitions: Int = 8): Unit ={
-		val startTime =  Calendar.getInstance()
+
 		GeoSparkSQLRegistrator.registerAll(spark)
 		val geometryQuery =  """SELECT ST_GeomFromWKT(GEOMETRIES._1) AS WKT,  GEOMETRIES._2 AS ID FROM GEOMETRIES""".stripMargin
 
@@ -43,8 +41,7 @@ object Utils {
 		val spatialRDD = new SpatialRDD[Geometry]
 		spatialRDD.rawSpatialRDD = Adapter.toRdd(spatialDf)
 		spatialRDD.analyze()
-		spatialRDD.spatialPartitioning(GridType.KDBTREE, partitions)
-
+		spatialRDD.spatialPartitioning(GridType.KDBTREE)
 
 		val spatialPartitionMap = spatialRDD.spatialPartitionedRDD.rdd.mapPartitions {
 				geometries =>
@@ -69,9 +66,6 @@ object Utils {
 
 		log.info("DS-JEDAI: Target Partition Distribution")
 		spark.createDataset(spatialPartitionedTarget.mapPartitionsWithIndex{ case (i,rows) => Iterator((i,rows.size))}).show(100)
-
-		val endTime = Calendar.getInstance()
-		log.info("DS=JEDAI: Spatial Partitioning Took: " + (endTime.getTimeInMillis - startTime.getTimeInMillis)/ 1000.0)
 	}	
 
 }

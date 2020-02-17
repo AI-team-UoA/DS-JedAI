@@ -1,3 +1,5 @@
+import java.util.Calendar
+
 import Blocking.{BlockUtils, RADON}
 import DataStructures.{Comparison, SpatialEntity}
 import org.apache.log4j.{Level, LogManager, Logger}
@@ -17,6 +19,7 @@ import scala.reflect.ClassTag
 object Main {
 
 	def main(args: Array[String]): Unit = {
+		val startTime =  Calendar.getInstance()
 
 		Logger.getLogger("org").setLevel(Level.ERROR)
 		Logger.getLogger("akka").setLevel(Level.ERROR)
@@ -84,16 +87,24 @@ object Main {
 		val targetCount = targetRDD.setName("TargetRDD").cache().count()
 		log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
-
 		val (source, target, relation) = BlockUtils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
 
+		val spartitioning_startTime =  Calendar.getInstance()
 		Utils.spatialPartition(source, target)
+		val spartitioning_endTime = Calendar.getInstance()
+		log.info("DS-JEDAI: Spatial Partitioning Took: " + (spartitioning_endTime.getTimeInMillis - spartitioning_startTime.getTimeInMillis)/ 1000.0)
 
+		val blocking_startTime =  Calendar.getInstance()
 		val radon = new RADON(source, target, relation, conf.theta_measure)
 		val blocks = radon.sparseSpaceTiling().persist(StorageLevel.MEMORY_AND_DISK)
 		log.info("DS-JEDAI: Number of Blocks: " + blocks.count())
 
 		val comparisons = BlockUtils.cleanBlocks(blocks).count
 		log.info("Total comparisons " + comparisons)
+		val blocking_endTime = Calendar.getInstance()
+		log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime.getTimeInMillis - blocking_startTime.getTimeInMillis)/ 1000.0)
+
+		val endTime = Calendar.getInstance()
+		log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime.getTimeInMillis)/ 1000.0)
 	}
 }
