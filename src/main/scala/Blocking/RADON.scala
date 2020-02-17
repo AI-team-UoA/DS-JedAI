@@ -4,17 +4,16 @@ import DataStructures.{Block, SpatialEntity}
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-import utils.Constant
+import utils.Constants
 
-class RADON	(var sourceRDD: RDD[SpatialEntity], var targetRDD: RDD[SpatialEntity], var relation: String, theta_msr: String, entitiesSeparator: Int = -1) extends  Serializable
+/**
+ * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ */
+class RADON	(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], theta_msr: String) extends  Blocking with Serializable
 {
-	var blocksRDD: RDD[Block] = _
-	var swapped = false
-	var broadcastMap: Map[String, Broadcast[Any]] = Map()
-
 	def initTheta(): Unit ={
-		val thetaMsr: RDD[(Double, Double)] = sourceRDD
-			.union(targetRDD)
+		val thetaMsr: RDD[(Double, Double)] = source
+			.union(target)
 			.map {
 				sp =>
 					val env = sp.geometry.getEnvelopeInternal
@@ -27,15 +26,15 @@ class RADON	(var sourceRDD: RDD[SpatialEntity], var targetRDD: RDD[SpatialEntity
 		var thetaY = 1d
 		theta_msr match {
 			// WARNING: small or big values of theta may affect negatively the indexing procedure
-			case Constant.MIN =>
+			case Constants.MIN =>
 				// filtering because there are cases that the geometries are perpendicular to the axes
 				// and have width or height equals to 0.0
 				thetaX = thetaMsr.map(_._1).filter(_ != 0.0d).min
 				thetaY = thetaMsr.map(_._2).filter(_ != 0.0d).min
-			case Constant.MAX =>
+			case Constants.MAX =>
 				thetaX = thetaMsr.map(_._1).max
 				thetaY = thetaMsr.map(_._2).max
-			case Constant.AVG =>
+			case Constants.AVG =>
 				val length = thetaMsr.count
 				thetaX = thetaMsr.map(_._1).sum() / length
 				thetaY = thetaMsr.map(_._2).sum() / length
@@ -95,25 +94,9 @@ class RADON	(var sourceRDD: RDD[SpatialEntity], var targetRDD: RDD[SpatialEntity
 	}
 
 
-	def sparseSpaceTiling(): RDD[Block] = {
+	override def apply(): RDD[Block] = {
 		initTheta()
-
-		val sourceIndex = index(sourceRDD)
-		val sourceBlocks: Set[(Int, Int)] = sourceIndex.map(b => Set(b._1)).reduce(_++_)
-
-		val targetIndex = index(targetRDD, sourceBlocks)
-
-		val blocksIndex: RDD[((Int, Int), (Array[Int], Option[Array[Int]]))] = sourceIndex.leftOuterJoin(targetIndex)
-		blocksRDD = blocksIndex
-			.filter(b => b._2._2.isDefined)
-			.map { block =>
-				val blockCoords = block._1
-				val sourceIndexSet = block._2._1.toSet
-				val targetIndexSet = block._2._2.get.toSet
-				Block(blockCoords, sourceIndexSet, targetIndexSet)
-			}
-			.setName("BlocksRDD")
-		blocksRDD
+		super.apply()
 	}
 
 }
