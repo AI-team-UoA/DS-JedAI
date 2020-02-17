@@ -1,7 +1,7 @@
 package DataStructures
 
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
-import utils.Constant
+import utils.Constants
 
 /**
  * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
@@ -16,20 +16,20 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
     }
 
     def crossesMeridian: Boolean ={
-        (minX < Constant.MAX_LONG && maxX > Constant.MAX_LONG) || (minX < Constant.MIN_LONG && maxX > Constant.MIN_LONG)
+        (minX < Constants.MAX_LONG && maxX > Constants.MAX_LONG) || (minX < Constants.MIN_LONG && maxX > Constants.MIN_LONG)
     }
 
 
     def splitOnMeridian: (MBB, MBB) ={
-        if (minX < Constant.MIN_LONG && maxX > Constant.MIN_LONG){
-            val easternMBB: MBB = MBB(minX, Constant.MIN_LONG, maxY, minY)
-            val westernMBB: MBB = MBB(Constant.MIN_LONG, maxX, maxY, minY)
+        if (minX < Constants.MIN_LONG && maxX > Constants.MIN_LONG){
+            val easternMBB: MBB = MBB(minX, Constants.MIN_LONG, maxY, minY)
+            val westernMBB: MBB = MBB(Constants.MIN_LONG, maxX, maxY, minY)
 
             (westernMBB, easternMBB)
         }
-        else if (minX < Constant.MAX_LONG && maxX >Constant.MAX_LONG) {
-            val easternMBB: MBB = MBB(maxX, Constant.MAX_LONG, maxY, minY)
-            val westernMBB: MBB = MBB(Constant.MAX_LONG, minX, maxY, minY)
+        else if (minX < Constants.MAX_LONG && maxX >Constants.MAX_LONG) {
+            val easternMBB: MBB = MBB(maxX, Constants.MAX_LONG, maxY, minY)
+            val westernMBB: MBB = MBB(Constants.MAX_LONG, minX, maxY, minY)
 
             (westernMBB, easternMBB)
         }

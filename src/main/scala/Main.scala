@@ -1,6 +1,6 @@
 import java.util.Calendar
 
-import Blocking.{BlockUtils, RADON}
+import Blocking.{BlockUtils, RADON, StaticBlocking}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
@@ -60,7 +60,7 @@ object Main {
 		val sourceRDD =
 			sourceFileExtension match {
 				case "csv" => CSVReader.loadProfiles(sourcePath, conf.source.realIdField, conf.source.geometryField)
-					.map(es => (es.id, es)).partitionBy(new org.apache.spark.HashPartitioner(8)).map(_._2)
+					//.map(es => (es.id, es)).partitionBy(new org.apache.spark.HashPartitioner(8)).map(_._2)
 				case _ =>
 					log.error("DS-JEDAI: This filetype is not supported yet")
 					System.exit(1)
@@ -75,7 +75,7 @@ object Main {
 		val targetRDD =
 			targetFileExtension match {
 				case "csv" => CSVReader.loadProfiles2(targetPath, conf.target.realIdField, conf.target.geometryField, startIdFrom=indexSeparator)
-					.map(es => (es.id, es)).partitionBy(new org.apache.spark.HashPartitioner(8)).map(_._2)
+					//.map(es => (es.id, es)).partitionBy(new org.apache.spark.HashPartitioner(8)).map(_._2)
 				case _ =>
 					log.error("DS-JEDAI: This filetype is not supported yet")
 					System.exit(1)
@@ -93,8 +93,8 @@ object Main {
 		log.info("DS-JEDAI: Spatial Partitioning Took: " + (spartitioning_endTime.getTimeInMillis - spartitioning_startTime.getTimeInMillis)/ 1000.0)
 
 		val blocking_startTime =  Calendar.getInstance()
-		val radon = new RADON(source, target, relation, conf.theta_measure)
-		val blocks = radon.apply().persist(StorageLevel.MEMORY_AND_DISK)
+		val blockingAlg = StaticBlocking(source, target, 10, 0.1)
+		val blocks = blockingAlg.apply().persist(StorageLevel.MEMORY_AND_DISK)
 		log.info("DS-JEDAI: Number of Blocks: " + blocks.count())
 
 		val comparisons = BlockUtils.cleanBlocks(blocks).count

@@ -3,7 +3,7 @@ package utils
 /**
  * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-object Constant {
+object Constants {
 
 	val DT_SOURCE = "source"
 	val DT_TARGET = "target"

@@ -26,15 +26,15 @@ object ConfigurationParser {
 	val log: Logger = LogManager.getRootLogger
 
 	def checkRelation(relation: String): Boolean ={
-			relation == Constant.CONTAINS || relation == Constant.CROSSES || relation == Constant.DISJOINT ||
-			relation == Constant.EQUALS || relation == Constant.INTERSECTS || relation == Constant.OVERLAPS ||
-			relation == Constant.TOUCHES  || relation == Constant.WITHIN || relation == Constant.COVEREDBY ||
-			relation == Constant.COVERS
+			relation == Constants.CONTAINS || relation == Constants.CROSSES || relation == Constants.DISJOINT ||
+			relation == Constants.EQUALS || relation == Constants.INTERSECTS || relation == Constants.OVERLAPS ||
+			relation == Constants.TOUCHES  || relation == Constants.WITHIN || relation == Constants.COVEREDBY ||
+			relation == Constants.COVERS
 	}
 
 	def checkThetaMeasure(theta_measure: String): Boolean ={
-		theta_measure == Constant.AVG || theta_measure == Constant.MAX ||
-		theta_measure == Constant.MIN || theta_measure == Constant.NO_USE
+		theta_measure == Constants.AVG || theta_measure == Constants.MAX ||
+		theta_measure == Constants.MIN || theta_measure == Constants.NO_USE
 	}
 
 	def parse(conf_path:String): Configuration ={

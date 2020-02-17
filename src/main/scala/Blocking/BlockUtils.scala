@@ -2,8 +2,11 @@ package Blocking
 
 import DataStructures.{Block, Comparison, SpatialEntity}
 import org.apache.spark.rdd.RDD
-import utils.Constant
+import utils.Constants
 
+/**
+ * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ */
 object BlockUtils {
 	var swapped = false
 
@@ -108,10 +111,10 @@ object BlockUtils {
 			swapped = true
 			val newRelation =
 				relation match {
-					case Constant.WITHIN => Constant.CONTAINS
-					case Constant.CONTAINS => Constant.WITHIN
-					case Constant.COVERS => Constant.COVEREDBY
-					case Constant.COVEREDBY => Constant.COVERS;
+					case Constants.WITHIN => Constants.CONTAINS
+					case Constants.CONTAINS => Constants.WITHIN
+					case Constants.COVERS => Constants.COVEREDBY
+					case Constants.COVEREDBY => Constants.COVERS;
 					case _ => relation
 				}
 			(targetRDD, sourceRDD, newRelation)
