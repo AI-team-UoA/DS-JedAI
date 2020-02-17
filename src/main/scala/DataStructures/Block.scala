@@ -2,6 +2,9 @@ package DataStructures
 
 import Blocking.BlockUtils
 
+/**
+ * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ */
 case class Block(id: Int, coords: (Int, Int), sourceSet: Set[Int], targetSet: Set[Int]){
 
 	def getComparisons: Set[Comparison]={

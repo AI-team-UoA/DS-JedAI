@@ -15,6 +15,9 @@ import org.datasyslab.geosparksql.utils.{Adapter, GeoSparkSQLRegistrator}
 import scala.collection.Map
 import scala.reflect.ClassTag
 
+/**
+ * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ */
 object Utils {
 
 	Logger.getLogger("org").setLevel(Level.ERROR)

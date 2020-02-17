@@ -4,7 +4,9 @@ import DataStructures.{SpatialEntity, KeyValue}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
-
+/**
+ * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ */
 object CSVReader extends ReaderTrait {
 
     // TODO: Try to apply spatial Partitioning

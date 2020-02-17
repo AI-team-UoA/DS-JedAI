@@ -3,6 +3,9 @@ package DataStructures
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import utils.Constant
 
+/**
+ * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ */
 case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
 
     def getGeometry: Geometry ={

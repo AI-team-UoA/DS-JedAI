@@ -1,20 +1,18 @@
 import java.util.Calendar
 
 import Blocking.{BlockUtils, RADON}
-import DataStructures.{Comparison, SpatialEntity}
 import org.apache.log4j.{Level, LogManager, Logger}
-import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
-import org.apache.spark.sql.{Encoder, Encoders, Row, SQLContext, SparkSession}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import utils.{ConfigurationParser, Utils}
 import utils.Reader.CSVReader
 
-import scala.reflect.ClassTag
 
-
+/**
+ * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ */
 
 object Main {
 
@@ -96,7 +94,7 @@ object Main {
 
 		val blocking_startTime =  Calendar.getInstance()
 		val radon = new RADON(source, target, relation, conf.theta_measure)
-		val blocks = radon.sparseSpaceTiling().persist(StorageLevel.MEMORY_AND_DISK)
+		val blocks = radon.apply().persist(StorageLevel.MEMORY_AND_DISK)
 		log.info("DS-JEDAI: Number of Blocks: " + blocks.count())
 
 		val comparisons = BlockUtils.cleanBlocks(blocks).count

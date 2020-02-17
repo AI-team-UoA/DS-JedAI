@@ -1,5 +1,8 @@
 package utils
 
+/**
+ * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ */
 object Constant {
 
 	val DT_SOURCE = "source"
