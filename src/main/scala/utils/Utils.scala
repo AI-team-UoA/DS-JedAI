@@ -32,7 +32,7 @@ object Utils {
 	implicit def tuple[String, Int](implicit e1: Encoder[String], e2: Encoder[Int]): Encoder[(String,Int)] = Encoders.tuple[String,Int](e1, e2)
 
 
-	def spatialPartition(source: RDD[SpatialEntity], target:RDD[SpatialEntity], partitions: Int = 8): Unit ={
+	def spatialPartition(source: RDD[SpatialEntity], target:RDD[SpatialEntity], partitions: Int = 8): (RDD[SpatialEntity], RDD[SpatialEntity]) ={
 
 		GeoSparkSQLRegistrator.registerAll(spark)
 		val geometryQuery =  """SELECT ST_GeomFromWKT(GEOMETRIES._1) AS WKT,  GEOMETRIES._2 AS ID FROM GEOMETRIES""".stripMargin
@@ -55,20 +55,20 @@ object Utils {
 		spatialPartitionMapBD = spark.sparkContext.broadcast(spatialPartitionMap)
 
 		val spatialPartitionedSource = source.map(se => (spatialPartitionMapBD.value(se.id), se))
-			.partitionBy(new HashPartitioner(partitions))
+			.partitionBy(new HashPartitioner(partitions)).map(_._2)
 
 		val spatialPartitionedTarget = target.map(se => (spatialPartitionMapBD.value(se.id), se))
-			.partitionBy(new HashPartitioner(partitions))
+			.partitionBy(new HashPartitioner(partitions)).map(_._2)
 
 		//WARNING: Unbalanced Results
 		log.info("DS-JEDAI: Spatial Partition Distribution")
-		spark.createDataset(spatialRDD.spatialPartitionedRDD.rdd.mapPartitionsWithIndex{ case (i,rows) => Iterator((i,rows.size))}).show(100)
+		printPartitions(spatialRDD.spatialPartitionedRDD.rdd.asInstanceOf[RDD[Any]])
 
-		log.info("DS-JEDAI: Source Partition Distribution")
-		spark.createDataset(spatialPartitionedSource.mapPartitionsWithIndex{ case (i,rows) => Iterator((i,rows.size))}).show(100)
+		(spatialPartitionedSource, spatialPartitionedTarget)
+	}
 
-		log.info("DS-JEDAI: Target Partition Distribution")
-		spark.createDataset(spatialPartitionedTarget.mapPartitionsWithIndex{ case (i,rows) => Iterator((i,rows.size))}).show(100)
-	}	
 
+	def printPartitions(rdd: RDD[Any]): Unit ={
+		spark.createDataset(rdd.mapPartitionsWithIndex{ case (i,rows) => Iterator((i,rows.size))}).show(100)
+	}
 }

@@ -1,11 +1,12 @@
 source:
-  path: "../../Datasets/GEODATA/wildlife_sanctuaries.csv"
-  realIdField: "ID"
+  path: "/home/gmandi/Documents/Extreme-Earth/Entity-Resolution/Datasets/s1_images_subset.csv"
+  realIdField: "id"
   geometryField: "WKT"
 
 target:
-  path: "../../Datasets/GEOFABRIK/waterways_gr.csv"
+  path: "/home/gmandi/Documents/Extreme-Earth/Entity-Resolution/Datasets/waterways_gr.csv"
   realIdField: "osm_id"
   geometryField: "WKT"
 
 relation: "covers"
+theta_measure: "avg"
