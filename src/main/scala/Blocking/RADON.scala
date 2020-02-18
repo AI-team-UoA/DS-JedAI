@@ -9,7 +9,7 @@ import utils.Constants
 /**
  * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-class RADON	(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], theta_msr: String) extends  Blocking with Serializable
+case class RADON	(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], theta_msr: String) extends  Blocking with Serializable
 {
 	def initTheta(): Unit ={
 		val thetaMsr: RDD[(Double, Double)] = source
@@ -53,33 +53,32 @@ class RADON	(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], the
 			se =>
 				val (thetaX, thetaY) = broadcastMap("theta").value.asInstanceOf[(Double, Double)]
 				val seID = se.id
-				var blockIDs: Array[(Int, Int)] = Array()
 
-				// Split on Meridian and index on eastern and western mbb
-				if (se.crossesMeridian) {
-					val (westernMBB, easternMBB) = se.mbb.splitOnMeridian
+				val blockIDs = {
+					// Split on Meridian and index on eastern and western mbb
+					if (se.crossesMeridian) {
+						val (westernMBB, easternMBB) = se.mbb.splitOnMeridian
 
-					val wmbb_maxX = math.ceil(westernMBB.maxX / thetaX).toInt
-					val wmbb_minX = math.floor(westernMBB.minX / thetaX).toInt
-					val wmbb_maxY = math.ceil(westernMBB.maxY / thetaY).toInt
-					val wmbb_minY = math.floor(westernMBB.minY / thetaY).toInt
+						val wmbb_maxX = math.ceil(westernMBB.maxX / thetaX).toInt
+						val wmbb_minX = math.floor(westernMBB.minX / thetaX).toInt
+						val wmbb_maxY = math.ceil(westernMBB.maxY / thetaY).toInt
+						val wmbb_minY = math.floor(westernMBB.minY / thetaY).toInt
 
-					val embb_maxX = math.ceil(easternMBB.maxX / thetaX).toInt
-					val embb_minX = math.floor(easternMBB.minX / thetaX).toInt
-					val embb_maxY = math.ceil(easternMBB.maxY / thetaY).toInt
-					val embb_minY = math.floor(easternMBB.minY / thetaY).toInt
+						val embb_maxX = math.ceil(easternMBB.maxX / thetaX).toInt
+						val embb_minX = math.floor(easternMBB.minX / thetaX).toInt
+						val embb_maxY = math.ceil(easternMBB.maxY / thetaY).toInt
+						val embb_minY = math.floor(easternMBB.minY / thetaY).toInt
 
-					(wmbb_minX to wmbb_maxX).map(x => (wmbb_minY to wmbb_maxY).map(y => blockIDs :+= (x, y)))
+						(for (x <- wmbb_minX to wmbb_maxX; y <- wmbb_minY to wmbb_maxY) yield (x, y)) ++ (for (x <- embb_minX to embb_maxX; y <- embb_minY to embb_maxY) yield (x, y))
+					}
+					else {
+						val maxX = math.ceil(se.mbb.maxX / thetaX).toInt
+						val minX = math.floor(se.mbb.minX / thetaX).toInt
+						val maxY = math.ceil(se.mbb.maxY / thetaY).toInt
+						val minY = math.floor(se.mbb.minY / thetaY).toInt
 
-					(embb_minX to embb_maxX).map(x => (embb_minY to embb_maxY).map(y => blockIDs :+= (x, y)))
-				}
-				else {
-					val maxX = math.ceil(se.mbb.maxX / thetaX).toInt
-					val minX = math.floor(se.mbb.minX / thetaX).toInt
-					val maxY = math.ceil(se.mbb.maxY / thetaY).toInt
-					val minY = math.floor(se.mbb.minY / thetaY).toInt
-
-					(minX to maxX).map(x => (minY to maxY).map(y => blockIDs :+= (x, y)))
+						for (x <- minX to maxX; y <- minY to maxY) yield (x, y)
+					}
 				}
 				(blockIDs, seID)
 			}
