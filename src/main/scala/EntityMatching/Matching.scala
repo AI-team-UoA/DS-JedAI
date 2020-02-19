@@ -11,9 +11,20 @@ import scala.collection.mutable.ArrayBuffer
 /**
  * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
+
+/**
+ *  Link discovery
+ */
 object Matching {
 
-
+	/**
+	 * check the relation between two geometries
+	 *
+	 * @param sourceGeom geometry from source set
+	 * @param targetGeometry geometry from target set
+	 * @param relation requested relation
+	 * @return whether the relation is true
+	 */
 	def relate(sourceGeom: Geometry, targetGeometry: Geometry, relation: String): Boolean ={
 		relation match {
 			case Constants.CONTAINS => sourceGeom.contains(targetGeometry)
@@ -30,6 +41,14 @@ object Matching {
 		}
 	}
 
+	/**
+	 *  check relation among MBBs
+	 *
+	 * @param s MBB from source
+	 * @param t MBB form target
+	 * @param relation requested relation
+	 * @return whether the relation is true
+	 */
 	def testMBB(s:MBB, t:MBB, relation: String): Boolean ={
 		relation match {
 			case Constants.CONTAINS | Constants.COVERS =>
@@ -46,6 +65,15 @@ object Matching {
 	}
 
 
+	/**
+	 * Perform the comparisons of the blocks. Only the comparisons inside the allowedComparison
+	 * will be calculated.
+	 *
+	 * @param blocks RDD of blocks
+	 * @param allowedComparisosn allowed comparisons per Block - RDD[(blockID, Array[comparisonID])]
+ 	 * @param relation requested relation
+	 * @return the matches
+	 */
 	def SpatialMatching(blocks: RDD[Block], allowedComparisosn: RDD[(Int, Array[Int])], relation: String): RDD[(Int,Int)] ={
 
 		val blocksComparisons = blocks.map(b => (b.id, (b.sourceSet, b.targetSet)))

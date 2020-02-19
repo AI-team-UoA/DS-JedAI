@@ -105,12 +105,15 @@ object Main {
 		log.info("DS-JEDAI: Target Partition Distribution")
 		printPartitions(target.asInstanceOf[RDD[Any]])
 */
+		// Blocking
 		val blocking_startTime =  Calendar.getInstance()
 		//val blockingAlg = StaticBlocking(source, spatialPartitionedTarget, 10, 0.1)
 		val blockingAlg = RADON(source, target, conf.theta_measure)
 		val blocks = blockingAlg.apply().persist(StorageLevel.MEMORY_AND_DISK)
 		log.info("DS-JEDAI: Number of Blocks: " + blocks.count())
 
+
+		// Block cleaning
 		val allowedComparisons = BlockUtils.cleanBlocks(blocks).setName("Comparisons").persist(StorageLevel.MEMORY_AND_DISK)
 		log.info("DS-JEDAI: Comparisons Partition Distribution")
 		printPartitions(allowedComparisons.asInstanceOf[RDD[Any]])
@@ -118,6 +121,7 @@ object Main {
 		val blocking_endTime = Calendar.getInstance()
 		log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime.getTimeInMillis - blocking_startTime.getTimeInMillis)/ 1000.0)
 
+		// Entity Matching
 		val matching_startTime =  Calendar.getInstance()
 		val matches = Matching.SpatialMatching(blocks, allowedComparisons, relation).setName("Matches").persist(StorageLevel.MEMORY_AND_DISK)
 		log.info("DS-JEDAI: MAtches: " + matches.count)

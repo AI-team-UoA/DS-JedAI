@@ -1,6 +1,6 @@
 package Blocking
 
-import DataStructures.{Block, Comparison, SpatialEntity}
+import DataStructures.{Block, SpatialEntity}
 import org.apache.spark.rdd.RDD
 import utils.Constants
 

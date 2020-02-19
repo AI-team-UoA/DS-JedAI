@@ -9,8 +9,19 @@ import utils.Constants
 /**
  * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
+
+/**
+ * RADON blocking algorithm
+ * @param source source set as RDD
+ * @param target target set as RDD
+ * @param theta_msr theta measure
+ */
 case class RADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], theta_msr: String) extends  Blocking with Serializable
 {
+
+	/**
+	 * initialize theta based on theta measure
+	 */
 	def initTheta(): Unit ={
 		val thetaMsr: RDD[(Double, Double)] = source
 			.union(target)
@@ -46,7 +57,14 @@ case class RADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity],
 	}
 
 
-
+	/**
+	 * index a spatial entities set. If acceptedBlocks is provided then the entities will be assigned
+	 * to blocks that exist in the accepted blocks
+	 *
+	 * @param spatialEntitiesRDD the set to index
+	 * @param acceptedBlocks the accepted blocks that the set can be indexed to
+	 * @return an Array of block ids for each spatial entity
+	 */
 	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[SpatialEntity])] ={
 		val blocks = spatialEntitiesRDD
 			.map {
@@ -91,7 +109,10 @@ case class RADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity],
 			else blocks.flatMap(p => p._1.map(blockID => (blockID, Array(p._2)))).reduceByKey(_++_)
 	}
 
-
+	/**
+	 * Apply indexing
+	 * @return RDD of blocks
+	 */
 	override def apply(): RDD[Block] = {
 		initTheta()
 		super.apply()

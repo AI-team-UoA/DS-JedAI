@@ -26,6 +26,9 @@ object Constants {
 	val EARTH_CIRCUMFERENCE_EQUATORIAL = 40075160.0
 	val EARTH_CIRCUMFERENCE_MERIDIONAL = 40008000.0
 
+	/**
+	 * Relations
+	 */
 	val EQUALS = "equals"
 	val DISJOINT = "disjoint"
 	val INTERSECTS = "intersects"

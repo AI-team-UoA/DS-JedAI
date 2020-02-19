@@ -7,6 +7,10 @@ import Blocking.BlockUtils
  */
 case class Block(id: Int, coords: (Int, Int), sourceSet: Set[SpatialEntity], targetSet: Set[SpatialEntity]){
 
+	/**
+	 * For each compaison in the block, return its id
+	 * @return block's comparisons ids
+	 */
 	def getComparisonsIDs: Set[Int]={
 		val comparisonsIDs = for (s <-sourceSet; t <- targetSet)
 			yield BlockUtils.bijectivePairing(s.id, t.id)

@@ -31,21 +31,32 @@ object Utils {
 	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
 	implicit def tuple[String, Int](implicit e1: Encoder[String], e2: Encoder[Int]): Encoder[(String,Int)] = Encoders.tuple[String,Int](e1, e2)
 
-
+	/**
+	 * Apply spatial partitioning...
+	 *
+	 * @param source source set
+	 * @param target target set
+	 * @param partitions number of partitions
+	 * @return source and target as spatial partitioned
+	 */
 	def spatialPartition(source: RDD[SpatialEntity], target:RDD[SpatialEntity], partitions: Int = 8): (RDD[SpatialEntity], RDD[SpatialEntity]) ={
 
 		GeoSparkSQLRegistrator.registerAll(spark)
 		val geometryQuery =  """SELECT ST_GeomFromWKT(GEOMETRIES._1) AS WKT,  GEOMETRIES._2 AS ID FROM GEOMETRIES""".stripMargin
 
+		// unifying source and target, convert their geometries and ids into Dataset -> SpatialRDD
 		val unified = source.union(target).map(se => (se.geometry.toText, se.id))
 		val dt = spark.createDataset(unified)
 		dt.createOrReplaceTempView("GEOMETRIES")
 		val spatialDf = spark.sql(geometryQuery)
 		val spatialRDD = new SpatialRDD[Geometry]
 		spatialRDD.rawSpatialRDD = Adapter.toRdd(spatialDf)
+
+		// spatial partition RDD
 		spatialRDD.analyze()
 		spatialRDD.spatialPartitioning(GridType.KDBTREE)
 
+		// map of each spatial entity to which partition belongs to
 		val spatialPartitionMap = spatialRDD.spatialPartitionedRDD.rdd.mapPartitions {
 				geometries =>
 					val partitionKey = TaskContext.get.partitionId()
