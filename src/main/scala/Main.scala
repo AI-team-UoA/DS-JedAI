@@ -118,6 +118,12 @@ object Main {
 		val blocking_endTime = Calendar.getInstance()
 		log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime.getTimeInMillis - blocking_startTime.getTimeInMillis)/ 1000.0)
 
+		val matching_startTime =  Calendar.getInstance()
+		val matches = Matching.SpatialMatching(blocks, allowedComparisons, relation).setName("Matches").persist(StorageLevel.MEMORY_AND_DISK)
+		log.info("DS-JEDAI: MAtches: " + matches.count)
+		val matching_endTime = Calendar.getInstance()
+		log.info("DS-JEDAI: Matching Time: " + (matching_endTime.getTimeInMillis - matching_startTime.getTimeInMillis)/ 1000.0)
+
 		val endTime = Calendar.getInstance()
 		log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime.getTimeInMillis)/ 1000.0)
 	}

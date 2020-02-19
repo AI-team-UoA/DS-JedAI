@@ -35,6 +35,30 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
         }
         else (null, null)
     }
+
+    def equals(mbb:MBB): Boolean ={
+        minX == mbb.minX && maxX == mbb.maxX && minY == mbb.minY && maxY == mbb.maxY
+    }
+
+    def contains(mbb:MBB): Boolean ={
+        minX <= mbb.minX && maxX >= mbb.maxX && minY <= mbb.minY && maxY >= mbb.maxY
+    }
+
+    def within(mbb: MBB):Boolean ={
+        mbb.contains(this)
+    }
+
+    def touches(mbb: MBB): Boolean ={
+        maxX == mbb.maxX || minX == mbb.minX || maxY == mbb.maxY || minY == mbb.minY
+    }
+
+    def intersects(mbb:MBB): Boolean ={
+        maxX > mbb.minX && minX < mbb.maxX && maxY > mbb.minY && minY < mbb.maxY
+    }
+
+    def disjoint(mbb:MBB): Boolean ={
+        ! (contains(mbb) || intersects(mbb))
+    }
 }
 
 object  MBB {
