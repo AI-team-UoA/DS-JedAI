@@ -1,0 +1,12 @@
+source:
+  path: "/home/gmandi/Documents/Extreme_Earth/Entity_Resolution/Polar-UseCase/Data/CSV/WKT/s1_images_10K.csv"
+  realIdField: "id"
+  geometryField: "WKT"
+
+target:
+  path: "/home/gmandi/Documents/Extreme_Earth/Entity_Resolution/Polar-UseCase/Data/CSV/WKT/observations_WKT.csv"
+  realIdField: "id"
+  geometryField: "WKT"
+
+relation: "contains"
+theta_measure: "none"

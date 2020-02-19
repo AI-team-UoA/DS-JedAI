@@ -1,6 +1,6 @@
 source:
-  path: "../../Datasets/GEODATA/wildlife_sanctuaries.csv"
-  realIdField: "ID"
+  path: "/home/gmandi/Documents/Extreme_Earth/Datasets/GEODATA/regions_gr.csv"
+  realIdField: "PER"
   geometryField: "WKT"
 
 target:
@@ -9,3 +9,4 @@ target:
   geometryField: "WKT"
 
 relation: "covers"
+theta_measure: "none"
