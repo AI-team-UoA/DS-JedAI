@@ -9,9 +9,6 @@ import org.apache.spark.sql.SparkSession
  */
 object CSVReader extends ReaderTrait {
 
-    // TODO: Try to apply spatial Partitioning
-    // WARNING: GeoSpark can't read csv properly
-
     val spark: SparkSession = SparkSession.builder().getOrCreate()
 
     override def loadProfiles(filePath: String, realIdField: String, geometryField: String) : RDD[SpatialEntity] = {

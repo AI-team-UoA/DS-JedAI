@@ -13,7 +13,7 @@ trait Blocking {
 
 	var broadcastMap: Map[String, Broadcast[Any]] = Map()
 
-	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[Int])]
+	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[SpatialEntity])]
 
 	def apply(): RDD[Block] ={
 		val sourceIndex = index(source)
@@ -21,7 +21,7 @@ trait Blocking {
 
 		val targetIndex = index(target, sourceBlocks)
 
-		val blocksIndex: RDD[((Int, Int), (Array[Int], Option[Array[Int]]))] = sourceIndex.leftOuterJoin(targetIndex)
+		val blocksIndex: RDD[((Int, Int), (Array[SpatialEntity], Option[Array[SpatialEntity]]))] = sourceIndex.leftOuterJoin(targetIndex)
 		val blocksRDD = blocksIndex
 			.filter(b => b._2._2.isDefined)
 			.map { block =>

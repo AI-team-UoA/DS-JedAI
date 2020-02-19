@@ -9,7 +9,7 @@ import utils.Constants
 /**
  * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-case class RADON	(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], theta_msr: String) extends  Blocking with Serializable
+case class RADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], theta_msr: String) extends  Blocking with Serializable
 {
 	def initTheta(): Unit ={
 		val thetaMsr: RDD[(Double, Double)] = source
@@ -47,12 +47,11 @@ case class RADON	(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity]
 
 
 
-	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[Int])] ={
+	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[SpatialEntity])] ={
 		val blocks = spatialEntitiesRDD
 			.map {
 			se =>
 				val (thetaX, thetaY) = broadcastMap("theta").value.asInstanceOf[(Double, Double)]
-				val seID = se.id
 
 				val blockIDs = {
 					// Split on Meridian and index on eastern and western mbb
@@ -80,7 +79,7 @@ case class RADON	(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity]
 						for (x <- minX to maxX; y <- minY to maxY) yield (x, y)
 					}
 				}
-				(blockIDs, seID)
+				(blockIDs, se)
 			}
 
 			if (acceptedBlocks.nonEmpty) {

@@ -1,15 +1,16 @@
 import java.util.Calendar
 
 import Blocking.{BlockUtils, RADON, StaticBlocking}
+import EntityMatching.Matching
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
-import utils.{ConfigurationParser, Utils}
+import utils.ConfigurationParser
 import utils.Reader.CSVReader
-import utils.Utils.{log, printPartitions}
+import utils.Utils.printPartitions
 
 
 /**
@@ -57,6 +58,7 @@ object Main {
 		val conf_path = options("conf")
 		val conf = ConfigurationParser.parse(conf_path)
 
+		// Loading Source
 		val sourcePath = conf.source.path
 		val sourceFileExtension = sourcePath.toString.split("\\.").last
 		val sourceRDD =
@@ -72,6 +74,7 @@ object Main {
 		log.info("DS-JEDAI: Number of ptofiles of Source: " + sourceCount)
 		val indexSeparator = sourceCount.toInt
 
+		// Loading Target
 		val targetPath = conf.target.path
 		val targetFileExtension = targetPath.toString.split("\\.").last
 		val targetRDD =
@@ -83,12 +86,15 @@ object Main {
 					System.exit(1)
 					null
 			}
-
 		val targetCount = targetRDD.setName("TargetRDD").cache().count()
 		log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
-		var (source, target, relation) = BlockUtils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
 
+		// Swapping: set the set with the smallest area as source
+		val (source, target, relation) = BlockUtils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
+
+/*
+		// Spatial partitioning
 		val spartitioning_startTime =  Calendar.getInstance()
 		//val (spatialPartitionedSource, spatialPartitionedTarget) = Utils.spatialPartition(source, target)
 		val spartitioning_endTime = Calendar.getInstance()
@@ -98,17 +104,17 @@ object Main {
 		printPartitions(source.asInstanceOf[RDD[Any]])
 		log.info("DS-JEDAI: Target Partition Distribution")
 		printPartitions(target.asInstanceOf[RDD[Any]])
-
+*/
 		val blocking_startTime =  Calendar.getInstance()
 		//val blockingAlg = StaticBlocking(source, spatialPartitionedTarget, 10, 0.1)
 		val blockingAlg = RADON(source, target, conf.theta_measure)
 		val blocks = blockingAlg.apply().persist(StorageLevel.MEMORY_AND_DISK)
 		log.info("DS-JEDAI: Number of Blocks: " + blocks.count())
 
-		val comparisons = BlockUtils.cleanBlocks(blocks).setName("Comparisons").persist(StorageLevel.MEMORY_AND_DISK)
-		log.info("Total comparisons " + comparisons.count())
+		val allowedComparisons = BlockUtils.cleanBlocks(blocks).setName("Comparisons").persist(StorageLevel.MEMORY_AND_DISK)
 		log.info("DS-JEDAI: Comparisons Partition Distribution")
-		printPartitions(comparisons.asInstanceOf[RDD[Any]])
+		printPartitions(allowedComparisons.asInstanceOf[RDD[Any]])
+		log.info("Total comparisons " + allowedComparisons.map(_._2.length).sum())
 		val blocking_endTime = Calendar.getInstance()
 		log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime.getTimeInMillis - blocking_startTime.getTimeInMillis)/ 1000.0)
 

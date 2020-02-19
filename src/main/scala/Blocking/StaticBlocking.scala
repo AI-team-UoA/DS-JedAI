@@ -1,6 +1,6 @@
 package Blocking
 
-import DataStructures.{Block, SpatialEntity}
+import DataStructures.SpatialEntity
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -11,7 +11,8 @@ import utils.Constants
  */
 case class StaticBlocking (var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], distance: Double, blockingParameter: Double) extends  Blocking with Serializable {
 
-	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[Int])] = {
+
+	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[SpatialEntity])] = {
 
 		val blocks = spatialEntitiesRDD.map {
 			se =>
@@ -26,7 +27,7 @@ case class StaticBlocking (var source: RDD[SpatialEntity], var target: RDD[Spati
 
 				//TODO: crosses meridian case
 				val blockIDs = for(x <- minLongBlock to maxLongBlock; y <- minLatBlock to maxLatBlock) yield (x, y)
-				(blockIDs, se.id)
+				(blockIDs, se)
 		}
 		if (acceptedBlocks.nonEmpty) {
 			// filters out blocks that don't contain entities of the source
@@ -35,6 +36,7 @@ case class StaticBlocking (var source: RDD[SpatialEntity], var target: RDD[Spati
 			blocks.flatMap(p => p._1.filter(acceptedBlocksBD.value.contains).map(blockID => (blockID, Array(p._2)))).reduceByKey(_ ++ _)
 		}
 		else blocks.flatMap(p => p._1.map(blockID => (blockID, Array(p._2)))).reduceByKey(_++_)
+
 	}
 
 

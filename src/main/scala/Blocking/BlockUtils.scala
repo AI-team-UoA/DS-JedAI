@@ -55,14 +55,13 @@ object BlockUtils {
 	 * @param blocks an RDD of Blocks
 	 * @return an RDD of Comparisons
 	 */
-	def cleanBlocks(blocks: RDD[Block]): RDD[Comparison] ={
+	def cleanBlocks(blocks: RDD[Block]): RDD[(Int, Array[Int])] ={
 		blocks
-			.map(b => (b.id, b.getComparisons))
+			.map(b => (b.id, b.getComparisonsIDs))
 			.flatMap(b => b._2.map(c => (c, Array(b._1))))
 			.reduceByKey(_ ++ _)
     		.map(cb => (cb._2.min, Array(cb._1)))
     		.reduceByKey(_ ++ _)
-			.flatMap(_._2)
 	}
 
 
