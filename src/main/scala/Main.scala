@@ -8,7 +8,7 @@ import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
-import utils.ConfigurationParser
+import utils.{ConfigurationParser, Constants}
 import utils.Reader.CSVReader
 import utils.Utils.printPartitions
 
@@ -89,10 +89,6 @@ object Main {
 		val targetCount = targetRDD.setName("TargetRDD").cache().count()
 		log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
-
-		// Swapping: set the set with the smallest area as source
-		val (source, target, relation) = BlockUtils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
-
 /*
 		// Spatial partitioning
 		val spartitioning_startTime =  Calendar.getInstance()
@@ -105,30 +101,43 @@ object Main {
 		log.info("DS-JEDAI: Target Partition Distribution")
 		printPartitions(target.asInstanceOf[RDD[Any]])
 */
-		// Blocking
-		val blocking_startTime =  Calendar.getInstance()
-		//val blockingAlg = StaticBlocking(source, spatialPartitionedTarget, 10, 0.1)
-		val blockingAlg = RADON(source, target, conf.theta_measure)
-		val blocks = blockingAlg.apply().persist(StorageLevel.MEMORY_AND_DISK)
-		log.info("DS-JEDAI: Number of Blocks: " + blocks.count())
+		if (conf.relation == Constants.DISJOINT) {
+			val matching_startTime = Calendar.getInstance()
+			val matches = Matching.disjointMatches(sourceRDD, targetRDD).setName("Matches").persist(StorageLevel.MEMORY_AND_DISK)
+			log.info("DS-JEDAI: Matches: " + matches.count)
+			val matching_endTime = Calendar.getInstance()
+			log.info("DS-JEDAI: Matching Time: " + (matching_endTime.getTimeInMillis - matching_startTime.getTimeInMillis) / 1000.0)
+		}
+		else {
+
+			// Swapping: set the set with the smallest area as source
+			val (source, target, relation) = BlockUtils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
+
+			// Blocking
+			val blocking_startTime = Calendar.getInstance()
+			//val blockingAlg = StaticBlocking(source, spatialPartitionedTarget, 10, 0.1)
+			val blockingAlg = RADON(source, target, conf.theta_measure)
+			val blocks = blockingAlg.apply().persist(StorageLevel.MEMORY_AND_DISK)
+			log.info("DS-JEDAI: Number of Blocks: " + blocks.count())
 
 
-		// Block cleaning
-		val allowedComparisons = BlockUtils.cleanBlocks(blocks).setName("Comparisons").persist(StorageLevel.MEMORY_AND_DISK)
-		log.info("DS-JEDAI: Comparisons Partition Distribution")
-		printPartitions(allowedComparisons.asInstanceOf[RDD[Any]])
-		log.info("Total comparisons " + allowedComparisons.map(_._2.length).sum().toInt)
-		val blocking_endTime = Calendar.getInstance()
-		log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime.getTimeInMillis - blocking_startTime.getTimeInMillis)/ 1000.0)
+			// Block cleaning
+			val allowedComparisons = BlockUtils.cleanBlocks(blocks).setName("Comparisons").persist(StorageLevel.MEMORY_AND_DISK)
+			log.info("DS-JEDAI: Comparisons Partition Distribution")
+			printPartitions(allowedComparisons.asInstanceOf[RDD[Any]])
+			log.info("Total comparisons " + allowedComparisons.map(_._2.length).sum().toInt)
+			val blocking_endTime = Calendar.getInstance()
+			log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime.getTimeInMillis - blocking_startTime.getTimeInMillis) / 1000.0)
 
-		// Entity Matching
-		val matching_startTime =  Calendar.getInstance()
-		val matches = Matching.SpatialMatching(blocks, allowedComparisons, relation).setName("Matches").persist(StorageLevel.MEMORY_AND_DISK)
-		log.info("DS-JEDAI: Matches: " + matches.count)
-		val matching_endTime = Calendar.getInstance()
-		log.info("DS-JEDAI: Matching Time: " + (matching_endTime.getTimeInMillis - matching_startTime.getTimeInMillis)/ 1000.0)
+			// Entity Matching
+			val matching_startTime = Calendar.getInstance()
+			val matches = Matching.SpatialMatching(blocks, allowedComparisons, relation).setName("Matches").persist(StorageLevel.MEMORY_AND_DISK)
+			log.info("DS-JEDAI: Matches: " + matches.count)
+			val matching_endTime = Calendar.getInstance()
+			log.info("DS-JEDAI: Matching Time: " + (matching_endTime.getTimeInMillis - matching_startTime.getTimeInMillis) / 1000.0)
 
-		val endTime = Calendar.getInstance()
-		log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime.getTimeInMillis)/ 1000.0)
+			val endTime = Calendar.getInstance()
+			log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime.getTimeInMillis) / 1000.0)
+		}
 	}
 }

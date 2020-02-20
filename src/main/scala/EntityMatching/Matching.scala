@@ -1,12 +1,16 @@
 package EntityMatching
 
 import Blocking.BlockUtils
-import DataStructures.{Block, MBB}
+import DataStructures.{Block, MBB, SpatialEntity}
 import com.vividsolutions.jts.geom.Geometry
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{Encoder, Encoders}
+import org.datasyslab.geosparksql.utils.GeoSparkSQLRegistrator
 import utils.Constants
+import utils.Utils.spark
 
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.ClassTag
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
@@ -99,5 +103,29 @@ object Matching {
 			}
     		.flatMap(a => a)
 			matches
+	}
+
+	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
+	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
+
+	implicit def tuple[Int, String](implicit e1: Encoder[Int], e2: Encoder[String]): Encoder[(Int,String)] = Encoders.tuple[Int,String](e1, e2)
+	def disjointMatches(source: RDD[SpatialEntity], target: RDD[SpatialEntity]): RDD[(Int,Int)] ={
+		GeoSparkSQLRegistrator.registerAll(spark)
+		val disjointQuery =
+			"""SELECT SOURCE._1 AS SOURCE_ID, TARGET._1 AS TARGET_ID
+			  | FROM SOURCE, TARGET
+			  | WHERE NOT ST_Intersects( ST_GeomFromWKT(SOURCE._2),  ST_GeomFromWKT(TARGET._2))""".stripMargin
+
+		//import spark.implicits._
+		//spark.catalog.listFunctions.filter('name like "ST_%").show(200, false)
+
+		val sourceDT = spark.createDataset(source.map(se => (se.id, se.geometry.toText)))
+		sourceDT.createOrReplaceTempView("SOURCE")
+
+		val targetDT = spark.createDataset(target.map(se => (se.id, se.geometry.toText)))
+		targetDT.createOrReplaceTempView("TARGET")
+
+		val disjointResults = spark.sql(disjointQuery)
+		disjointResults.rdd.map(r => (r.get(0).asInstanceOf[Int], r.get(1).asInstanceOf[Int]))
 	}
 }
