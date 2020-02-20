@@ -9,7 +9,7 @@ import utils.Constants
 import scala.collection.mutable.ArrayBuffer
 
 /**
- * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 
 /**

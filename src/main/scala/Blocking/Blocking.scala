@@ -5,7 +5,7 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
 /**
- * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 trait Blocking {
 	var source: RDD[SpatialEntity]

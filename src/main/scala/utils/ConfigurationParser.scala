@@ -7,7 +7,7 @@ import org.apache.log4j.{Level, LogManager, Logger}
 import scala.io.Source
 
 /**
- * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 case class Dataset(path: String, realIdField: String, geometryField: String)
 

@@ -4,7 +4,7 @@ import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import utils.Constants
 
 /**
- * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 
 /**

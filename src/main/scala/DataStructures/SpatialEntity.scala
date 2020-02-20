@@ -4,7 +4,7 @@ import com.vividsolutions.jts.geom.Geometry
 import com.vividsolutions.jts.io.WKTReader
 
 /**
- * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 case class SpatialEntity( id: Int, originalID: String = "", geometry: Geometry,  mbb: MBB, crossesMeridian: Boolean)
 

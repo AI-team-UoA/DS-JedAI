@@ -5,7 +5,7 @@ import org.apache.spark.rdd.RDD
 import utils.Constants
 
 /**
- * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 object BlockUtils {
 	var swapped = false

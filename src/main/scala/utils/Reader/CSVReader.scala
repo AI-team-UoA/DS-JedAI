@@ -5,7 +5,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 /**
- * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 object CSVReader extends ReaderTrait {
 
@@ -21,7 +21,7 @@ object CSVReader extends ReaderTrait {
         val dt = spark.read.option("header", header).option("sep", separator).option("delimiter", "\"").csv(filePath)
         val attrColumns: Array[(String, Int)] = dt.columns.zipWithIndex.filter{ case(col, i) => col != realIdField && col != geometryField}
 
-        val SpatialEntitys: RDD[SpatialEntity] = dt.rdd.zipWithIndex()
+        val SpatialEntities: RDD[SpatialEntity] = dt.rdd.zipWithIndex()
             .map {
                 case(row, index) =>
                     val id = index + startIdFrom
@@ -33,7 +33,7 @@ object CSVReader extends ReaderTrait {
                     SpatialEntity(id.toInt, originalID, attr, geometry)
             }
 
-        SpatialEntitys.filter(!_.geometry.isEmpty)
+        SpatialEntities.filter(!_.geometry.isEmpty)
     }
 
 }

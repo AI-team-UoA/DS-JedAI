@@ -7,7 +7,7 @@ import org.apache.spark.rdd.RDD
 import utils.Constants
 
 /**
- * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 case class StaticBlocking (var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], distance: Double, blockingParameter: Double) extends  Blocking with Serializable {
 
