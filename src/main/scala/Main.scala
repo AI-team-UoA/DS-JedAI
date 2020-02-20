@@ -14,7 +14,7 @@ import utils.Utils.printPartitions
 
 
 /**
- * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 
 object Main {
@@ -117,14 +117,14 @@ object Main {
 		val allowedComparisons = BlockUtils.cleanBlocks(blocks).setName("Comparisons").persist(StorageLevel.MEMORY_AND_DISK)
 		log.info("DS-JEDAI: Comparisons Partition Distribution")
 		printPartitions(allowedComparisons.asInstanceOf[RDD[Any]])
-		log.info("Total comparisons " + allowedComparisons.map(_._2.length).sum())
+		log.info("Total comparisons " + allowedComparisons.map(_._2.length).sum().toInt)
 		val blocking_endTime = Calendar.getInstance()
 		log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime.getTimeInMillis - blocking_startTime.getTimeInMillis)/ 1000.0)
 
 		// Entity Matching
 		val matching_startTime =  Calendar.getInstance()
 		val matches = Matching.SpatialMatching(blocks, allowedComparisons, relation).setName("Matches").persist(StorageLevel.MEMORY_AND_DISK)
-		log.info("DS-JEDAI: MAtches: " + matches.count)
+		log.info("DS-JEDAI: Matches: " + matches.count)
 		val matching_endTime = Calendar.getInstance()
 		log.info("DS-JEDAI: Matching Time: " + (matching_endTime.getTimeInMillis - matching_startTime.getTimeInMillis)/ 1000.0)
 
