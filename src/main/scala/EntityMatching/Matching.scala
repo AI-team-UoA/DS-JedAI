@@ -78,7 +78,7 @@ object Matching {
  	 * @param relation requested relation
 	 * @return the matches
 	 */
-	def SpatialMatching(blocks: RDD[Block], allowedComparisosn: RDD[(Int, Array[Int])], relation: String): RDD[(Int,Int)] ={
+	def SpatialMatching(blocks: RDD[Block], allowedComparisosn: RDD[(Int, ArrayBuffer[Int])], relation: String): RDD[(Int,Int)] ={
 
 		val blocksComparisons = blocks.map(b => (b.id, (b.sourceSet, b.targetSet)))
 		val matches = blocksComparisons.leftOuterJoin(allowedComparisosn)

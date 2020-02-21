@@ -4,6 +4,8 @@ import DataStructures.{Block, SpatialEntity}
 import org.apache.spark.rdd.RDD
 import utils.Constants
 
+import scala.collection.mutable.ArrayBuffer
+
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
@@ -55,12 +57,12 @@ object BlockUtils {
 	 * @param blocks an RDD of Blocks
 	 * @return an RDD of Comparisons
 	 */
-	def cleanBlocks(blocks: RDD[Block]): RDD[(Int, Array[Int])] ={
+	def cleanBlocks(blocks: RDD[Block]): RDD[(Int, ArrayBuffer[Int])] ={
 		blocks
 			.map(b => (b.id, b.getComparisonsIDs))
-			.flatMap(b => b._2.map(c => (c, Array(b._1))))
+			.flatMap(b => b._2.map(c => (c, ArrayBuffer(b._1))))
 			.reduceByKey(_ ++ _)
-    		.map(cb => (cb._2.min, Array(cb._1)))
+    		.map(cb => (cb._2.min, ArrayBuffer(cb._1)))
     		.reduceByKey(_ ++ _)
 	}
 

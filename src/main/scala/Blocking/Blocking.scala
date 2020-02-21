@@ -4,6 +4,8 @@ import DataStructures.{Block, SpatialEntity}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
+import scala.collection.mutable.ArrayBuffer
+
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
@@ -21,7 +23,7 @@ trait Blocking {
 	 * @param acceptedBlocks the accepted blocks that the set can be indexed to
 	 * @return an Array of block ids for each spatial entity
 	 */
-	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[SpatialEntity])]
+	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), ArrayBuffer[SpatialEntity])]
 
 	/**
 	 * apply blocking
@@ -33,7 +35,7 @@ trait Blocking {
 
 		val targetIndex = index(target, sourceBlocks)
 
-		val blocksIndex: RDD[((Int, Int), (Array[SpatialEntity], Option[Array[SpatialEntity]]))] = sourceIndex.leftOuterJoin(targetIndex)
+		val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[SpatialEntity]]))] = sourceIndex.leftOuterJoin(targetIndex)
 
 		// construct blocks from indexes
 		val blocksRDD = blocksIndex

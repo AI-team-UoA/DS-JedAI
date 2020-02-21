@@ -6,13 +6,18 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import utils.Constants
 
+import scala.collection.mutable.ArrayBuffer
+
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 case class StaticBlocking (var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], blockingParameter: Double, distance: Double) extends  Blocking with Serializable {
 
 
-	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[SpatialEntity])] = {
+	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), ArrayBuffer[SpatialEntity])] = {
+
+		val acceptedBlocksBD = SparkContext.getOrCreate().broadcast(acceptedBlocks)
+		broadcastMap += ("acceptedBlocks" -> acceptedBlocksBD.asInstanceOf[Broadcast[Any]])
 
 		val blocks = spatialEntitiesRDD.map {
 			se =>
@@ -26,17 +31,15 @@ case class StaticBlocking (var source: RDD[SpatialEntity], var target: RDD[Spati
 				val maxLongBlock = (envelope.getMaxX*blockingParameter).toInt
 
 				//TODO: crosses meridian case
-				val blockIDs = for(x <- minLongBlock to maxLongBlock; y <- minLatBlock to maxLatBlock) yield (x, y)
+				val blockIDs =
+					if (acceptedBlocksBD.value.nonEmpty)
+						for(x <- minLongBlock to maxLongBlock; y <- minLatBlock to maxLatBlock;  if acceptedBlocksBD.value.contains((x, y))) yield (x, y)
+					else
+						for(x <- minLongBlock to maxLongBlock; y <- minLatBlock to maxLatBlock) yield (x, y)
+
 				(blockIDs, se)
 		}
-		if (acceptedBlocks.nonEmpty) {
-			// filters out blocks that don't contain entities of the source
-			val acceptedBlocksBD = SparkContext.getOrCreate().broadcast(acceptedBlocks)
-			broadcastMap += ("acceptedBlocks" -> acceptedBlocksBD.asInstanceOf[Broadcast[Any]])
-			blocks.flatMap(p => p._1.filter(acceptedBlocksBD.value.contains).map(blockID => (blockID, Array(p._2)))).reduceByKey(_ ++ _)
-		}
-		else blocks.flatMap(p => p._1.map(blockID => (blockID, Array(p._2)))).reduceByKey(_++_)
-
+		blocks.flatMap(p => p._1.map(blockID => (blockID, ArrayBuffer(p._2)))).reduceByKey(_++_)
 	}
 
 
