@@ -39,4 +39,20 @@ object Constants {
 	val OVERLAPS = "overlaps"
 	val COVERS = "covers"
 	val COVEREDBY = "coveredby"
+
+	/**
+	 * Blocking Algorithms
+	 */
+	val RADON = "RADON"
+	val STATIC_BLOCKING = "StaticBlocking"
+
+	/**
+	 * YAML Configurations arguments
+	 */
+	val CONF_BLOCK_ALG = "blockingAlg"
+	val CONF_PARTITIONS = "partitions"
+	val CONF_SPATIAL_PARTITION = "spatialPartition"
+	val CONF_THETA_MEASURE = "theta_measure"
+	val CONF_STATIC_BLOCKING_DISTANCE = "static_blocking_distance"
+	val CONF_SPATIAL_BLOCKING_FACTOR = "spatial_blocking_factor"
 }

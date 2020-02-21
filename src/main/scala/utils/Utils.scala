@@ -39,7 +39,7 @@ object Utils {
 	 * @param partitions number of partitions
 	 * @return source and target as spatial partitioned
 	 */
-	def spatialPartition(source: RDD[SpatialEntity], target:RDD[SpatialEntity], partitions: Int = 8): (RDD[SpatialEntity], RDD[SpatialEntity]) ={
+	def spatialPartition(source: RDD[SpatialEntity], target:RDD[SpatialEntity], gridType: GridType = GridType.KDBTREE, partitions: Int = -1): (RDD[SpatialEntity], RDD[SpatialEntity]) ={
 
 		GeoSparkSQLRegistrator.registerAll(spark)
 		val geometryQuery =  """SELECT ST_GeomFromWKT(GEOMETRIES._1) AS WKT,  GEOMETRIES._2 AS ID FROM GEOMETRIES""".stripMargin
@@ -54,7 +54,8 @@ object Utils {
 
 		// spatial partition RDD
 		spatialRDD.analyze()
-		spatialRDD.spatialPartitioning(GridType.KDBTREE)
+		if (partitions > 0 ) spatialRDD.spatialPartitioning(gridType, partitions)
+		else spatialRDD.spatialPartitioning(gridType)
 
 		// map of each spatial entity to which partition belongs to
 		val spatialPartitionMap = spatialRDD.spatialPartitionedRDD.rdd.mapPartitions {

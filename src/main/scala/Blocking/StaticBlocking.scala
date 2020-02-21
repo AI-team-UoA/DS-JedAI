@@ -9,7 +9,7 @@ import utils.Constants
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-case class StaticBlocking (var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], distance: Double, blockingParameter: Double) extends  Blocking with Serializable {
+case class StaticBlocking (var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], blockingParameter: Double, distance: Double) extends  Blocking with Serializable {
 
 
 	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[SpatialEntity])] = {

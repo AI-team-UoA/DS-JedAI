@@ -1,6 +1,6 @@
 import java.util.Calendar
 
-import Blocking.{BlockUtils, RADON, StaticBlocking}
+import Blocking.{BlockUtils, BlockingFactory, RADON, StaticBlocking}
 import EntityMatching.Matching
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.rdd.RDD
@@ -8,7 +8,7 @@ import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
-import utils.{ConfigurationParser, Constants}
+import utils.{ConfigurationParser, Constants, Utils}
 import utils.Reader.CSVReader
 import utils.Utils.printPartitions
 
@@ -57,14 +57,20 @@ object Main {
 
 		val conf_path = options("conf")
 		val conf = ConfigurationParser.parse(conf_path)
+		val partitions: Int = conf.configurations.getOrElse(Constants.CONF_PARTITIONS, "0").toInt
+		val repartition: Boolean = partitions > 0
+		val spatialPartition: Boolean = conf.configurations.getOrElse(Constants.CONF_SPATIAL_PARTITION, "false").toBoolean
 
 		// Loading Source
 		val sourcePath = conf.source.path
 		val sourceFileExtension = sourcePath.toString.split("\\.").last
 		val sourceRDD =
 			sourceFileExtension match {
-				case "csv" => CSVReader.loadProfiles(sourcePath, conf.source.realIdField, conf.source.geometryField)
-					.map(es => (es.id, es)).partitionBy(new org.apache.spark.HashPartitioner(8)).map(_._2)
+				case "csv" =>
+					val data = CSVReader.loadProfiles(sourcePath, conf.source.realIdField, conf.source.geometryField)
+					if (repartition && !spatialPartition)
+						data.repartition(partitions)
+					else data
 				case _ =>
 					log.error("DS-JEDAI: This filetype is not supported yet")
 					System.exit(1)
@@ -79,8 +85,11 @@ object Main {
 		val targetFileExtension = targetPath.toString.split("\\.").last
 		val targetRDD =
 			targetFileExtension match {
-				case "csv" => CSVReader.loadProfiles2(targetPath, conf.target.realIdField, conf.target.geometryField, startIdFrom=indexSeparator)
-					.map(es => (es.id, es)).partitionBy(new org.apache.spark.HashPartitioner(8)).map(_._2)
+				case "csv" =>
+					val data = CSVReader.loadProfiles2(targetPath, conf.target.realIdField, conf.target.geometryField, startIdFrom=indexSeparator)
+					if (repartition && !spatialPartition)
+						data.repartition(partitions)
+					else data
 				case _ =>
 					log.error("DS-JEDAI: This filetype is not supported yet")
 					System.exit(1)
@@ -89,42 +98,54 @@ object Main {
 		val targetCount = targetRDD.setName("TargetRDD").cache().count()
 		log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
-/*
-		// Spatial partitioning
-		val spartitioning_startTime =  Calendar.getInstance()
-		//val (spatialPartitionedSource, spatialPartitionedTarget) = Utils.spatialPartition(source, target)
-		val spartitioning_endTime = Calendar.getInstance()
-		log.info("DS-JEDAI: Spatial Partitioning Took: " + (spartitioning_endTime.getTimeInMillis - spartitioning_startTime.getTimeInMillis)/ 1000.0)
+		// Swapping: set the set with the smallest area as source
+		val (source, target, relation) = {
+			if (spatialPartition) {
+				// Spatial partitioning
+				val sPartitioning_startTime = Calendar.getInstance()
+				var (spatialPartitionedSource, spatialPartitionedTarget) =
+					if (repartition) Utils.spatialPartition(sourceRDD, targetRDD, partitions=partitions)
+					else Utils.spatialPartition(sourceRDD, targetRDD)
 
-		log.info("DS-JEDAI: Source Partition Distribution")
-		printPartitions(source.asInstanceOf[RDD[Any]])
-		log.info("DS-JEDAI: Target Partition Distribution")
-		printPartitions(target.asInstanceOf[RDD[Any]])
-*/
+				// caching and un-persisting previous RDDs
+				spatialPartitionedSource = spatialPartitionedSource.setName("SpatialPartitionedSource").persist(StorageLevel.MEMORY_AND_DISK)
+				spatialPartitionedTarget = spatialPartitionedTarget.setName("SpatialPartitionedTarget").persist(StorageLevel.MEMORY_AND_DISK)
+				sourceRDD.unpersist()
+				targetRDD.unpersist()
+
+				val sPartitioning_time = (Calendar.getInstance().getTimeInMillis - sPartitioning_startTime.getTimeInMillis)/ 1000.0
+				log.info("DS-JEDAI: Spatial Partitioning Took: " + sPartitioning_time )
+				log.info("DS-JEDAI: Source Partition Distribution")
+				printPartitions(spatialPartitionedSource.asInstanceOf[RDD[Any]])
+				log.info("DS-JEDAI: Target Partition Distribution")
+				printPartitions(spatialPartitionedTarget.asInstanceOf[RDD[Any]])
+
+				// swapping
+				BlockUtils.swappingStrategy(spatialPartitionedSource, spatialPartitionedTarget, conf.relation)
+			}
+			else
+				BlockUtils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
+		}
+
 		if (conf.relation == Constants.DISJOINT) {
 			val matching_startTime = Calendar.getInstance()
-			val matches = Matching.disjointMatches(sourceRDD, targetRDD).setName("Matches").persist(StorageLevel.MEMORY_AND_DISK)
+			val matches = Matching.disjointMatches(source, target).setName("Matches").persist(StorageLevel.MEMORY_AND_DISK)
 			log.info("DS-JEDAI: Matches: " + matches.count)
 			val matching_endTime = Calendar.getInstance()
 			log.info("DS-JEDAI: Matching Time: " + (matching_endTime.getTimeInMillis - matching_startTime.getTimeInMillis) / 1000.0)
 		}
 		else {
 
-			// Swapping: set the set with the smallest area as source
-			val (source, target, relation) = BlockUtils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
-
 			// Blocking
 			val blocking_startTime = Calendar.getInstance()
-			//val blockingAlg = StaticBlocking(source, spatialPartitionedTarget, 10, 0.1)
-			val blockingAlg = RADON(source, target, conf.theta_measure)
-			val blocks = blockingAlg.apply().persist(StorageLevel.MEMORY_AND_DISK)
+			val blocking = BlockingFactory.getBlocking(conf, source, target)
+			val blocks = blocking.apply().setName("Blocks").persist(StorageLevel.MEMORY_AND_DISK)
 			log.info("DS-JEDAI: Number of Blocks: " + blocks.count())
-
 
 			// Block cleaning
 			val allowedComparisons = BlockUtils.cleanBlocks(blocks).setName("Comparisons").persist(StorageLevel.MEMORY_AND_DISK)
 			log.info("DS-JEDAI: Comparisons Partition Distribution")
-			printPartitions(allowedComparisons.asInstanceOf[RDD[Any]])
+			printPartitions(allowedComparisons.flatMap(_._2).asInstanceOf[RDD[Any]])
 			log.info("Total comparisons " + allowedComparisons.map(_._2.length).sum().toInt)
 			val blocking_endTime = Calendar.getInstance()
 			log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime.getTimeInMillis - blocking_startTime.getTimeInMillis) / 1000.0)
