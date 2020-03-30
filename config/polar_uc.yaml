@@ -9,4 +9,9 @@ target:
   geometryField: "WKT"
 
 relation: "contains"
-theta_measure: "none"
+
+configurations:
+  blockingAlg: "RADON"
+  partitions: "8"
+  spatialPartition: "false"
+  theta_measure: "none"
