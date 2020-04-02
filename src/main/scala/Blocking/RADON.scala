@@ -1,6 +1,6 @@
 package Blocking
 
-import DataStructures.{Block, SpatialEntity}
+import DataStructures.{Block, SpatialEntity, TBlock}
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -30,7 +30,7 @@ case class RADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity],
 			.map {
 				sp =>
 					val env = sp.geometry.getEnvelopeInternal
-					(env.getHeight, env.getHeight)
+					(env.getHeight, env.getWidth)
 			}
     		.setName("thetaMsr")
     		.cache()
@@ -89,11 +89,15 @@ case class RADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity],
 					val embb_minY = math.floor(easternMBB.minY / thetaY).toInt
 
 					if (acceptedBlocksBD.value.nonEmpty) {
-						(for (x <- wmbb_minX to wmbb_maxX; y <- wmbb_minY to wmbb_maxY; if acceptedBlocksBD.value.contains((x, y))) yield (x, y)) ++
-						(for (x <- embb_minX to embb_maxX; y <- embb_minY to embb_maxY; if acceptedBlocksBD.value.contains((x, y))) yield (x, y))
+						val western =  for (x <- wmbb_minX to wmbb_maxX; y <- wmbb_minY to wmbb_maxY; if acceptedBlocksBD.value.contains((x, y))) yield (x, y)
+						val eastern = for (x <- embb_minX to embb_maxX; y <- embb_minY to embb_maxY; if acceptedBlocksBD.value.contains((x, y))) yield (x, y)
+						eastern ++ western
 					}
-					else
-						(for (x <- wmbb_minX to wmbb_maxX; y <- wmbb_minY to wmbb_maxY) yield (x, y)) ++ (for (x <- embb_minX to embb_maxX; y <- embb_minY to embb_maxY) yield (x, y))
+					else{
+						val western =  for (x <- wmbb_minX to wmbb_maxX; y <- wmbb_minY to wmbb_maxY) yield (x, y)
+						val eastern = for (x <- embb_minX to embb_maxX; y <- embb_minY to embb_maxY) yield (x, y)
+						eastern ++ western
+					}
 				}
 				else {
 					val maxX = math.ceil(se.mbb.maxX / thetaX).toInt
@@ -101,7 +105,10 @@ case class RADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity],
 					val maxY = math.ceil(se.mbb.maxY / thetaY).toInt
 					val minY = math.floor(se.mbb.minY / thetaY).toInt
 
-					for (x <- minX to maxX; y <- minY to maxY) yield (x, y)
+					if (acceptedBlocksBD.value.nonEmpty)
+						for (x <- minX to maxX; y <- minY to maxY; if acceptedBlocksBD.value.contains((x, y))) yield (x, y)
+					else
+						for (x <- minX to maxX; y <- minY to maxY) yield (x, y)
 				}
 			}
 			(blockIDs, se)
