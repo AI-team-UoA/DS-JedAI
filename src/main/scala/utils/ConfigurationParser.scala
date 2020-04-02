@@ -53,7 +53,7 @@ object ConfigurationParser {
 							System.exit(1)
 						}
 					case Constants.CONF_BLOCK_ALG =>
-						if (! (value == Constants.RADON || value == Constants.STATIC_BLOCKING)) {
+						if (! (value == Constants.RADON || value == Constants.STATIC_BLOCKING || value == Constants.LIGHT_RADON)) {
 							log.error("DS-JEDAI: Blocking Algorithm '" + value + "' not supported")
 							System.exit(1)
 						}

@@ -1,6 +1,6 @@
 package Blocking
 
-import DataStructures.{Block, SpatialEntity}
+import DataStructures.{Block, LightBlock, SpatialEntity}
 import org.apache.spark.rdd.RDD
 import utils.Constants
 
@@ -66,6 +66,21 @@ object BlockUtils {
     		.reduceByKey(_ ++ _)
 	}
 
+	/**
+	 * Remove duplicate comparisons from blocks by keeping each comparison only to the block
+	 * with the minimum id.
+	 *
+	 * @param blocks an RDD of Blocks
+	 * @return an RDD of Comparisons
+	 */
+	def cleanLightBlocks(blocks: RDD[LightBlock]): RDD[(Int, ArrayBuffer[Int])] ={
+		blocks
+			.map(b => (b.id, b.getComparisonsIDs))
+			.flatMap(b => b._2.map(c => (c, ArrayBuffer(b._1))))
+			.reduceByKey(_ ++ _)
+			.map(cb => (cb._2.min, ArrayBuffer(cb._1)))
+			.reduceByKey(_ ++ _)
+	}
 
 	/**
 	 * Compute the Estimation of the Total Hyper-volume

@@ -44,7 +44,8 @@ object Constants {
 	 * Blocking Algorithms
 	 */
 	val RADON = "RADON"
-	val STATIC_BLOCKING = "StaticBlocking"
+	val STATIC_BLOCKING = "STATIC_BLOCKING"
+	val LIGHT_RADON = "LIGHT_RADON"
 
 	/**
 	 * YAML Configurations arguments

@@ -1,6 +1,6 @@
 package Blocking
 
-import DataStructures.{Block, SpatialEntity}
+import DataStructures.{Block, LightBlock, SpatialEntity, TBlock}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
@@ -49,4 +49,7 @@ trait Blocking {
 			.setName("BlocksRDD")
 		blocksRDD
 	}
+
+	def apply(liTarget: Boolean = true): RDD[LightBlock] = {null}
+
 }
