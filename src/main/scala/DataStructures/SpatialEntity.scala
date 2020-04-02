@@ -15,7 +15,14 @@ object SpatialEntity {
         val wktReader = new WKTReader()
         val geometry: Geometry = wktReader.read(wkt)
         val mbb = MBB(geometry)
+        val crossesMeridian =  mbb.crossesMeridian
 
+        SpatialEntity(id, originalID, geometry, mbb, crossesMeridian)
+    }
+
+    def apply(id: Int, originalID: String, attributes: Array[KeyValue], geom: Geometry): SpatialEntity ={
+        val geometry: Geometry = geom
+        val mbb = MBB(geometry)
         val crossesMeridian =  mbb.crossesMeridian
 
         SpatialEntity(id, originalID, geometry, mbb, crossesMeridian)

@@ -1,6 +1,8 @@
 package utils.Reader
 
-import DataStructures.{SpatialEntity, KeyValue}
+import DataStructures.{KeyValue, SpatialEntity}
+import com.vividsolutions.jts.geom.Geometry
+import com.vividsolutions.jts.io.WKTReader
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -21,18 +23,28 @@ object CSVReader extends ReaderTrait {
         val dt = spark.read.option("header", header).option("sep", separator).option("delimiter", "\"").csv(filePath)
         val attrColumns: Array[(String, Int)] = dt.columns.zipWithIndex.filter{ case(col, i) => col != realIdField && col != geometryField}
 
-        val SpatialEntities: RDD[SpatialEntity] = dt.rdd.zipWithIndex()
+        val SpatialEntities: RDD[SpatialEntity] = dt.rdd
+            .mapPartitions{
+                rows =>
+                    val wktReader = new WKTReader()
+                    rows.map {
+                        row =>
+                            val wkt: String = row.getAs(geometryField).toString
+                            val geometry: Geometry = wktReader.read(wkt)
+                            (geometry, row)
+                    }
+            }
+            .filter(!_._1.isEmpty)
+            .zipWithIndex()
             .map {
-                case(row, index) =>
+                case((geometry, row), index) =>
                     val id = index + startIdFrom
-                    val geometry: String = row.getAs(geometryField).toString
                     val originalID: String = row.getAs(realIdField).toString
-                    val attr =  attrColumns
+                    val attr = attrColumns
                         .filter({ case(_, index) => !row. isNullAt(index)})
                         .map({case(col, index) => KeyValue(col, row.get(index).toString)})
                     SpatialEntity(id.toInt, originalID, attr, geometry)
             }
-
         SpatialEntities.filter(!_.geometry.isEmpty)
     }
 
