@@ -1,18 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="6283d73b-85f1-4d29-931d-a034e2f85cfc" name="Default Changelist" comment="author">
-      <change beforePath="$PROJECT_DIR$/src/main/scala/Blocking/BlockUtils.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/scala/Blocking/BlockUtils.scala" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/scala/Blocking/RADON.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/scala/Blocking/RADON.scala" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/scala/DataStructures/MBB.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/scala/DataStructures/MBB.scala" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/scala/Main.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/scala/Main.scala" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/scala/utils/ConfigurationParser.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/scala/utils/ConfigurationParser.scala" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/scala/utils/Constant.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/scala/utils/Constants.scala" afterDir="false" />
+    <list default="true" id="6283d73b-85f1-4d29-931d-a034e2f85cfc" name="Default Changelist" comment="LightRADON (blocking + matching)">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/scala/DataStructures/SpatialEntity.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/scala/DataStructures/SpatialEntity.scala" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/scala/utils/Reader/CSVReader.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/scala/utils/Reader/CSVReader.scala" afterDir="false" />
     </list>
     <list id="186c20a0-96ea-4dd2-9a80-ed93752d718a" name="blocking: sparse space tilling" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/config/polar_uc.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/exp1.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/exp1.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/polar_uc.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/polar_uc.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -32,7 +27,28 @@
       <state>
         <projects_view>
           <tree_state>
-            <expand />
+            <expand>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="DS-JedAI" type="f1a62948:ProjectNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="DS-JedAI" type="f1a62948:ProjectNode" />
+                <item name="DS-JedAI" type="2d1252cf:ModuleNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="DS-JedAI" type="f1a62948:ProjectNode" />
+                <item name="DS-JedAI" type="2d1252cf:ModuleNode" />
+                <item name="sbt tasks" type="d9357504:SbtViewContributor$SbtTasksGroupNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="DS-JedAI" type="f1a62948:ProjectNode" />
+                <item name="DS-JedAI-build" type="2d1252cf:ModuleNode" />
+              </path>
+            </expand>
             <select />
           </tree_state>
         </projects_view>
@@ -41,6 +57,14 @@
   </component>
   <component name="FavoritesManager">
     <favorites_list name="DS-JedAI" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Package Object" />
+        <option value="Scala Object" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -58,11 +82,16 @@
   <component name="PropertiesComponent">
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="TODO_SCOPE" value="All Places" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/../Distributed-JedAI/SparkER" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/config" />
     <property name="settings.editor.selected.configurable" value="fileTemplates" />
   </component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/config" />
+    </key>
+  </component>
   <component name="RunManager">
-    <configuration name="skywalker" type="Remote">
+    <configuration name="local" type="Remote">
       <module name="DS-JedAI" />
       <option name="USE_SOCKET_TRANSPORT" value="true" />
       <option name="SERVER_MODE" value="false" />
@@ -104,7 +133,7 @@
     </option>
     <option name="modificationStamps">
       <map>
-        <entry key="$PROJECT_DIR$" value="4741412404512" />
+        <entry key="$PROJECT_DIR$" value="4742680885868" />
         <entry key="$PROJECT_DIR$/build.sbt" value="3395356586" />
         <entry key="$PROJECT_DIR$/project/build.properties" value="3666975207" />
         <entry key="$PROJECT_DIR$/project/plugins.sbt" value="2573304535" />
@@ -120,6 +149,25 @@
         <entry key="$PROJECT_DIR$/../../../projects/stark" value="PREVIEW" />
         <entry key="$USER_HOME$/Packages/silk" value="PREVIEW" />
       </map>
+    </option>
+  </component>
+  <component name="ScalaProjectSettings">
+    <option name="intInjectionMapping">
+      <map>
+        <entry key="xml" value="XML" />
+      </map>
+    </option>
+  </component>
+  <component name="ServiceViewManager">
+    <option name="viewStates">
+      <list>
+        <serviceView>
+          <treeState>
+            <expand />
+            <select />
+          </treeState>
+        </serviceView>
+      </list>
     </option>
   </component>
   <component name="SvnConfiguration">
@@ -218,7 +266,21 @@
       <option name="project" value="LOCAL" />
       <updated>1581937671231</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="LightRADON (blocking + matching)">
+      <created>1585830530573</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1585830530573</updated>
+    </task>
+    <task id="LOCAL-00014" summary="fixes">
+      <created>1585830571286</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1585830571286</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -246,28 +308,38 @@
     <MESSAGE value="timing" />
     <MESSAGE value="constants" />
     <MESSAGE value="author" />
-    <option name="LAST_COMMIT_MESSAGE" value="author" />
+    <MESSAGE value="LightRADON (blocking + matching)" />
+    <MESSAGE value="fixes" />
+    <option name="LAST_COMMIT_MESSAGE" value="fixes" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="757" y="277" width="524" height="482" key="#com.intellij.codeInsight.editorActions.RestoreReferencesDialog" timestamp="1581940640373">
-      <screen x="0" y="0" width="2048" height="1040" />
+    <state x="710" y="277" width="524" height="482" key="#com.intellij.codeInsight.editorActions.RestoreReferencesDialog" timestamp="1585815334102">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
+    <state x="710" y="277" width="524" height="482" key="#com.intellij.codeInsight.editorActions.RestoreReferencesDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1585815334102" />
     <state x="757" y="277" width="524" height="482" key="#com.intellij.codeInsight.editorActions.RestoreReferencesDialog/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581940640373" />
-    <state x="482" y="177" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1581503762336">
-      <screen x="0" y="0" width="2048" height="1040" />
+    <state x="452" y="177" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1585653547977">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
+    <state x="452" y="177" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1585653547977" />
     <state x="482" y="177" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581503762336" />
+    <state x="643" y="257" width="624" height="522" key="#com.intellij.openapi.updateSettings.impl.PluginUpdateInfoDialog" timestamp="1585651749343">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="643" y="257" width="624" height="522" key="#com.intellij.openapi.updateSettings.impl.PluginUpdateInfoDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1585651749343" />
     <state x="757" y="268" width="524" height="499" key="#com.intellij.refactoring.safeDelete.UnsafeUsagesDialog" timestamp="1581506558296">
       <screen x="0" y="0" width="2048" height="1040" />
     </state>
     <state x="757" y="268" width="524" height="499" key="#com.intellij.refactoring.safeDelete.UnsafeUsagesDialog/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581506558296" />
-    <state x="1034" y="120" width="735" height="557" key="#xdebugger.evaluate" timestamp="1581940691775">
-      <screen x="0" y="0" width="2048" height="1040" />
+    <state x="605" y="120" width="848" height="591" key="#xdebugger.evaluate" timestamp="1585818454121">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
+    <state x="605" y="120" width="848" height="591" key="#xdebugger.evaluate/0.0.1920.1040@0.0.1920.1040" timestamp="1585818454121" />
     <state x="1034" y="120" width="735" height="557" key="#xdebugger.evaluate/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581940691775" />
-    <state x="307" y="168" width="1483" height="803" key="CommitChangelistDialog2" timestamp="1581940897283">
-      <screen x="0" y="0" width="2048" height="1040" />
+    <state x="288" y="168" width="1335" height="803" key="CommitChangelistDialog2" timestamp="1585830604445">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
+    <state x="288" y="168" width="1335" height="803" key="CommitChangelistDialog2/0.0.1920.1040@0.0.1920.1040" timestamp="1585830604445" />
     <state x="307" y="168" width="1483" height="803" key="CommitChangelistDialog2/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581940897283" />
     <state x="195" y="87" width="1638" height="860" key="DiffContextDialog" timestamp="1581666030135">
       <screen x="0" y="0" width="2048" height="1040" />
@@ -281,37 +353,45 @@
       <screen x="0" y="0" width="2048" height="1040" />
     </state>
     <state x="859" y="425" key="GitRewordDialog/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581507921706" />
-    <state width="2002" height="339" key="GridCell.Tab.0.bottom" timestamp="1581940735126">
-      <screen x="0" y="0" width="2048" height="1040" />
+    <state width="1874" height="327" key="GridCell.Tab.0.bottom" timestamp="1585830473411">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
+    <state width="1874" height="327" key="GridCell.Tab.0.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1585830473411" />
     <state width="2002" height="339" key="GridCell.Tab.0.bottom/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581940735126" />
-    <state width="2002" height="339" key="GridCell.Tab.0.center" timestamp="1581940735126">
-      <screen x="0" y="0" width="2048" height="1040" />
+    <state width="1874" height="327" key="GridCell.Tab.0.center" timestamp="1585830473411">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
+    <state width="1874" height="327" key="GridCell.Tab.0.center/0.0.1920.1040@0.0.1920.1040" timestamp="1585830473411" />
     <state width="2002" height="339" key="GridCell.Tab.0.center/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581940735126" />
-    <state width="2002" height="339" key="GridCell.Tab.0.left" timestamp="1581940735126">
-      <screen x="0" y="0" width="2048" height="1040" />
+    <state width="1874" height="327" key="GridCell.Tab.0.left" timestamp="1585830473411">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
+    <state width="1874" height="327" key="GridCell.Tab.0.left/0.0.1920.1040@0.0.1920.1040" timestamp="1585830473411" />
     <state width="2002" height="339" key="GridCell.Tab.0.left/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581940735126" />
-    <state width="2002" height="339" key="GridCell.Tab.0.right" timestamp="1581940735126">
-      <screen x="0" y="0" width="2048" height="1040" />
+    <state width="1874" height="327" key="GridCell.Tab.0.right" timestamp="1585830473411">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
+    <state width="1874" height="327" key="GridCell.Tab.0.right/0.0.1920.1040@0.0.1920.1040" timestamp="1585830473411" />
     <state width="2002" height="339" key="GridCell.Tab.0.right/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581940735126" />
-    <state width="2002" height="339" key="GridCell.Tab.1.bottom" timestamp="1581940748704">
-      <screen x="0" y="0" width="2048" height="1040" />
+    <state width="1874" height="327" key="GridCell.Tab.1.bottom" timestamp="1585830473412">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
+    <state width="1874" height="327" key="GridCell.Tab.1.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1585830473412" />
     <state width="2002" height="339" key="GridCell.Tab.1.bottom/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581940748704" />
-    <state width="2002" height="339" key="GridCell.Tab.1.center" timestamp="1581940748704">
-      <screen x="0" y="0" width="2048" height="1040" />
+    <state width="1874" height="327" key="GridCell.Tab.1.center" timestamp="1585830473412">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
+    <state width="1874" height="327" key="GridCell.Tab.1.center/0.0.1920.1040@0.0.1920.1040" timestamp="1585830473412" />
     <state width="2002" height="339" key="GridCell.Tab.1.center/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581940748704" />
-    <state width="2002" height="339" key="GridCell.Tab.1.left" timestamp="1581940748704">
-      <screen x="0" y="0" width="2048" height="1040" />
+    <state width="1874" height="327" key="GridCell.Tab.1.left" timestamp="1585830473412">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
+    <state width="1874" height="327" key="GridCell.Tab.1.left/0.0.1920.1040@0.0.1920.1040" timestamp="1585830473412" />
     <state width="2002" height="339" key="GridCell.Tab.1.left/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581940748704" />
-    <state width="2002" height="339" key="GridCell.Tab.1.right" timestamp="1581940748704">
-      <screen x="0" y="0" width="2048" height="1040" />
+    <state width="1874" height="327" key="GridCell.Tab.1.right" timestamp="1585830473412">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
+    <state width="1874" height="327" key="GridCell.Tab.1.right/0.0.1920.1040@0.0.1920.1040" timestamp="1585830473412" />
     <state width="2002" height="339" key="GridCell.Tab.1.right/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581940748704" />
     <state x="805" y="388" width="427" height="260" key="NewModule_or_Project.wizard" timestamp="1581503228336">
       <screen x="0" y="0" width="2048" height="1040" />
@@ -333,34 +413,49 @@
       <screen x="0" y="0" width="2048" height="1040" />
     </state>
     <state width="1024" height="520" key="XDebugger.FullValuePopup/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581508229816" />
-    <state x="717" y="346" key="com.intellij.ide.util.TipDialog" timestamp="1581680996782">
-      <screen x="0" y="0" width="2048" height="1040" />
+    <state x="672" y="346" key="com.intellij.ide.util.TipDialog" timestamp="1585810432472">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
+    <state x="672" y="346" key="com.intellij.ide.util.TipDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1585810432472" />
     <state x="717" y="346" key="com.intellij.ide.util.TipDialog/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581680996782" />
     <state x="688" y="237" key="run.anything.popup" timestamp="1581594692734">
       <screen x="0" y="0" width="2048" height="1040" />
     </state>
     <state x="688" y="237" key="run.anything.popup/0.0.2048.1040/2048.0.1920.1080@0.0.2048.1040" timestamp="1581594692734" />
+    <state x="623" y="228" width="672" height="678" key="search.everywhere.popup" timestamp="1585817029559">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="623" y="228" width="672" height="678" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1585817029559" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" type="scala-line">
           <url>file://$PROJECT_DIR$/src/main/scala/DataStructures/MBB.scala</url>
-          <line>23</line>
+          <line>43</line>
           <option name="timeStamp" value="15" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="scala-line">
           <url>file://$PROJECT_DIR$/src/main/scala/Blocking/StaticBlocking.scala</url>
-          <line>28</line>
+          <line>34</line>
           <option name="timeStamp" value="19" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="scala-line">
+          <url>file://$PROJECT_DIR$/src/main/scala/EntityMatching/Matching.scala</url>
+          <line>34</line>
+          <option name="timeStamp" value="39" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="scala-line">
+          <url>file://$PROJECT_DIR$/src/main/scala/EntityMatching/Matching.scala</url>
+          <line>157</line>
+          <option name="timeStamp" value="44" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="scala-line">
+          <url>file://$PROJECT_DIR$/src/main/scala/EntityMatching/Matching.scala</url>
+          <line>58</line>
+          <option name="timeStamp" value="45" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
-    <watches-manager>
-      <configuration name="Remote">
-        <watch expression="p.map(_._1).toSet" language="Scala" />
-      </configuration>
-    </watches-manager>
   </component>
 </project>
