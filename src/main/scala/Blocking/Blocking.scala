@@ -120,15 +120,14 @@ trait Blocking {
 		val sourceBlocks: Set[(Int, Int)] = sourceIndex.map(b => Set(b._1)).reduce(_++_)
 		val targetIndex = index(target, sourceBlocks)
 
-		val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[SpatialEntity]]))] = sourceIndex.leftOuterJoin(targetIndex)
+		val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[SpatialEntity]]))] = targetIndex.leftOuterJoin(sourceIndex)
 
 		// construct blocks from indexes
 		val blocksRDD = blocksIndex
-			.filter(b => b._2._2.isDefined)
 			.map { block =>
 				val blockCoords = block._1
-				val sourceIndexSet = block._2._1.toSet
-				val targetIndexSet = block._2._2.get.toSet
+				val targetIndexSet = block._2._1.toSet
+				val  sourceIndexSet = block._2._2.get.toSet
 				Block(blockCoords, sourceIndexSet, targetIndexSet)
 			}
 			.setName("BlocksRDD")

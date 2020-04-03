@@ -72,7 +72,7 @@ case class LightRADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEnt
                 val sIndex = index(source)
                 val allowedBlocks: Set[(Int, Int)] = sIndex.map(b => Set(b._1)).reduce(_++_)
                 val tIndex = lightIndex(target, allowedBlocks)
-                sIndex.leftOuterJoin(tIndex)
+                sIndex.leftOuterJoin(tIndex).filter(b => b._2._2.isDefined)
             }
             else{
                 val sIndex = lightIndex(source)
@@ -82,14 +82,12 @@ case class LightRADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEnt
             }
 
         val blocksRDD:RDD[LightBlock] = blocksIndex
-            .filter(b => b._2._2.isDefined)
             .map { block =>
                 val blockCoords = block._1
                 val sourceIndexSet = block._2._1.toSet
                 val targetIndexSet: Set[Int] = block._2._2.get.toSet
                 LightBlock(blockCoords, sourceIndexSet, targetIndexSet)
             }
-            .setName("BlocksRDD")
         blocksRDD
     }
 
