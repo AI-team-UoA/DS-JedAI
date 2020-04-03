@@ -9,46 +9,14 @@ import utils.Constants
 import scala.collection.mutable.ArrayBuffer
 
 
-case class LightRADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity] = null, theta_msr: String = Constants.NO_USE ) extends Blocking with Serializable {
-
-    /**
-     * initialize theta based on theta measure
-     */
-    def initTheta(): Unit ={
-        val thetaMsr: RDD[(Double, Double)] = source
-            .union(target)
-            .map {
-                sp =>
-                    val env = sp.geometry.getEnvelopeInternal
-                    (env.getHeight, env.getWidth)
-            }
-            .setName("thetaMsr")
-            .cache()
-
-        var thetaX = 1d
-        var thetaY = 1d
-        theta_msr match {
-            // WARNING: small or big values of theta may affect negatively the indexing procedure
-            case Constants.MIN =>
-                // filtering because there are cases that the geometries are perpendicular to the axes
-                // and have width or height equals to 0.0
-                thetaX = thetaMsr.map(_._1).filter(_ != 0.0d).min
-                thetaY = thetaMsr.map(_._2).filter(_ != 0.0d).min
-            case Constants.MAX =>
-                thetaX = thetaMsr.map(_._1).max
-                thetaY = thetaMsr.map(_._2).max
-            case Constants.AVG =>
-                val length = thetaMsr.count
-                thetaX = thetaMsr.map(_._1).sum() / length
-                thetaY = thetaMsr.map(_._2).sum() / length
-            case _ =>
-        }
-        val broadcastedTheta = SparkContext.getOrCreate().broadcast((thetaX, thetaY))
-        broadcastMap += ("theta" -> broadcastedTheta.asInstanceOf[Broadcast[Any]])
-        thetaMsr.unpersist()
-    }
-
-
+/**
+ *  Similar to RADON blocking algorithms, but blocks entities inside LightBlocks
+ *
+ * @param source source set as RDD
+ * @param target target set as RDD
+ * @param thetaMsrSTR theta measure
+ **/
+case class LightRADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity] = null, thetaMsrSTR: String = Constants.NO_USE ) extends Blocking with Serializable {
 
     /**
      * index a spatial entities set. If acceptedBlocks is provided then the entities will be assigned
@@ -90,8 +58,14 @@ case class LightRADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEnt
     }
 
 
+    /**
+     * blocks SpatialEntities inside LightBlocks
+     * @param liTarget if liTarget is true then the blocks will contain only the ids of target instead of
+     *                 the entities, else this will happen for source.
+     * @return an RDD of LightBlocks
+     */
     override def apply(liTarget: Boolean = true): RDD[LightBlock] = {
-        initTheta()
+        initTheta(thetaMsrSTR)
 
         val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[Int]]))] =
             if (liTarget){

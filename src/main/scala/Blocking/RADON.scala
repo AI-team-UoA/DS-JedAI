@@ -1,10 +1,9 @@
 package Blocking
 
-import DataStructures.{Block, SpatialEntity, TBlock}
+import DataStructures.{Block, SpatialEntity}
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-import utils.Constants
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -16,48 +15,10 @@ import scala.collection.mutable.ArrayBuffer
  * RADON blocking algorithm
  * @param source source set as RDD
  * @param target target set as RDD
- * @param theta_msr theta measure
+ * @param thetaMsrSTR theta measure
  */
-case class RADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], theta_msr: String) extends  Blocking with Serializable
+case class RADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], thetaMsrSTR: String) extends  Blocking with Serializable
 {
-
-	/**
-	 * initialize theta based on theta measure
-	 */
-	def initTheta(): Unit ={
-		val thetaMsr: RDD[(Double, Double)] = source
-			.union(target)
-			.map {
-				sp =>
-					val env = sp.geometry.getEnvelopeInternal
-					(env.getHeight, env.getWidth)
-			}
-    		.setName("thetaMsr")
-    		.cache()
-
-		var thetaX = 1d
-		var thetaY = 1d
-		theta_msr match {
-			// WARNING: small or big values of theta may affect negatively the indexing procedure
-			case Constants.MIN =>
-				// filtering because there are cases that the geometries are perpendicular to the axes
-				// and have width or height equals to 0.0
-				thetaX = thetaMsr.map(_._1).filter(_ != 0.0d).min
-				thetaY = thetaMsr.map(_._2).filter(_ != 0.0d).min
-			case Constants.MAX =>
-				thetaX = thetaMsr.map(_._1).max
-				thetaY = thetaMsr.map(_._2).max
-			case Constants.AVG =>
-				val length = thetaMsr.count
-				thetaX = thetaMsr.map(_._1).sum() / length
-				thetaY = thetaMsr.map(_._2).sum() / length
-			case _ =>
-		}
-		val broadcastedTheta = SparkContext.getOrCreate().broadcast((thetaX, thetaY))
-		broadcastMap += ("theta" -> broadcastedTheta.asInstanceOf[Broadcast[Any]])
-		thetaMsr.unpersist()
-	}
-
 
 	/**
 	 * index a spatial entities set. If acceptedBlocks is provided then the entities will be assigned
@@ -83,7 +44,7 @@ case class RADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity],
 	 * @return RDD of blocks
 	 */
 	override def apply(): RDD[Block] = {
-		initTheta()
+		initTheta(thetaMsrSTR)
 		super.apply()
 	}
 
