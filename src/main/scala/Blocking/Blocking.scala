@@ -17,6 +17,52 @@ trait Blocking {
 
 
 	/**
+	 * indexing a spatial entity into blocks using the RADON blocking procedure
+	 *
+	 * @param se a spatialEntity to index
+	 * @param acceptedBlocks the accepted blocks that the set can be indexed to
+	 * @return an array of blocks
+	 */
+	def indexSpatialEntity(se: SpatialEntity, acceptedBlocks: Set[(Int, Int)] = Set(), thetaMsr: (Double, Double)): IndexedSeq[(Int, Int)] ={
+		val (thetaX, thetaY) = thetaMsr
+		if (se.crossesMeridian) {
+			val (westernMBB, easternMBB) = se.mbb.splitOnMeridian
+
+			val wmbb_maxX = math.ceil(westernMBB.maxX / thetaX).toInt
+			val wmbb_minX = math.floor(westernMBB.minX / thetaX).toInt
+			val wmbb_maxY = math.ceil(westernMBB.maxY / thetaY).toInt
+			val wmbb_minY = math.floor(westernMBB.minY / thetaY).toInt
+
+			val embb_maxX = math.ceil(easternMBB.maxX / thetaX).toInt
+			val embb_minX = math.floor(easternMBB.minX / thetaX).toInt
+			val embb_maxY = math.ceil(easternMBB.maxY / thetaY).toInt
+			val embb_minY = math.floor(easternMBB.minY / thetaY).toInt
+
+			if (acceptedBlocks.nonEmpty) {
+				val western =  for (x <- wmbb_minX to wmbb_maxX; y <- wmbb_minY to wmbb_maxY; if acceptedBlocks.contains((x, y))) yield (x, y)
+				val eastern = for (x <- embb_minX to embb_maxX; y <- embb_minY to embb_maxY; if acceptedBlocks.contains((x, y))) yield (x, y)
+				eastern ++ western
+			}
+			else{
+				val western =  for (x <- wmbb_minX to wmbb_maxX; y <- wmbb_minY to wmbb_maxY) yield (x, y)
+				val eastern = for (x <- embb_minX to embb_maxX; y <- embb_minY to embb_maxY) yield (x, y)
+				eastern ++ western
+			}
+		}
+		else {
+			val maxX = math.ceil(se.mbb.maxX / thetaX).toInt
+			val minX = math.floor(se.mbb.minX / thetaX).toInt
+			val maxY = math.ceil(se.mbb.maxY / thetaY).toInt
+			val minY = math.floor(se.mbb.minY / thetaY).toInt
+
+			if (acceptedBlocks.nonEmpty)
+				for (x <- minX to maxX; y <- minY to maxY; if acceptedBlocks.contains((x, y))) yield (x, y)
+			else
+				for (x <- minX to maxX; y <- minY to maxY) yield (x, y)
+		}
+	}
+
+	/**
 	 * indexing spatial entities into blocks
 	 *
 	 * @param spatialEntitiesRDD the set to index
@@ -25,14 +71,14 @@ trait Blocking {
 	 */
 	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), ArrayBuffer[SpatialEntity])]
 
-	/**
+
+		/**
 	 * apply blocking
 	 * @return
 	 */
 	def apply(): RDD[Block] ={
 		val sourceIndex = index(source)
 		val sourceBlocks: Set[(Int, Int)] = sourceIndex.map(b => Set(b._1)).reduce(_++_)
-
 		val targetIndex = index(target, sourceBlocks)
 
 		val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[SpatialEntity]]))] = sourceIndex.leftOuterJoin(targetIndex)

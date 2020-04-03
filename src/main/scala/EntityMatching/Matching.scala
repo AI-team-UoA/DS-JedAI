@@ -73,7 +73,7 @@ object Matching {
 
 	/**
 	 * Perform the comparisons of the blocks. Only the comparisons inside the allowedComparison
-	 * will be calculated.
+	 * will be performed.
 	 *
 	 * @param blocks RDD of blocks
 	 * @param allowedComparisons allowed comparisons per Block - RDD[(blockID, Array[comparisonID])]
@@ -107,31 +107,18 @@ object Matching {
 			matches
 	}
 
-	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
-	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
-
-	implicit def tuple[Int, String](implicit e1: Encoder[Int], e2: Encoder[String]): Encoder[(Int,String)] = Encoders.tuple[Int,String](e1, e2)
-	def disjointMatches(source: RDD[SpatialEntity], target: RDD[SpatialEntity]): RDD[(Int,Int)] ={
-		GeoSparkSQLRegistrator.registerAll(spark)
-		val disjointQuery =
-			"""SELECT SOURCE._1 AS SOURCE_ID, TARGET._1 AS TARGET_ID
-			  | FROM SOURCE, TARGET
-			  | WHERE NOT ST_Intersects( ST_GeomFromWKT(SOURCE._2),  ST_GeomFromWKT(TARGET._2))""".stripMargin
-
-		//import spark.implicits._
-		//spark.catalog.listFunctions.filter('name like "ST_%").show(200, false)
-
-		val sourceDT = spark.createDataset(source.map(se => (se.id, se.geometry.toText)))
-		sourceDT.createOrReplaceTempView("SOURCE")
-
-		val targetDT = spark.createDataset(target.map(se => (se.id, se.geometry.toText)))
-		targetDT.createOrReplaceTempView("TARGET")
-
-		val disjointResults = spark.sql(disjointQuery)
-		disjointResults.rdd.map(r => (r.get(0).asInstanceOf[Int], r.get(1).asInstanceOf[Int]))
-	}
-
-
+	/**
+	 * Similar to matching but using light blocks, and the smallest set is sorted and then broadcasted
+	 *
+	 *
+	 * @param blocks an RDD of LightBlocks
+	 * @param toCollect the set that it will be collected and broadcasted
+	 * @param startIdFrom the number that the ids of the toCollect set starts from
+	 * @param allowedComparisons allowed comparisons per Block - RDD[(blockID, Array[comparisonID])]
+	 * @param relation requested relation
+	 * @param swapped if the source, target was swapped in previous step
+	 * @return the matches
+	 */
 	def lightMatching(blocks: RDD[LightBlock], toCollect: RDD[SpatialEntity], startIdFrom: Int, allowedComparisons: RDD[(Int, ArrayBuffer[Int])], relation: String, swapped:Boolean): RDD[(Int, Int)] = {
 		val collectedSet: Array[SpatialEntity] = toCollect.sortBy(_.id).collect()
 		val broadcastedSet: Broadcast[Array[SpatialEntity]] = SparkContext.getOrCreate().broadcast(collectedSet)
@@ -164,4 +151,30 @@ object Matching {
 			.flatMap(a => a)
 		matches
 	}
+
+
+	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
+	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
+
+	implicit def tuple[Int, String](implicit e1: Encoder[Int], e2: Encoder[String]): Encoder[(Int,String)] = Encoders.tuple[Int,String](e1, e2)
+	def disjointMatches(source: RDD[SpatialEntity], target: RDD[SpatialEntity]): RDD[(Int,Int)] ={
+		GeoSparkSQLRegistrator.registerAll(spark)
+		val disjointQuery =
+			"""SELECT SOURCE._1 AS SOURCE_ID, TARGET._1 AS TARGET_ID
+			  | FROM SOURCE, TARGET
+			  | WHERE NOT ST_Intersects( ST_GeomFromWKT(SOURCE._2),  ST_GeomFromWKT(TARGET._2))""".stripMargin
+
+		//import spark.implicits._
+		//spark.catalog.listFunctions.filter('name like "ST_%").show(200, false)
+
+		val sourceDT = spark.createDataset(source.map(se => (se.id, se.geometry.toText)))
+		sourceDT.createOrReplaceTempView("SOURCE")
+
+		val targetDT = spark.createDataset(target.map(se => (se.id, se.geometry.toText)))
+		targetDT.createOrReplaceTempView("TARGET")
+
+		val disjointResults = spark.sql(disjointQuery)
+		disjointResults.rdd.map(r => (r.get(0).asInstanceOf[Int], r.get(1).asInstanceOf[Int]))
+	}
+
 }
