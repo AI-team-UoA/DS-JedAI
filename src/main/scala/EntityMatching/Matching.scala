@@ -11,6 +11,7 @@ import org.datasyslab.geosparksql.utils.GeoSparkSQLRegistrator
 import utils.Constants
 import utils.Utils.spark
 
+import scala.collection.immutable.HashSet
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
@@ -80,25 +81,25 @@ object Matching {
  	 * @param relation requested relation
 	 * @return the matches
 	 */
-	def SpatialMatching(blocks: RDD[Block], allowedComparisons: RDD[(Int, ArrayBuffer[Int])], relation: String): RDD[(Int,Int)] ={
+	def SpatialMatching(blocks: RDD[Block], allowedComparisons: RDD[(Int, HashSet[Int])], relation: String): RDD[(Int,Int)] ={
 
-		val blocksComparisons = blocks.map(b => (b.id, (b.sourceSet, b.targetSet)))
+		val blocksComparisons = blocks.map(b => (b.id, (b.source, b.target)))
 		val matches = blocksComparisons.leftOuterJoin(allowedComparisons)
     		.filter(_._2._2.isDefined)
     		.map { b =>
-				val sourceSet = b._2._1._1
-				val targetSet = b._2._1._2
+				val sourceAr = b._2._1._1
+				val targetAr = b._2._1._2
 				val allowedComparisons = b._2._2.get
 
-				val matches: ArrayBuffer[(Int,Int)] = ArrayBuffer()
-				for (s <- sourceSet.toIterator; t <- targetSet.toIterator){
+				var matches: ArrayBuffer[(Int,Int)] = ArrayBuffer()
+				for (s <- sourceAr; t <- targetAr){
 					val comparisonID = BlockUtils.bijectivePairing(s.id, t.id)
 					if (allowedComparisons.contains(comparisonID)){
 						if (testMBB(s.mbb, t.mbb, relation))
 						// TODO meridian case
 						// TODO: append ids or originalIDs ?
 							if (relate(s.geometry, t.geometry, relation))
-								matches.append((s.id, t.id))
+								matches += ((s.id, t.id))
 					}
 				}
 				matches
@@ -119,21 +120,21 @@ object Matching {
 	 * @param swapped if the source, target was swapped in previous step
 	 * @return the matches
 	 */
-	def lightMatching(blocks: RDD[LightBlock], toCollect: RDD[SpatialEntity], startIdFrom: Int, allowedComparisons: RDD[(Int, ArrayBuffer[Int])], relation: String, swapped:Boolean): RDD[(Int, Int)] = {
+	def lightMatching(blocks: RDD[LightBlock], toCollect: RDD[SpatialEntity], startIdFrom: Int, allowedComparisons: RDD[(Int, HashSet[Int])], relation: String, swapped:Boolean): RDD[(Int, Int)] = {
 		val collectedSet: Array[SpatialEntity] = toCollect.sortBy(_.id).collect()
 		val broadcastedSet: Broadcast[Array[SpatialEntity]] = SparkContext.getOrCreate().broadcast(collectedSet)
 
-		val blocksComparisons = blocks.map(b => (b.id, (b.sourceSet, b.targetIDs)))
+		val blocksComparisons = blocks.map(b => (b.id, (b.source, b.targetIDs)))
 		val matches = blocksComparisons.leftOuterJoin(allowedComparisons)
 			.filter(_._2._2.isDefined)
 			.map { b =>
-				val sourceSet = b._2._1._1
+				val sourceAr = b._2._1._1
 				val targetIDs = b._2._1._2
 				val allowedComparisons = b._2._2.get
 				val targetArray = broadcastedSet.value
 
-				val matches: ArrayBuffer[(Int,Int)] = ArrayBuffer()
-				for (sourceSE <- sourceSet.toIterator; targetID <- targetIDs.toIterator){
+				var matches: ArrayBuffer[(Int,Int)] = ArrayBuffer()
+				for (sourceSE <- sourceAr; targetID <- targetIDs){
 					val comparisonID = BlockUtils.bijectivePairing(sourceSE.id, targetID)
 					if (allowedComparisons.contains(comparisonID)){
 						val targetSE = targetArray(targetID - startIdFrom)
@@ -142,7 +143,7 @@ object Matching {
 							// TODO meridian case
 							// TODO: append ids or originalIDs ?
 							val doRelate = if (!swapped) relate(sourceSE.geometry, targetSE.geometry, relation) else relate(targetSE.geometry, sourceSE.geometry, relation)
-							if (doRelate) matches.append((sourceSE.id, targetID))
+							if (doRelate) matches += ((sourceSE.id, targetID))
 						}
 					}
 				}

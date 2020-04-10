@@ -62,7 +62,8 @@ trait Blocking {
 	 * @param acceptedBlocks the accepted blocks that the set can be indexed to
 	 * @return an array of blocks
 	 */
-	def indexSpatialEntity(se: SpatialEntity, acceptedBlocks: Set[(Int, Int)] = Set(), thetaMsr: (Double, Double)): IndexedSeq[(Int, Int)] ={
+	def indexSpatialEntity(se: SpatialEntity, acceptedBlocks: Set[(Int, Int)] = Set(), thetaMsr: (Double, Double)): IndexedSeq[(Int, Int)] = {
+
 		val (thetaX, thetaY) = thetaMsr
 		if (se.crossesMeridian) {
 			val (westernMBB, easternMBB) = se.mbb.splitOnMeridian
@@ -78,12 +79,12 @@ trait Blocking {
 			val embb_minY = math.floor(easternMBB.minY / thetaY).toInt
 
 			if (acceptedBlocks.nonEmpty) {
-				val western =  for (x <- wmbb_minX to wmbb_maxX; y <- wmbb_minY to wmbb_maxY; if acceptedBlocks.contains((x, y))) yield (x, y)
+				val western = for (x <- wmbb_minX to wmbb_maxX; y <- wmbb_minY to wmbb_maxY; if acceptedBlocks.contains((x, y))) yield (x, y)
 				val eastern = for (x <- embb_minX to embb_maxX; y <- embb_minY to embb_maxY; if acceptedBlocks.contains((x, y))) yield (x, y)
 				eastern ++ western
 			}
-			else{
-				val western =  for (x <- wmbb_minX to wmbb_maxX; y <- wmbb_minY to wmbb_maxY) yield (x, y)
+			else {
+				val western = for (x <- wmbb_minX to wmbb_maxX; y <- wmbb_minY to wmbb_maxY) yield (x, y)
 				val eastern = for (x <- embb_minX to embb_maxX; y <- embb_minY to embb_maxY) yield (x, y)
 				eastern ++ western
 			}
@@ -126,9 +127,9 @@ trait Blocking {
 		val blocksRDD = blocksIndex
 			.map { block =>
 				val blockCoords = block._1
-				val targetIndexSet = block._2._1.toSet
-				val  sourceIndexSet = block._2._2.get.toSet
-				Block(blockCoords, sourceIndexSet, targetIndexSet)
+				val targetIndex = block._2._1
+				val  sourceIndex = block._2._2.get
+				Block(blockCoords, sourceIndex, targetIndex)
 			}
 			.setName("BlocksRDD")
 		blocksRDD

@@ -84,9 +84,9 @@ case class LightRADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEnt
         val blocksRDD:RDD[LightBlock] = blocksIndex
             .map { block =>
                 val blockCoords = block._1
-                val sourceIndexSet = block._2._1.toSet
-                val targetIndexSet: Set[Int] = block._2._2.get.toSet
-                LightBlock(blockCoords, sourceIndexSet, targetIndexSet)
+                val sourceIndex = block._2._1
+                val targetIndex: ArrayBuffer[Int] = block._2._2.get
+                LightBlock(blockCoords, sourceIndex, targetIndex)
             }
         blocksRDD
     }
