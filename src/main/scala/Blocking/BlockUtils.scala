@@ -1,9 +1,10 @@
 package Blocking
 
-import DataStructures.{Block, LightBlock, SpatialEntity}
+import DataStructures.{SpatialEntity, TBlock}
 import org.apache.spark.rdd.RDD
 import utils.Constants
 
+import scala.collection.immutable.HashSet
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -55,32 +56,34 @@ object BlockUtils {
 	 * with the minimum id.
 	 *
 	 * @param blocks an RDD of Blocks
+	 * @param strategy decide to which block each comparison will be assigned to
 	 * @return an RDD of Comparisons
 	 */
-	def cleanBlocks(blocks: RDD[Block]): RDD[(Int, ArrayBuffer[Int])] ={
-		blocks
-			.map(b => (b.id, b.getComparisonsIDs))
-			.flatMap(b => b._2.map(c => (c, ArrayBuffer(b._1))))
-			.reduceByKey(_ ++ _)
-    		.map(cb => (cb._2.min, ArrayBuffer(cb._1)))
-    		.reduceByKey(_ ++ _)
+	def cleanBlocks(blocks: RDD[TBlock], strategy: String = Constants.RANDOM): RDD[(Int, HashSet[Int])] ={
+		val blocksPerComparison = blocks
+				.map(b => (b.id, b.getComparisonsIDs))
+				.flatMap(b => b._2.map(c => (c, ArrayBuffer(b._1))))
+				.reduceByKey(_ ++ _)
+
+		val comparisonsPerBlock = strategy match {
+			case Constants.RANDOM =>
+				blocksPerComparison
+					.mapPartitions { cbIter =>
+						val randomGen = new scala.util.Random
+						cbIter.map { cb =>
+							val pos = randomGen.nextInt(cb._2.length)
+							(cb._2(pos), ArrayBuffer(cb._1))
+						}
+					}
+					.reduceByKey(_ ++ _)
+			case  Constants.MIN|_ =>
+				blocksPerComparison
+					.map(cb => (cb._2.min, ArrayBuffer(cb._1)))
+					.reduceByKey(_ ++ _)
+		}
+		comparisonsPerBlock.map(b => (b._1, b._2.to[HashSet]))
 	}
 
-	/**
-	 * Remove duplicate comparisons from blocks by keeping each comparison only to the block
-	 * with the minimum id.
-	 *
-	 * @param blocks an RDD of Blocks
-	 * @return an RDD of Comparisons
-	 */
-	def cleanLightBlocks(blocks: RDD[LightBlock]): RDD[(Int, ArrayBuffer[Int])] ={
-		blocks
-			.map(b => (b.id, b.getComparisonsIDs))
-			.flatMap(b => b._2.map(c => (c, ArrayBuffer(b._1))))
-			.reduceByKey(_ ++ _)
-			.map(cb => (cb._2.min, ArrayBuffer(cb._1)))
-			.reduceByKey(_ ++ _)
-	}
 
 	/**
 	 * Compute the Estimation of the Total Hyper-volume
@@ -91,6 +94,7 @@ object BlockUtils {
 	def getETH(seRDD: RDD[SpatialEntity]): Double ={
 		getETH(seRDD, seRDD.count())
 	}
+
 
 	/**
 	 * Compute the Estimation of the Total Hyper-volume

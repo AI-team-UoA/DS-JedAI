@@ -11,6 +11,7 @@ object Constants {
 	val MAX = "max"
 	val MIN = "min"
 	val AVG = "avg"
+	val RANDOM = "random"
 	val NO_USE = "none"
 
 	val MAX_LAT: Double = 90.0

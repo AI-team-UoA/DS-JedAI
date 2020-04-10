@@ -3,8 +3,9 @@ package experiments
 import java.util.Calendar
 
 import Blocking.{BlockUtils, BlockingFactory}
-import DataStructures.{LightBlock}
+import DataStructures.{LightBlock, TBlock}
 import org.apache.log4j.{Level, LogManager, Logger}
+import org.apache.spark
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
@@ -123,11 +124,11 @@ object LightExp {
 
         log.info("DS-JEDAI: Number of Blocks: " + blocks.count())
 
-        val allowedComparisons = BlockUtils.cleanLightBlocks(blocks).setName("Comparisons").persist(StorageLevel.MEMORY_AND_DISK)
+        val allowedComparisons = BlockUtils.cleanBlocks(blocks.asInstanceOf[RDD[TBlock]]).setName("Comparisons").persist(StorageLevel.MEMORY_AND_DISK)
 
-        log.info("DS-JEDAI: Comparisons Partition Distribution")
-        printPartitions(allowedComparisons.flatMap(_._2).asInstanceOf[RDD[Any]])
-        log.info("Total comparisons " + allowedComparisons.map(_._2.length).sum().toInt)
+//      log.info("DS-JEDAI: Comparisons Partition Distribution")
+//      printPartitions(allowedComparisons.flatMap(_._2).asInstanceOf[RDD[Any]])
+        log.info("Total comparisons " + allowedComparisons.map(_._2.size).sum().toInt)
         val blocking_endTime = Calendar.getInstance()
         log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime.getTimeInMillis - blocking_startTime.getTimeInMillis) / 1000.0)
 
@@ -146,5 +147,7 @@ object LightExp {
         val endTime = Calendar.getInstance()
         log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime.getTimeInMillis) / 1000.0)
 
+//        System.in.read
+//        spark.stop()
     }
 }

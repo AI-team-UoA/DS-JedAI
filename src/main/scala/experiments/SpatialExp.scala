@@ -3,6 +3,7 @@ package experiments
 import java.util.Calendar
 
 import Blocking.{BlockUtils, BlockingFactory}
+import DataStructures.TBlock
 import EntityMatching.Matching
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.rdd.RDD
@@ -63,7 +64,7 @@ object SpatialExp {
 
 		val conf_path = options("conf")
 		val conf = ConfigurationParser.parse(conf_path)
-		val partitions: Int = conf.configurations.getOrElse(Constants.CONF_PARTITIONS, "0").toInt
+		val partitions: Int = conf.configurations.getOrElse(Constants.CONF_PARTITIONS, "-1").toInt
 		val repartition: Boolean = partitions > 0
 		val spatialPartition: Boolean = conf.configurations.getOrElse(Constants.CONF_SPATIAL_PARTITION, "false").toBoolean
 
@@ -110,8 +111,8 @@ object SpatialExp {
 				// Spatial partitioning
 				val sPartitioning_startTime = Calendar.getInstance()
 				var (spatialPartitionedSource, spatialPartitionedTarget) =
-					if (repartition) Utils.spatialPartition(sourceRDD, targetRDD, partitions=partitions)
-					else Utils.spatialPartition(sourceRDD, targetRDD)
+					if (repartition) Utils.spatialPartition2(sourceRDD, targetRDD, partitions=partitions)
+					else Utils.spatialPartition2(sourceRDD, targetRDD)
 
 				// caching and un-persisting previous RDDs
 				spatialPartitionedSource = spatialPartitionedSource.setName("SpatialPartitionedSource").persist(StorageLevel.MEMORY_AND_DISK)
@@ -149,16 +150,16 @@ object SpatialExp {
 			log.info("DS-JEDAI: Number of Blocks: " + blocks.count())
 
 			// Block cleaning
-			val allowedComparisons = BlockUtils.cleanBlocks(blocks).setName("Comparisons").persist(StorageLevel.MEMORY_AND_DISK)
-			log.info("DS-JEDAI: Comparisons Partition Distribution")
-			printPartitions(allowedComparisons.flatMap(_._2).asInstanceOf[RDD[Any]])
-			log.info("Total comparisons " + allowedComparisons.map(_._2.length).sum().toInt)
+			val allowedComparisons = BlockUtils.cleanBlocks(blocks.asInstanceOf[RDD[TBlock]]).setName("Comparisons").persist(StorageLevel.MEMORY_AND_DISK)
+//			log.info("DS-JEDAI: Comparisons Partition Distribution")
+//			printPartitions(allowedComparisons.flatMap(_._2).asInstanceOf[RDD[Any]])
+			log.info("Total comparisons " + allowedComparisons.map(_._2.size).sum().toInt)
 			val blocking_endTime = Calendar.getInstance()
 			log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime.getTimeInMillis - blocking_startTime.getTimeInMillis) / 1000.0)
 
 			// Entity Matching
 			val matching_startTime = Calendar.getInstance()
-			val matches = Matching.SpatialMatching(blocks, allowedComparisons, relation).setName("Matches").persist(StorageLevel.MEMORY_AND_DISK)
+			val matches = Matching.SpatialMatching(blocks, allowedComparisons, relation)//.setName("Matches").persist(StorageLevel.MEMORY_AND_DISK)
 			log.info("DS-JEDAI: Matches: " + matches.count)
 			val matching_endTime = Calendar.getInstance()
 			log.info("DS-JEDAI: Matching Time: " + (matching_endTime.getTimeInMillis - matching_startTime.getTimeInMillis) / 1000.0)
@@ -166,5 +167,7 @@ object SpatialExp {
 			val endTime = Calendar.getInstance()
 			log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime.getTimeInMillis) / 1000.0)
 		}
+		//System.in.read
+		//spark.stop()
 	}
 }
