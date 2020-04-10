@@ -30,19 +30,22 @@ object Utils {
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
 	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
 	implicit def tuple[String, Int](implicit e1: Encoder[String], e2: Encoder[Int]): Encoder[(String,Int)] = Encoders.tuple[String,Int](e1, e2)
+	val geometryQuery: String =  """SELECT ST_GeomFromWKT(GEOMETRIES._1) AS WKT,  GEOMETRIES._2 AS ID FROM GEOMETRIES""".stripMargin
 
 	/**
-	 * Apply spatial partitioning...
+	 * Apply spatial partitioning for two RDD
+	 * First unifies the two RDD, and then applies spatial partitioning.
+	 * Then broadcasts a map of (ID, partitionID) and uses it in order to
+	 * repartition the input sets
 	 *
 	 * @param source source set
 	 * @param target target set
 	 * @param partitions number of partitions
 	 * @return source and target as spatial partitioned
 	 */
-	def spatialPartition(source: RDD[SpatialEntity], target:RDD[SpatialEntity], gridType: GridType = GridType.KDBTREE, partitions: Int = -1): (RDD[SpatialEntity], RDD[SpatialEntity]) ={
+	def spatialPartition2(source: RDD[SpatialEntity], target:RDD[SpatialEntity], gridType: GridType = GridType.KDBTREE, partitions: Int = -1): (RDD[SpatialEntity], RDD[SpatialEntity]) ={
 
 		GeoSparkSQLRegistrator.registerAll(spark)
-		val geometryQuery =  """SELECT ST_GeomFromWKT(GEOMETRIES._1) AS WKT,  GEOMETRIES._2 AS ID FROM GEOMETRIES""".stripMargin
 
 		// unifying source and target, convert their geometries and ids into Dataset -> SpatialRDD
 		val unified = source.union(target).map(se => (se.geometry.toText, se.id))
@@ -57,6 +60,7 @@ object Utils {
 		if (partitions > 0 ) spatialRDD.spatialPartitioning(gridType, partitions)
 		else spatialRDD.spatialPartitioning(gridType)
 
+		val noPartitions = spatialRDD.spatialPartitionedRDD.rdd.getNumPartitions
 		// map of each spatial entity to which partition belongs to
 		val spatialPartitionMap = spatialRDD.spatialPartitionedRDD.rdd.mapPartitions {
 				geometries =>
@@ -67,20 +71,50 @@ object Utils {
 		spatialPartitionMapBD = spark.sparkContext.broadcast(spatialPartitionMap)
 
 		val spatialPartitionedSource = source.map(se => (spatialPartitionMapBD.value(se.id), se))
-			.partitionBy(new HashPartitioner(partitions)).map(_._2)
+			.partitionBy(new HashPartitioner(noPartitions))
 
 		val spatialPartitionedTarget = target.map(se => (spatialPartitionMapBD.value(se.id), se))
-			.partitionBy(new HashPartitioner(partitions)).map(_._2)
+			.partitionBy(spatialPartitionedSource.partitioner.get)
 
-		//WARNING: Unbalanced Results
 		log.info("DS-JEDAI: Spatial Partition Distribution")
 		printPartitions(spatialRDD.spatialPartitionedRDD.rdd.asInstanceOf[RDD[Any]])
 
-		(spatialPartitionedSource, spatialPartitionedTarget)
+		(spatialPartitionedSource.map(_._2), spatialPartitionedTarget.map(_._2))
 	}
 
 
-	def printPartitions(rdd: RDD[Any]): Unit ={
+	def spatialPartition1(rdd: RDD[SpatialEntity], gridType: GridType = GridType.QUADTREE, partitions: Int = -1): RDD[SpatialEntity] = {
+		GeoSparkSQLRegistrator.registerAll(spark)
+
+		val dt = spark.createDataset(rdd.map(se => (se.geometry.toText, se.id)))
+		dt.createOrReplaceTempView("GEOMETRIES")
+		val spatialDf = spark.sql(geometryQuery)
+		val spatialRDD = new SpatialRDD[Geometry]
+		spatialRDD.rawSpatialRDD = Adapter.toRdd(spatialDf)
+
+		// spatial partition RDD
+		spatialRDD.analyze()
+		if (partitions > 0 ) spatialRDD.spatialPartitioning(gridType, partitions)
+		else spatialRDD.spatialPartitioning(gridType)
+
+		val noPartitions = spatialRDD.spatialPartitionedRDD.rdd.getNumPartitions
+		// map of each spatial entity to which partition belongs to
+		val spatialPartitionMap = spatialRDD.spatialPartitionedRDD.rdd.mapPartitions {
+			geometries =>
+				val partitionKey = TaskContext.get.partitionId()
+				geometries.map(g => (g.getUserData.asInstanceOf[String].toInt, partitionKey))
+		}
+			.collectAsMap()
+		spatialPartitionMapBD = spark.sparkContext.broadcast(spatialPartitionMap)
+
+		val spatialPartitionedRDD = rdd.map(se => (spatialPartitionMapBD.value(se.id), se))
+			.partitionBy(new HashPartitioner(noPartitions)).map(_._2)
+		spatialPartitionedRDD
+	}
+
+
+    def printPartitions(rdd: RDD[Any]): Unit ={
 		spark.createDataset(rdd.mapPartitionsWithIndex{ case (i,rows) => Iterator((i,rows.size))}).show(100)
 	}
+
 }
