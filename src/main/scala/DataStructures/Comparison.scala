@@ -1,14 +1,14 @@
 package DataStructures
 
-import Blocking.BlockUtils
+import utils.Utils
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-case class Comparison(id: Int, entity1_id: Int, entity2_id: Int)
+case class Comparison(id: Long, entity1: SpatialEntity, entity2: SpatialEntity)
 
 object Comparison {
-	def apply(id1: Int, id2: Int): Comparison ={
-		Comparison(BlockUtils.bijectivePairing(id1, id2), id1, id2)
+	def apply(se1: SpatialEntity, se2: SpatialEntity): Comparison ={
+		Comparison(Utils.bijectivePairing(se1.id, se2.id), se1, se2)
 	}
 }

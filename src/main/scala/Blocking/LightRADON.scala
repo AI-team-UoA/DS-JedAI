@@ -46,7 +46,7 @@ case class LightRADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEnt
      * @param acceptedBlocks the accepted blocks that the set can be indexed to
      * @return an Array of block ids for each spatial entity
      */
-    def lightIndex(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), ArrayBuffer[Int])] ={
+    def lightIndex(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), ArrayBuffer[Long])] ={
         val acceptedBlocksBD = SparkContext.getOrCreate().broadcast(acceptedBlocks)
         broadcastMap += ("acceptedBlocks" -> acceptedBlocksBD.asInstanceOf[Broadcast[Any]])
         spatialEntitiesRDD.mapPartitions { seIter =>
@@ -54,7 +54,7 @@ case class LightRADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEnt
             val acceptedBlocks = acceptedBlocksBD.value
             seIter.map(se => (indexSpatialEntity(se, acceptedBlocks, thetaMsr), se))
         }
-        .flatMap(b => b._1.map(id => (id, ArrayBuffer[Int](b._2.id) ))).reduceByKey(_ ++ _ )
+        .flatMap(b => b._1.map(id => (id, ArrayBuffer[Long](b._2.id) ))).reduceByKey(_ ++ _ )
     }
 
 
@@ -67,7 +67,7 @@ case class LightRADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEnt
     override def apply(liTarget: Boolean = true): RDD[LightBlock] = {
         initTheta(thetaMsrSTR)
 
-        val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[Int]]))] =
+        val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[Long]]))] =
             if (liTarget){
                 val sIndex = index(source)
                 val allowedBlocks: Set[(Int, Int)] = sIndex.map(b => Set(b._1)).reduce(_++_)
@@ -85,7 +85,7 @@ case class LightRADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEnt
             .map { block =>
                 val blockCoords = block._1
                 val sourceIndex = block._2._1
-                val targetIndex: ArrayBuffer[Int] = block._2._2.get
+                val targetIndex: ArrayBuffer[Long] = block._2._2.get
                 LightBlock(blockCoords, sourceIndex, targetIndex)
             }
         blocksRDD

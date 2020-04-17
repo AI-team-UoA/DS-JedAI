@@ -6,12 +6,12 @@ import com.vividsolutions.jts.io.WKTReader
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-case class SpatialEntity( id: Int, originalID: String = "", geometry: Geometry,  mbb: MBB, crossesMeridian: Boolean)
+case class SpatialEntity(id: Long, originalID: String = "", geometry: Geometry,  mbb: MBB, crossesMeridian: Boolean)
 
 object SpatialEntity {
 
     // TODO: Remove attributes if necessary
-    def apply(id: Int, originalID: String, attributes: Array[KeyValue], wkt: String): SpatialEntity ={
+    def apply(id: Long, originalID: String, attributes: Array[KeyValue], wkt: String): SpatialEntity ={
         val wktReader = new WKTReader()
         val geometry: Geometry = wktReader.read(wkt)
         val mbb = MBB(geometry)
@@ -20,7 +20,7 @@ object SpatialEntity {
         SpatialEntity(id, originalID, geometry, mbb, crossesMeridian)
     }
 
-    def apply(id: Int, originalID: String, attributes: Array[KeyValue], geom: Geometry): SpatialEntity ={
+    def apply(id: Long, originalID: String, attributes: Array[KeyValue], geom: Geometry): SpatialEntity ={
         val geometry: Geometry = geom
         val mbb = MBB(geometry)
         val crossesMeridian =  mbb.crossesMeridian

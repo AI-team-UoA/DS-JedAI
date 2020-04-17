@@ -1,17 +1,16 @@
 package EntityMatching
 
 import Blocking.BlockUtils
-import DataStructures.{Block, LightBlock, MBB, SpatialEntity}
+import DataStructures.{Block, LightBlock, MBB, SpatialEntity, TBlock}
 import com.vividsolutions.jts.geom.Geometry
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Encoder, Encoders}
 import org.datasyslab.geosparksql.utils.GeoSparkSQLRegistrator
-import utils.Constants
+import utils.{Constants, Utils}
 import utils.Utils.spark
 
-import scala.collection.immutable.HashSet
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
@@ -19,6 +18,8 @@ import scala.reflect.ClassTag
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 
+// TODO meridian case
+// TODO: append ids or originalIDs
 /**
  *  Link discovery
  */
@@ -77,31 +78,26 @@ object Matching {
 	 * will be performed.
 	 *
 	 * @param blocks RDD of blocks
-	 * @param allowedComparisons allowed comparisons per Block - RDD[(blockID, Array[comparisonID])]
  	 * @param relation requested relation
 	 * @return the matches
 	 */
-	def SpatialMatching(blocks: RDD[Block], allowedComparisons: RDD[(Int, HashSet[Int])], relation: String): RDD[(Int,Int)] ={
+	def SpatialMatching(blocks: RDD[Block], relation: String): RDD[(Long, Long)] ={
 
-		val blocksComparisons = blocks.map(b => (b.id, (b.source, b.target)))
-		val matches = blocksComparisons.leftOuterJoin(allowedComparisons)
-    		.filter(_._2._2.isDefined)
+		val allowedComparisons = BlockUtils.cleanBlocks(blocks.asInstanceOf[RDD[TBlock]])
+
+		val blocksComparisons = blocks.map(b => (b.id, b))
+		val matches = allowedComparisons.leftOuterJoin(blocksComparisons)
     		.map { b =>
-				val sourceAr = b._2._1._1
-				val targetAr = b._2._1._2
-				val allowedComparisons = b._2._2.get
+				val allowedComparisons = b._2._1
+				val comparisons = b._2._2.get.getComparisons.filter(c => allowedComparisons.contains(c.id))
 
-				var matches: ArrayBuffer[(Int,Int)] = ArrayBuffer()
-				for (s <- sourceAr; t <- targetAr){
-					val comparisonID = BlockUtils.bijectivePairing(s.id, t.id)
-					if (allowedComparisons.contains(comparisonID)){
-						if (testMBB(s.mbb, t.mbb, relation))
-						// TODO meridian case
-						// TODO: append ids or originalIDs ?
-							if (relate(s.geometry, t.geometry, relation))
-								matches += ((s.id, t.id))
+				var matches: ArrayBuffer[(Long,Long)] = ArrayBuffer()
+				for (c <- comparisons){
+					val (s, t) = (c.entity1, c.entity2)
+					if (testMBB(s.mbb, t.mbb, relation))
+						if (relate(s.geometry, t.geometry, relation))
+							matches += ((s.id, t.id))
 					}
-				}
 				matches
 			}
     		.flatMap(a => a)
@@ -115,33 +111,30 @@ object Matching {
 	 * @param blocks an RDD of LightBlocks
 	 * @param toCollect the set that it will be collected and broadcasted
 	 * @param startIdFrom the number that the ids of the toCollect set starts from
-	 * @param allowedComparisons allowed comparisons per Block - RDD[(blockID, Array[comparisonID])]
 	 * @param relation requested relation
 	 * @param swapped if the source, target was swapped in previous step
 	 * @return the matches
 	 */
-	def lightMatching(blocks: RDD[LightBlock], toCollect: RDD[SpatialEntity], startIdFrom: Int, allowedComparisons: RDD[(Int, HashSet[Int])], relation: String, swapped:Boolean): RDD[(Int, Int)] = {
+	def lightMatching(blocks: RDD[LightBlock], toCollect: RDD[SpatialEntity], startIdFrom: Int, relation: String, swapped:Boolean): RDD[(Long, Long)] = {
 		val collectedSet: Array[SpatialEntity] = toCollect.sortBy(_.id).collect()
 		val broadcastedSet: Broadcast[Array[SpatialEntity]] = SparkContext.getOrCreate().broadcast(collectedSet)
 
+		val allowedComparisons = BlockUtils.cleanBlocks(blocks.asInstanceOf[RDD[TBlock]])
+
 		val blocksComparisons = blocks.map(b => (b.id, (b.source, b.targetIDs)))
-		val matches = blocksComparisons.leftOuterJoin(allowedComparisons)
-			.filter(_._2._2.isDefined)
+		val matches = allowedComparisons.leftOuterJoin(blocksComparisons)
 			.map { b =>
-				val sourceAr = b._2._1._1
-				val targetIDs = b._2._1._2
-				val allowedComparisons = b._2._2.get
+				val (sourceAr, targetIDs) = b._2._2.get
+				val allowedComparisons = b._2._1
 				val targetArray = broadcastedSet.value
 
-				var matches: ArrayBuffer[(Int,Int)] = ArrayBuffer()
+				var matches: ArrayBuffer[(Long,Long)] = ArrayBuffer()
 				for (sourceSE <- sourceAr; targetID <- targetIDs){
-					val comparisonID = BlockUtils.bijectivePairing(sourceSE.id, targetID)
+					val comparisonID = Utils.bijectivePairing(sourceSE.id, targetID)
 					if (allowedComparisons.contains(comparisonID)){
-						val targetSE = targetArray(targetID - startIdFrom)
+						val targetSE = targetArray(targetID.toInt - startIdFrom)
 						val passTest = if(!swapped) testMBB(sourceSE.mbb, targetSE.mbb, relation) else testMBB(targetSE.mbb, sourceSE.mbb, relation)
 						if (passTest) {
-							// TODO meridian case
-							// TODO: append ids or originalIDs ?
 							val doRelate = if (!swapped) relate(sourceSE.geometry, targetSE.geometry, relation) else relate(targetSE.geometry, sourceSE.geometry, relation)
 							if (doRelate) matches += ((sourceSE.id, targetID))
 						}
@@ -155,10 +148,10 @@ object Matching {
 
 
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
-	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
+	implicit def singleLong[A](implicit c: ClassTag[Long]): Encoder[Long] = Encoders.scalaLong
 
 	implicit def tuple[Int, String](implicit e1: Encoder[Int], e2: Encoder[String]): Encoder[(Int,String)] = Encoders.tuple[Int,String](e1, e2)
-	def disjointMatches(source: RDD[SpatialEntity], target: RDD[SpatialEntity]): RDD[(Int,Int)] ={
+	def disjointMatches(source: RDD[SpatialEntity], target: RDD[SpatialEntity]): RDD[(Long,Long)] ={
 		GeoSparkSQLRegistrator.registerAll(spark)
 		val disjointQuery =
 			"""SELECT SOURCE._1 AS SOURCE_ID, TARGET._1 AS TARGET_ID
@@ -175,7 +168,7 @@ object Matching {
 		targetDT.createOrReplaceTempView("TARGET")
 
 		val disjointResults = spark.sql(disjointQuery)
-		disjointResults.rdd.map(r => (r.get(0).asInstanceOf[Int], r.get(1).asInstanceOf[Int]))
+		disjointResults.rdd.map(r => (r.get(0).asInstanceOf[Long], r.get(1).asInstanceOf[Long]))
 	}
 
 }

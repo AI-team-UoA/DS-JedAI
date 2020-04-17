@@ -3,7 +3,6 @@ package experiments
 import java.util.Calendar
 
 import Blocking.{BlockUtils, BlockingFactory}
-import DataStructures.TBlock
 import EntityMatching.Matching
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.rdd.RDD
@@ -13,7 +12,7 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import utils.Reader.CSVReader
 import utils.Utils.printPartitions
-import utils.{ConfigurationParser, Constants, Utils}
+import utils.{ConfigurationParser, Constants, SpatialPartitioner, Utils}
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
@@ -108,11 +107,14 @@ object SpatialExp {
 		// Swapping: set the set with the smallest area as source
 		val (source, target, relation) = {
 			if (spatialPartition) {
+				// swapping
+				val (s, t, r) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
+
 				// Spatial partitioning
 				val sPartitioning_startTime = Calendar.getInstance()
 				var (spatialPartitionedSource, spatialPartitionedTarget) =
-					if (repartition) Utils.spatialPartition2(sourceRDD, targetRDD, partitions=partitions)
-					else Utils.spatialPartition2(sourceRDD, targetRDD)
+					if (repartition) SpatialPartitioner.spatialPartitionT(s, t, partitions=partitions)
+					else SpatialPartitioner.spatialPartitionT(s, t)
 
 				// caching and un-persisting previous RDDs
 				spatialPartitionedSource = spatialPartitionedSource.setName("SpatialPartitionedSource").persist(StorageLevel.MEMORY_AND_DISK)
@@ -127,39 +129,35 @@ object SpatialExp {
 				log.info("DS-JEDAI: Target Partition Distribution")
 				printPartitions(spatialPartitionedTarget.asInstanceOf[RDD[Any]])
 
-				// swapping
-				BlockUtils.swappingStrategy(spatialPartitionedSource, spatialPartitionedTarget, conf.relation)
+				(spatialPartitionedSource, spatialPartitionedTarget, r)
 			}
 			else
-				BlockUtils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
+				Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
 		}
 
 		if (conf.relation == Constants.DISJOINT) {
-			val matching_startTime = Calendar.getInstance()
+			val matching_startTime = Calendar.getInstance().getTimeInMillis
 			val matches = Matching.disjointMatches(source, target).setName("Matches").persist(StorageLevel.MEMORY_AND_DISK)
 			log.info("DS-JEDAI: Matches: " + matches.count)
-			val matching_endTime = Calendar.getInstance()
-			log.info("DS-JEDAI: Matching Time: " + (matching_endTime.getTimeInMillis - matching_startTime.getTimeInMillis) / 1000.0)
+			val matching_endTime = Calendar.getInstance().getTimeInMillis
+			log.info("DS-JEDAI: Matching Time: " + (matching_endTime - matching_startTime) / 1000.0)
 		}
 		else {
 
 			// Blocking
-			val blocking_startTime = Calendar.getInstance()
+			val blocking_startTime = Calendar.getInstance().getTimeInMillis
 			val blocking = BlockingFactory.getBlocking(conf, source, target)
 			val blocks = blocking.apply().setName("Blocks").persist(StorageLevel.MEMORY_AND_DISK)
-			log.info("DS-JEDAI: Number of Blocks: " + blocks.count())
-
-			// Block cleaning
-			val allowedComparisons = BlockUtils.cleanBlocks(blocks.asInstanceOf[RDD[TBlock]]).setName("Comparisons").persist(StorageLevel.MEMORY_AND_DISK)
-//			log.info("DS-JEDAI: Comparisons Partition Distribution")
-//			printPartitions(allowedComparisons.flatMap(_._2).asInstanceOf[RDD[Any]])
-			log.info("Total comparisons " + allowedComparisons.map(_._2.size).sum().toInt)
-			val blocking_endTime = Calendar.getInstance()
-			log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime.getTimeInMillis - blocking_startTime.getTimeInMillis) / 1000.0)
+			val totalBlocks = blocks.count()
+			log.info("DS-JEDAI: Number of Blocks: " + totalBlocks)
+			val blocking_endTime = Calendar.getInstance().getTimeInMillis
+			log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime - blocking_startTime) / 1000.0)
+			BlockUtils.setTotalBlocks(totalBlocks)
 
 			// Entity Matching
 			val matching_startTime = Calendar.getInstance()
-			val matches = Matching.SpatialMatching(blocks, allowedComparisons, relation)//.setName("Matches").persist(StorageLevel.MEMORY_AND_DISK)
+			//val matches = Matching.prioritizedMatching(blocks, relation)
+			val matches = Matching.SpatialMatching(blocks, relation)
 			log.info("DS-JEDAI: Matches: " + matches.count)
 			val matching_endTime = Calendar.getInstance()
 			log.info("DS-JEDAI: Matching Time: " + (matching_endTime.getTimeInMillis - matching_startTime.getTimeInMillis) / 1000.0)

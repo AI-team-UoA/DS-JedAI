@@ -3,16 +3,14 @@ package experiments
 import java.util.Calendar
 
 import Blocking.{BlockUtils, BlockingFactory}
-import DataStructures.{LightBlock, TBlock}
+import DataStructures.LightBlock
 import org.apache.log4j.{Level, LogManager, Logger}
-import org.apache.spark
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import utils.Reader.CSVReader
-import utils.Utils.printPartitions
 import utils.{ConfigurationParser, Constants, Utils}
 
 
@@ -29,7 +27,7 @@ import utils.{ConfigurationParser, Constants, Utils}
 object LightExp {
 
     def main(args: Array[String]): Unit = {
-        val startTime = Calendar.getInstance()
+        val startTime = Calendar.getInstance().getTimeInMillis
 
         Logger.getLogger("org").setLevel(Level.ERROR)
         Logger.getLogger("akka").setLevel(Level.ERROR)
@@ -108,44 +106,38 @@ object LightExp {
         log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
         // Swapping: set the set with the smallest area as source
-        val (source, target, relation) = BlockUtils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
+        val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
 
-        val (sourceIDs_startsFrom, targetIDs_startsFrom) = if (BlockUtils.swapped) (indexSeparator, 0) else (0, indexSeparator)
-        if (BlockUtils.swapped) {
+        val (sourceIDs_startsFrom, targetIDs_startsFrom) = if (Utils.swapped) (indexSeparator, 0) else (0, indexSeparator)
+        if (Utils.swapped) {
             val temp = sourceCount
             sourceCount = targetCount
             targetCount = temp
         }
 
         val liTarget = sourceCount > targetCount
-        val blocking_startTime = Calendar.getInstance()
+        val blocking_startTime = Calendar.getInstance().getTimeInMillis
         val blocks: RDD[LightBlock] = BlockingFactory.getBlocking(conf, source, target).apply(liTarget)
             .setName("LightBlocks").persist(StorageLevel.MEMORY_AND_DISK)
+        val totalBlocks = blocks.count()
+        log.info("DS-JEDAI: Number of Blocks: " + totalBlocks)
+        val blocking_endTime = Calendar.getInstance().getTimeInMillis
+        log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime - blocking_startTime) / 1000.0)
+        BlockUtils.setTotalBlocks(totalBlocks)
 
-        log.info("DS-JEDAI: Number of Blocks: " + blocks.count())
-
-        val allowedComparisons = BlockUtils.cleanBlocks(blocks.asInstanceOf[RDD[TBlock]]).setName("Comparisons").persist(StorageLevel.MEMORY_AND_DISK)
-
-//      log.info("DS-JEDAI: Comparisons Partition Distribution")
-//      printPartitions(allowedComparisons.flatMap(_._2).asInstanceOf[RDD[Any]])
-        log.info("Total comparisons " + allowedComparisons.map(_._2.size).sum().toInt)
-        val blocking_endTime = Calendar.getInstance()
-        log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime.getTimeInMillis - blocking_startTime.getTimeInMillis) / 1000.0)
-
-
-        val matching_startTime = Calendar.getInstance()
+        val matching_startTime = Calendar.getInstance().getTimeInMillis
         val matches =
             if (liTarget)
-                EntityMatching.Matching.lightMatching(blocks, target, targetIDs_startsFrom, allowedComparisons, relation, BlockUtils.swapped)
+                EntityMatching.Matching.lightMatching(blocks, target, targetIDs_startsFrom, relation, Utils.swapped)
             else
-                EntityMatching.Matching.lightMatching(blocks, source, sourceIDs_startsFrom, allowedComparisons, relation, BlockUtils.swapped)
+                EntityMatching.Matching.lightMatching(blocks, source, sourceIDs_startsFrom, relation, Utils.swapped)
 
         log.info("DS-JEDAI: Matches: " + matches.count)
-        val matching_endTime = Calendar.getInstance()
-        log.info("DS-JEDAI: Matching Time: " + (matching_endTime.getTimeInMillis - matching_startTime.getTimeInMillis) / 1000.0)
+        val matching_endTime = Calendar.getInstance().getTimeInMillis
+        log.info("DS-JEDAI: Matching Time: " + (matching_endTime - matching_startTime) / 1000.0)
 
-        val endTime = Calendar.getInstance()
-        log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime.getTimeInMillis) / 1000.0)
+        val endTime = Calendar.getInstance().getTimeInMillis
+        log.info("DS-JEDAI: Total Execution Time: " + (endTime - startTime) / 1000.0)
 
 //        System.in.read
 //        spark.stop()
