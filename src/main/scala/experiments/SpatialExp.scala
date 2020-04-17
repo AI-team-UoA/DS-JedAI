@@ -26,7 +26,7 @@ import utils.{ConfigurationParser, Constants, SpatialPartitioner, Utils}
 object SpatialExp {
 
 	def main(args: Array[String]): Unit = {
-		val startTime =  Calendar.getInstance()
+		val startTime =  Calendar.getInstance().getTimeInMillis
 
 		Logger.getLogger("org").setLevel(Level.ERROR)
 		Logger.getLogger("akka").setLevel(Level.ERROR)
@@ -155,15 +155,15 @@ object SpatialExp {
 			BlockUtils.setTotalBlocks(totalBlocks)
 
 			// Entity Matching
-			val matching_startTime = Calendar.getInstance()
+			val matching_startTime = Calendar.getInstance().getTimeInMillis
 			//val matches = Matching.prioritizedMatching(blocks, relation)
 			val matches = Matching.SpatialMatching(blocks, relation)
 			log.info("DS-JEDAI: Matches: " + matches.count)
-			val matching_endTime = Calendar.getInstance()
-			log.info("DS-JEDAI: Matching Time: " + (matching_endTime.getTimeInMillis - matching_startTime.getTimeInMillis) / 1000.0)
+			val matching_endTime = Calendar.getInstance().getTimeInMillis
+			log.info("DS-JEDAI: Matching Time: " + (matching_endTime - matching_startTime) / 1000.0)
 
 			val endTime = Calendar.getInstance()
-			log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime.getTimeInMillis) / 1000.0)
+			log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime) / 1000.0)
 		}
 		//System.in.read
 		//spark.stop()

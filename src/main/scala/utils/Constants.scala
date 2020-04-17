@@ -57,4 +57,11 @@ object Constants {
 	val CONF_THETA_MEASURE = "theta_measure"
 	val CONF_STATIC_BLOCKING_DISTANCE = "static_blocking_distance"
 	val CONF_SPATIAL_BLOCKING_FACTOR = "spatial_blocking_factor"
+
+	val ARCS = "ARCS"
+	val CBS = "CBS"
+	val ECBS = "ECBS"
+	val JS = "JS"
+	val EJS = "EJS"
+
 }

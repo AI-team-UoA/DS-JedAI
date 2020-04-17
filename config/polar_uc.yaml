@@ -12,6 +12,6 @@ relation: "contains"
 
 configurations:
   blockingAlg: "RADON"
-  partitions: "8"
+  partitions: "12"
   spatialPartition: "false"
   theta_measure: "none"
