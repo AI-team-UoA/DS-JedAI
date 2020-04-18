@@ -23,9 +23,14 @@ case class LightBlock(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialE
         comparisonsPairs
     }
 
-    def getSourceIDs: ArrayBuffer[(Long, Long)] =  source.map(se => (se.id, id))
+    def getSourceIDs: ArrayBuffer[Long] =  source.map(se => se.id)
 
-    def getTargetIDs: ArrayBuffer[(Long, Long)] = targetIDs.map(tid => (tid, id))
+    def getTargetIDs: ArrayBuffer[Long] = targetIDs.map(tid => tid)
+
+    def getSourceSize(): Long = source.size
+
+    def getTargetSize(): Long = targetIDs.size
+
 }
 
 object LightBlock{

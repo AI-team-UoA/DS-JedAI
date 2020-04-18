@@ -23,6 +23,10 @@ libraryDependencies += "org.yaml" % "snakeyaml" % "1.8"
 
 libraryDependencies += "net.jcazevedo" %% "moultingyaml" % "0.4.0"
 
+// https://mvnrepository.com/artifact/org.apache.commons/commons-math3
+libraryDependencies += "org.apache.commons" % "commons-math3" % "3.0"
+
+
 assemblyMergeStrategy in assembly := {
 	case PathList("META-INF", xs @ _*) => MergeStrategy.discard
 	case x => MergeStrategy.first

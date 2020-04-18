@@ -35,9 +35,13 @@ case class Block(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialEntity
 		comparisons
 	}
 
-	def getSourceIDs: ArrayBuffer[(Long, Long)] =  source.map(se => (se.id, id))
+	def getSourceIDs: ArrayBuffer[Long] =  source.map(se => se.id)
 
-	def getTargetIDs: ArrayBuffer[(Long, Long)] = target.map(se => (se.id, id))
+	def getTargetIDs: ArrayBuffer[Long] = target.map(se => se.id)
+
+	def getSourceSize(): Long = source.size
+
+	def getTargetSize(): Long = target.size
 }
 
 object Block {

@@ -123,7 +123,6 @@ object LightExp {
         log.info("DS-JEDAI: Number of Blocks: " + totalBlocks)
         val blocking_endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime - blocking_startTime) / 1000.0)
-        BlockUtils.setTotalBlocks(totalBlocks)
 
         val matching_startTime = Calendar.getInstance().getTimeInMillis
         val matches =

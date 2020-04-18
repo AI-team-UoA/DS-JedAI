@@ -63,5 +63,6 @@ object Constants {
 	val ECBS = "ECBS"
 	val JS = "JS"
 	val EJS = "EJS"
+	val PEARSON_X2 = "PEARSON_X2"
 
 }

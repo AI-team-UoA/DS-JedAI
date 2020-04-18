@@ -148,37 +148,7 @@ object Matching {
 
 
 
-	def prioritizedMatching(blocks: RDD[Block], relation: String): RDD[(Long,Long)] = {
 
-		val weightedComparisons = BlockUtils.weightComparisons(blocks.asInstanceOf[RDD[TBlock]], weightStrategy = Constants.ECBS)
-		val blocksComparisons = blocks.map(b => (b.id, b))
-		val matches = weightedComparisons.leftOuterJoin(blocksComparisons)
-    		.map{
-				b =>
-					val comparisonsWeightsMap = b._2._1.toMap
-					val comparisons = b._2._2.get.getComparisons
-					val orderedComparisons = comparisons
-						.filter(c => comparisonsWeightsMap.contains(c.id))
-    					.map{c =>
-							val weight = comparisonsWeightsMap(c.id)
-							val env1 = c.entity1.geometry.getEnvelope
-							val env2 = c.entity2.geometry.getEnvelope
-							val normalizedWeight = BlockUtils.normalizeWeight(weight, env1, env2)
-							(normalizedWeight, c)
-						}
-						.sortBy(_._1)(Ordering.Double.reverse)
-					var matches: ArrayBuffer[(Long,Long)] = ArrayBuffer()
-					for (c <- orderedComparisons) {
-						 val (s, t) = (c._2.entity1, c._2.entity2)
-						 if (testMBB(s.mbb, t.mbb, relation))
-						 if (relate(s.geometry, t.geometry, relation))
-							 matches += ((s.id, t.id))
-					 }
-					matches
-			}
-    		.flatMap(m => m)
-		matches
-	}
 
 
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING

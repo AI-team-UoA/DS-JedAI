@@ -4,6 +4,7 @@ import java.util.Calendar
 
 import Blocking.{BlockUtils, BlockingFactory}
 import EntityMatching.Matching
+import EntityMatching.prioritization.{BlockCentricPrioritization, ComparisonCentricPrioritization}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
@@ -152,12 +153,12 @@ object SpatialExp {
 			log.info("DS-JEDAI: Number of Blocks: " + totalBlocks)
 			val blocking_endTime = Calendar.getInstance().getTimeInMillis
 			log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime - blocking_startTime) / 1000.0)
-			BlockUtils.setTotalBlocks(totalBlocks)
+
 
 			// Entity Matching
 			val matching_startTime = Calendar.getInstance().getTimeInMillis
-			//val matches = Matching.prioritizedMatching(blocks, relation)
-			val matches = Matching.SpatialMatching(blocks, relation)
+			val matches = ComparisonCentricPrioritization(totalBlocks).apply(blocks, relation)
+			//val matches = Matching.SpatialMatching(blocks, relation)
 			log.info("DS-JEDAI: Matches: " + matches.count)
 			val matching_endTime = Calendar.getInstance().getTimeInMillis
 			log.info("DS-JEDAI: Matching Time: " + (matching_endTime - matching_startTime) / 1000.0)
