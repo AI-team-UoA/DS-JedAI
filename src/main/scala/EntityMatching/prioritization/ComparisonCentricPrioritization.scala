@@ -61,8 +61,8 @@ case class ComparisonCentricPrioritization(setTotalBlocks: Long) extends  Priori
         val sourceFrequenciesMapBD = sc.broadcast(sourceFrequenciesMap)
         val entitiesBlockMapBD =
             if (weightingStrategy != Constants.CBS ){
-                val ce1:RDD[(Long, Long)] = blocks.flatMap(b => b.getSourceIDs.map(id => (b.id, id)))
-                val ce2:RDD[(Long, Long)] = blocks.flatMap(b => b.getTargetIDs.map(id => (b.id, id)))
+                val ce1:RDD[(Long, Long)] = blocks.flatMap(b => b.getSourceIDs.map(id => (id, b.id)))
+                val ce2:RDD[(Long, Long)] = blocks.flatMap(b => b.getTargetIDs.map(id => (id, b.id)))
                 val ce = ce1.union(ce2)
                     .map(c => (c._1, ArrayBuffer(c._2)))
                     .reduceByKey(_ ++ _)
@@ -121,7 +121,7 @@ case class ComparisonCentricPrioritization(setTotalBlocks: Long) extends  Priori
                         val v2: Array[Long] = Array[Long](noOfBlocks1 - entity1Frequency, totalBlocksBD.value - (v1(0) + v1(1) +(noOfBlocks1 - entity1Frequency)) )
 
                         val chiTest = new ChiSquareTest()
-                        val weight = chiTest.chiSquare(Array(v1, v2))
+                        val weight = chiTest.chiSquare(Array(v1, v2)) //WARNING NoPositiveNumber Exception
                         ((comparisonID, weight), blockIDs)
                     }
             case Constants.CBS| _ =>
