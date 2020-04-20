@@ -57,7 +57,18 @@ object Constants {
 	val CONF_THETA_MEASURE = "theta_measure"
 	val CONF_STATIC_BLOCKING_DISTANCE = "static_blocking_distance"
 	val CONF_SPATIAL_BLOCKING_FACTOR = "spatial_blocking_factor"
+	val CONF_PRIORITIZATION_ALG = "prioritization_alg"
+	val CONF_WEIGHTING_STRG = "weighting_strategy"
 
+	/**
+	 * Prioritization Algorithms
+	 */
+	val BLOCK_CENTRIC = "BLOCK_CENTRIC"
+	val COMPARISON_CENTRIC = "COMPARISON_CENTRIC"
+
+	/**
+	 * Weighting Strategies
+	 */
 	val ARCS = "ARCS"
 	val CBS = "CBS"
 	val ECBS = "ECBS"

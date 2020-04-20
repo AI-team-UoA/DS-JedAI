@@ -15,3 +15,5 @@ configurations:
   partitions: "12"
   spatialPartition: "false"
   theta_measure: "none"
+  prioritization_alg: "BLOCK_CENTRIC"
+  weighting_strategy: "CBS"

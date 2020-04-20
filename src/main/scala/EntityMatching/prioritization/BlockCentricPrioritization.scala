@@ -14,12 +14,12 @@ import scala.collection.mutable.ArrayBuffer
  */
 
 
-case class BlockCentricPrioritization(setTotalBlocks: Long) extends  PrioritizationTrait  {
+case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: String) extends  PrioritizationTrait  {
 
 
     /**
      * For each block first calculate the weight of each comparison, and also
-     * calcuate to which block each comparison will be assigned to (clean). Then
+     * calculate to which block each comparison will be assigned to (clean). Then
      * after joining the weighted comparisons to each block, normalize the weights
      * and order descending way. Perform first the comparison with greater weights.
      *
@@ -28,15 +28,13 @@ case class BlockCentricPrioritization(setTotalBlocks: Long) extends  Prioritizat
      *
      * @param blocks the input Blocks
      * @param relation the examined relation
-     * @param weightingStrategy the weighting Strategy, the accepted values are CBS,
-     *                          ECBS, ARCS and JS
      * @param cleaningStrategy  the cleaning strategy
      * @return an RDD containing the IDs of the matches
      */
-    def apply(blocks: RDD[Block], relation: String, weightingStrategy: String = Constants.CBS, cleaningStrategy: String = Constants.RANDOM):
+    def apply(blocks: RDD[Block], relation: String, cleaningStrategy: String = Constants.RANDOM):
     RDD[(Long,Long)] = {
 
-        val weightedComparisonsPerBlock = getWeights(blocks.asInstanceOf[RDD[TBlock]], weightingStrategy)
+        val weightedComparisonsPerBlock = getWeights(blocks.asInstanceOf[RDD[TBlock]])
             .asInstanceOf[RDD[(Any, ArrayBuffer[Long])]]
 
         val cleanWeightedComparisonsPerBlock = clean(weightedComparisonsPerBlock, cleaningStrategy)
@@ -72,18 +70,11 @@ case class BlockCentricPrioritization(setTotalBlocks: Long) extends  Prioritizat
      * The accepted weighing strategies are CBS(default), ECBS, ARCS and JS
      *
      * @param blocks blocks RDD
-     * @param weightingStrategy the weighting strategy
      * @return the weighted comparisons of each block
      */
-    def getWeights(blocks: RDD[TBlock], weightingStrategy: String = Constants.CBS): RDD[((Long, Double), ArrayBuffer[Long])] ={
+    def getWeights(blocks: RDD[TBlock]): RDD[((Long, Double), ArrayBuffer[Long])] ={
         val sc = SparkContext.getOrCreate()
-
-        val totalBlocksBD =
-            if (weightingStrategy == Constants.ECBS) {
-                if (totalBlocks == -1) totalBlocks = blocks.count()
-                sc.broadcast(totalBlocks)
-            }
-            else null
+        val totalBlocksBD = sc.broadcast(totalBlocks)
 
         val entitiesBlockMapBD =
             if (weightingStrategy == Constants.ECBS || weightingStrategy == Constants.JS){

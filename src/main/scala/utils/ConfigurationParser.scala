@@ -54,7 +54,7 @@ object ConfigurationParser {
 						}
 					case Constants.CONF_BLOCK_ALG =>
 						if (! (value == Constants.RADON || value == Constants.STATIC_BLOCKING || value == Constants.LIGHT_RADON)) {
-							log.error("DS-JEDAI: Blocking Algorithm '" + value + "' not supported")
+							log.error("DS-JEDAI: Blocking Algorithm '" + value + "' is not supported")
 							System.exit(1)
 						}
 					case Constants.CONF_SPATIAL_BLOCKING_FACTOR =>
@@ -75,6 +75,17 @@ object ConfigurationParser {
 					case Constants.CONF_THETA_MEASURE =>
 						if (!checkThetaMeasure(value)) {
 							log.error("DS-JEDAI: Not valid measure for theta")
+							System.exit(1)
+						}
+					case Constants.CONF_PRIORITIZATION_ALG =>
+						if (! (value == Constants.BLOCK_CENTRIC || value == Constants.COMPARISON_CENTRIC)) {
+							log.error("DS-JEDAI: Prioritization Algorithm '" + value + "' is not supported")
+							System.exit(1)
+						}
+					case Constants.CONF_WEIGHTING_STRG =>
+						if (! (value == Constants.ARCS || value == Constants.CBS || value == Constants.ECBS
+							|| value == Constants.JS || value == Constants.EJS || value == Constants.PEARSON_X2)) {
+							log.error("DS-JEDAI: Weighting algorithm '" + value + "' is not supported")
 							System.exit(1)
 						}
 				}
