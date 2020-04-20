@@ -10,47 +10,77 @@ import utils.{Constants, Utils}
 
 import scala.collection.mutable.ArrayBuffer
 
+/**
+ * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ */
+
+
 case class ComparisonCentricPrioritization(setTotalBlocks: Long) extends  PrioritizationTrait  {
 
-    def apply(blocks: RDD[Block], relation: String, weightingStrategy: String = Constants.PEARSON_X2, cleaningStrategy: String = Constants.RANDOM):
+
+    /**
+     * First for each block compute the weight of each comparison and to which block
+     * it will be assigned to (clean). Then in each partition, order its comparisons
+     * according to their weights and then execute them to find matches.
+     *
+     * During the matching, first test the relation to geometries's MBBs and then
+     * performs the relation to the geometries
+     *
+     * @param blocks the input Blocks
+     * @param relation the examined relation
+     * @param weightingStrategy the weighting Strategy, the accepted values are CBS,
+     *                          ECBS, JS and PEARSON_X
+     * @param cleaningStrategy  the cleaning strategy
+     * @return an RDD containing the IDs of the matches
+     */
+    def apply(blocks: RDD[Block], relation: String, weightingStrategy: String = Constants.CBS, cleaningStrategy: String = Constants.RANDOM):
     RDD[(Long,Long)] = {
 
         val weightedComparisonsPerBlock = getWeights(blocks.asInstanceOf[RDD[TBlock]], weightingStrategy)
             .asInstanceOf[RDD[(Any, ArrayBuffer[Long])]]
+
         val cleanWeightedComparisonsPerBlock = clean(weightedComparisonsPerBlock, cleaningStrategy)
-            .asInstanceOf[ RDD[(Long, ArrayBuffer[(Long, Double)])]]
+            .asInstanceOf[RDD[(Long, ArrayBuffer[(Long, Double)])]]
             .filter(_._2.nonEmpty)
 
         val blocksComparisons = blocks.map(b => (b.id, b))
-        val matches = cleanWeightedComparisonsPerBlock.leftOuterJoin(blocksComparisons)
-            .map{
+        cleanWeightedComparisonsPerBlock
+            .leftOuterJoin(blocksComparisons)
+            .flatMap {
                 b =>
                     val comparisonsWeightsMap = b._2._1.toMap
                     val comparisons = b._2._2.get.getComparisons
-                    val orderedComparisons = comparisons
+                    comparisons
                         .filter(c => comparisonsWeightsMap.contains(c.id))
-                        .map{c =>
+                        .map { c =>
                             val weight = comparisonsWeightsMap(c.id)
                             val env1 = c.entity1.geometry.getEnvelope
                             val env2 = c.entity2.geometry.getEnvelope
                             val normalizedWeight = normalizeWeight(weight, env1, env2)
                             (normalizedWeight, c)
                         }
-                        .sortBy(_._1)(Ordering.Double.reverse)
-                    var matches: ArrayBuffer[(Long,Long)] = ArrayBuffer()
-                    for (c <- orderedComparisons) {
-                        val (s, t) = (c._2.entity1, c._2.entity2)
-                        if (testMBB(s.mbb, t.mbb, relation))
-                            if (relate(s.geometry, t.geometry, relation))
-                                matches += ((s.id, t.id))
-                    }
-                    matches
             }
-            .flatMap(m => m)
-        matches
+            .mapPartitions { comparisonsIter =>
+                comparisonsIter
+                    .toArray
+                    .sortBy(_._1)
+                    .map(_._2)
+                    .filter(c => testMBB(c.entity1.mbb, c.entity2.mbb, relation))
+                    .filter(c => relate(c.entity1.geometry, c.entity2.geometry, relation))
+                    .map(c => (c.entity1.id, c.entity2.id))
+                    .toIterator
+            }
     }
 
 
+    /**
+     * Weight the comparisons of blocks and clean the duplicate comparisons.
+     * The accepted weighing strategies are CBS(default), ECBS, JS and PEARSON_X
+     *
+     * @param blocks blocks RDD
+     * @param weightingStrategy the weighting strategy
+     * @return the weighted comparisons of each block
+     */
     def getWeights(blocks: RDD[TBlock], weightingStrategy: String = Constants.CBS): RDD[((Long, Double), ArrayBuffer[Long])] ={
         val sc = SparkContext.getOrCreate()
         val totalBlocksBD = sc.broadcast(totalBlocks)
@@ -59,6 +89,7 @@ case class ComparisonCentricPrioritization(setTotalBlocks: Long) extends  Priori
             .reduceByKey(_ + _)
             .collectAsMap()
         val sourceFrequenciesMapBD = sc.broadcast(sourceFrequenciesMap)
+
         val entitiesBlockMapBD =
             if (weightingStrategy != Constants.CBS ){
                 val ce1:RDD[(Long, Long)] = blocks.flatMap(b => b.getSourceIDs.map(id => (id, b.id)))
@@ -101,7 +132,8 @@ case class ComparisonCentricPrioritization(setTotalBlocks: Long) extends  Priori
                         val entity1Frequency = sourceFrequenciesMapBD.value(sourceID)
                         val noOfBlocks1 = entitiesBlockMapBD.value(sourceID).size
                         val noOfBlocks2 = entitiesBlockMapBD.value(targetID).size
-                        val weight = entity1Frequency / (noOfBlocks1 + noOfBlocks2 - entity1Frequency) // WARNING: how do we ensure the denominator is non zero
+                        val denominator = (noOfBlocks1 + noOfBlocks2 - entity1Frequency) // WARNING: how do we ensure the denominator is non zero
+                        val weight = entity1Frequency / denominator
                         ((comparisonID, weight), blockIDs)
                     }
             case Constants.PEARSON_X2 =>
@@ -114,7 +146,7 @@ case class ComparisonCentricPrioritization(setTotalBlocks: Long) extends  Priori
                         val blockIDs = c._2
                         val comparisonID = Utils.bijectivePairing(sourceID, targetID)
                         val entity1Frequency = sourceFrequenciesMapBD.value(sourceID)
-                        val noOfBlocks1 = entitiesBlockMapBD.value(sourceID).size //WARNING: Key not found
+                        val noOfBlocks1 = entitiesBlockMapBD.value(sourceID).size
                         val noOfBlocks2 = entitiesBlockMapBD.value(targetID).size
 
                         val v1: Array[Long] = Array[Long](entity1Frequency, noOfBlocks2 - entity1Frequency)

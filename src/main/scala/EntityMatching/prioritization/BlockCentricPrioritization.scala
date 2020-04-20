@@ -9,26 +9,48 @@ import utils.{Constants, Utils}
 
 import scala.collection.mutable.ArrayBuffer
 
+/**
+ * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ */
+
+
 case class BlockCentricPrioritization(setTotalBlocks: Long) extends  PrioritizationTrait  {
 
 
-
+    /**
+     * For each block first calculate the weight of each comparison, and also
+     * calcuate to which block each comparison will be assigned to (clean). Then
+     * after joining the weighted comparisons to each block, normalize the weights
+     * and order descending way. Perform first the comparison with greater weights.
+     *
+     * During the matching, first test the relation to geometries's MBBs and then
+     * performs the relation to the geometries
+     *
+     * @param blocks the input Blocks
+     * @param relation the examined relation
+     * @param weightingStrategy the weighting Strategy, the accepted values are CBS,
+     *                          ECBS, ARCS and JS
+     * @param cleaningStrategy  the cleaning strategy
+     * @return an RDD containing the IDs of the matches
+     */
     def apply(blocks: RDD[Block], relation: String, weightingStrategy: String = Constants.CBS, cleaningStrategy: String = Constants.RANDOM):
     RDD[(Long,Long)] = {
 
         val weightedComparisonsPerBlock = getWeights(blocks.asInstanceOf[RDD[TBlock]], weightingStrategy)
             .asInstanceOf[RDD[(Any, ArrayBuffer[Long])]]
+
         val cleanWeightedComparisonsPerBlock = clean(weightedComparisonsPerBlock, cleaningStrategy)
             .asInstanceOf[ RDD[(Long, ArrayBuffer[(Long, Double)])]]
             .filter(_._2.nonEmpty)
 
         val blocksComparisons = blocks.map(b => (b.id, b))
-        val matches = cleanWeightedComparisonsPerBlock.leftOuterJoin(blocksComparisons)
-            .map{
+        cleanWeightedComparisonsPerBlock
+            .leftOuterJoin(blocksComparisons)
+            .flatMap{
                 b =>
                     val comparisonsWeightsMap = b._2._1.toMap
                     val comparisons = b._2._2.get.getComparisons
-                    val orderedComparisons = comparisons
+                    comparisons
                         .filter(c => comparisonsWeightsMap.contains(c.id))
                         .map{c =>
                             val weight = comparisonsWeightsMap(c.id)
@@ -38,22 +60,16 @@ case class BlockCentricPrioritization(setTotalBlocks: Long) extends  Prioritizat
                             (normalizedWeight, c)
                         }
                         .sortBy(_._1)(Ordering.Double.reverse)
-                    var matches: ArrayBuffer[(Long,Long)] = ArrayBuffer()
-                    for (c <- orderedComparisons) {
-                        val (s, t) = (c._2.entity1, c._2.entity2)
-                        if (testMBB(s.mbb, t.mbb, relation))
-                            if (relate(s.geometry, t.geometry, relation))
-                                matches += ((s.id, t.id))
-                    }
-                    matches
+                        .filter(c => testMBB(c._2.entity1.mbb, c._2.entity2.mbb, relation))
+                        .filter(c => relate(c._2.entity1.geometry, c._2.entity2.geometry, relation))
+                        .map(c => (c._2.entity1.id, c._2.entity2.id))
             }
-            .flatMap(m => m)
-        matches
     }
 
 
     /**
-     * Weight the comparisons of the blocks and clean the duplicate comparisons
+     * Weight the comparisons of blocks and clean the duplicate comparisons.
+     * The accepted weighing strategies are CBS(default), ECBS, ARCS and JS
      *
      * @param blocks blocks RDD
      * @param weightingStrategy the weighting strategy
