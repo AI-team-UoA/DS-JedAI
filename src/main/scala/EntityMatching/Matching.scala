@@ -8,10 +8,9 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Encoder, Encoders}
 import org.datasyslab.geosparksql.utils.GeoSparkSQLRegistrator
-import utils.{Constants, Utils}
+import utils.Constants
 import utils.Utils.spark
 
-import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 /**
@@ -74,8 +73,8 @@ object Matching {
 
 
 	/**
-	 * Perform the comparisons of the blocks. Only the comparisons inside the allowedComparison
-	 * will be performed.
+	 * First calculate the allowed comparisons of each block. Then test which comparison
+	 * might result to a match by comparing their MBB, and then perform the actual comparisons.
 	 *
 	 * @param blocks RDD of blocks
  	 * @param relation requested relation
@@ -84,29 +83,24 @@ object Matching {
 	def SpatialMatching(blocks: RDD[Block], relation: String): RDD[(Long, Long)] ={
 
 		val allowedComparisons = BlockUtils.cleanBlocks(blocks.asInstanceOf[RDD[TBlock]])
-
 		val blocksComparisons = blocks.map(b => (b.id, b))
-		val matches = allowedComparisons.leftOuterJoin(blocksComparisons)
-    		.map { b =>
-				val allowedComparisons = b._2._1
-				val comparisons = b._2._2.get.getComparisons.filter(c => allowedComparisons.contains(c.id))
 
-				var matches: ArrayBuffer[(Long,Long)] = ArrayBuffer()
-				for (c <- comparisons){
-					val (s, t) = (c.entity1, c.entity2)
-					if (testMBB(s.mbb, t.mbb, relation))
-						if (relate(s.geometry, t.geometry, relation))
-							matches += ((s.id, t.id))
-					}
-				matches
+		allowedComparisons
+			.leftOuterJoin(blocksComparisons)
+			.flatMap { b =>
+				val allowedComparisons = b._2._1
+				b._2._2.get
+					.getComparisons
+					.filter(c => allowedComparisons.contains(c.id))
 			}
-    		.flatMap(a => a)
-			matches
+    		.filter(c => testMBB(c.entity1.mbb, c.entity2.mbb, relation))
+    		.filter(c => relate(c.entity1.geometry, c.entity2.geometry, relation))
+    		.map(c => (c.entity1.id, c.entity2.id))
 	}
 
+
 	/**
-	 * Similar to matching but using light blocks, and the smallest set is sorted and then broadcasted
-	 *
+	 * Similar to matching but using light blocks, and the smallest set is sorted and then broadcasted.
 	 *
 	 * @param blocks an RDD of LightBlocks
 	 * @param toCollect the set that it will be collected and broadcasted
@@ -121,33 +115,27 @@ object Matching {
 
 		val allowedComparisons = BlockUtils.cleanBlocks(blocks.asInstanceOf[RDD[TBlock]])
 
-		val blocksComparisons = blocks.map(b => (b.id, (b.source, b.targetIDs)))
-		val matches = allowedComparisons.leftOuterJoin(blocksComparisons)
-			.map { b =>
-				val (sourceAr, targetIDs) = b._2._2.get
-				val allowedComparisons = b._2._1
+		val blocksComparisons = blocks.map(b => (b.id, b))
+		val comparisons = allowedComparisons.leftOuterJoin(blocksComparisons)
+			.flatMap { b =>
 				val targetArray = broadcastedSet.value
-
-				var matches: ArrayBuffer[(Long,Long)] = ArrayBuffer()
-				for (sourceSE <- sourceAr; targetID <- targetIDs){
-					val comparisonID = Utils.bijectivePairing(sourceSE.id, targetID)
-					if (allowedComparisons.contains(comparisonID)){
-						val targetSE = targetArray(targetID.toInt - startIdFrom)
-						val passTest = if(!swapped) testMBB(sourceSE.mbb, targetSE.mbb, relation) else testMBB(targetSE.mbb, sourceSE.mbb, relation)
-						if (passTest) {
-							val doRelate = if (!swapped) relate(sourceSE.geometry, targetSE.geometry, relation) else relate(targetSE.geometry, sourceSE.geometry, relation)
-							if (doRelate) matches += ((sourceSE.id, targetID))
-						}
-					}
-				}
-				matches
+				val allowedComparisonsSet = b._2._1
+				b._2._2.get
+					.getComparisons
+					.filter(c => allowedComparisonsSet.contains(c._1))
+					.map(c => (c._2._1, targetArray(c._2._2.toInt - startIdFrom)))
 			}
-			.flatMap(a => a)
-		matches
+		if (!swapped)
+			comparisons
+				.filter(c => testMBB(c._1.mbb, c._2.mbb, relation))
+				.filter(c => relate(c._1.geometry, c._2.geometry, relation))
+				.map(c => (c._1.id, c._2.id))
+		else
+			comparisons
+				.filter(c => testMBB(c._2.mbb, c._1.mbb, relation))
+				.filter(c => relate(c._2.geometry, c._1.geometry, relation))
+				.map(c => (c._2.id, c._1.id))
 	}
-
-
-
 
 
 

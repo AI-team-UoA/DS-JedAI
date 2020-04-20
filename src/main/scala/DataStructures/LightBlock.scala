@@ -23,6 +23,15 @@ case class LightBlock(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialE
         comparisonsPairs
     }
 
+    /**
+     * For each compaison in the block, return its id
+     * @return block's comparisons ids
+     */
+    def getComparisons: ArrayBuffer[(Long, (SpatialEntity, Long))]={
+        for (s <-source; tID <- targetIDs)
+            yield (Utils.bijectivePairing(s.id, tID), (s, tID))
+    }
+
     def getSourceIDs: ArrayBuffer[Long] =  source.map(se => se.id)
 
     def getTargetIDs: ArrayBuffer[Long] = targetIDs.map(tid => tid)

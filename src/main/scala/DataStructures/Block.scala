@@ -27,12 +27,11 @@ case class Block(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialEntity
 
 	/**
 	 * For each compaison in the block, return its id
-	 * @return block's comparisons ids
+	 * @return block's comparisons
 	 */
 	def getComparisons: ArrayBuffer[Comparison]={
-		val comparisons = for (s <-source; t <- target)
+		for (s <-source; t <- target)
 			yield Comparison(s, t)
-		comparisons
 	}
 
 	def getSourceIDs: ArrayBuffer[Long] =  source.map(se => se.id)
