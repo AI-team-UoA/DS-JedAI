@@ -135,6 +135,33 @@ trait Blocking {
 		blocksRDD
 	}
 
+	def applyWithSort(): RDD[Block] ={
+		val sourceIndex = index(source)
+		val sourceBlocks: Set[(Int, Int)] = sourceIndex.map(b => Set(b._1)).reduce(_++_)
+		val targetIndex = index(target, sourceBlocks)
+
+		val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[SpatialEntity]]))] = targetIndex.leftOuterJoin(sourceIndex)
+
+		// construct blocks from indexes
+		val blocksRDD = blocksIndex
+			.map { block =>
+				val blockCoords = block._1
+				val targetIndex = block._2._1
+				val sourceIndex = block._2._2.get
+				(sourceIndex.size * targetIndex.size, (blockCoords, sourceIndex, targetIndex))
+			}
+    		.sortByKey()
+			.zipWithIndex()
+			.map{ case (b: (Int, ((Int, Int), ArrayBuffer[SpatialEntity], ArrayBuffer[SpatialEntity])), id: Long) =>
+				val blockCoords = b._2._1
+				val sourceIndex = b._2._2
+				val targetIndex = b._2._3
+				Block(id, blockCoords, sourceIndex, targetIndex)
+			}
+			.setName("BlocksRDD")
+		blocksRDD
+	}
+
 	def apply(liTarget: Boolean = true): RDD[LightBlock] = {null}
 
 }
