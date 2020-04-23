@@ -13,7 +13,7 @@ trait PrioritizationTrait extends Serializable{
 
     def normalizeWeight(weight: Double, entity1: Geometry, entity2:Geometry): Double = weight/(entity1.getArea * entity2.getArea)
 
-    def apply(blocks: RDD[Block], relation: String, cleanStrategy: String): RDD[(Long,Long)]
+    def apply(blocks: RDD[Block], relation: String, cleanStrategy: String): RDD[(Int,Int)]
 
     def getWeights(blocks: RDD[TBlock]): RDD[((Long, Double), ArrayBuffer[Long])]
 

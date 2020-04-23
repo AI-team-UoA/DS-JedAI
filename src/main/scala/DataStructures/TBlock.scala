@@ -8,11 +8,11 @@ trait TBlock {
 
     def getComparisonsIDs: Set[Long]
 
-    def getComparisonsPairs: ArrayBuffer[(Long, Long)]
+    def getComparisonsPairs: ArrayBuffer[(Int, Int)]
 
-    def getSourceIDs: ArrayBuffer[Long]
+    def getSourceIDs: ArrayBuffer[Int]
 
-    def getTargetIDs: ArrayBuffer[Long]
+    def getTargetIDs: ArrayBuffer[Int]
 
     def getSourceSize(): Long
 

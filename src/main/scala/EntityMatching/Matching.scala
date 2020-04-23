@@ -80,7 +80,7 @@ object Matching {
  	 * @param relation requested relation
 	 * @return the matches
 	 */
-	def SpatialMatching(blocks: RDD[Block], relation: String): RDD[(Long, Long)] ={
+	def SpatialMatching(blocks: RDD[Block], relation: String): RDD[(Int, Int)] ={
 
 		val allowedComparisons = BlockUtils.cleanBlocks(blocks.asInstanceOf[RDD[TBlock]])
 		val blocksComparisons = blocks.map(b => (b.id, b))
@@ -140,10 +140,10 @@ object Matching {
 
 
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
-	implicit def singleLong[A](implicit c: ClassTag[Long]): Encoder[Long] = Encoders.scalaLong
+	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
 
 	implicit def tuple[Int, String](implicit e1: Encoder[Int], e2: Encoder[String]): Encoder[(Int,String)] = Encoders.tuple[Int,String](e1, e2)
-	def disjointMatches(source: RDD[SpatialEntity], target: RDD[SpatialEntity]): RDD[(Long,Long)] ={
+	def disjointMatches(source: RDD[SpatialEntity], target: RDD[SpatialEntity]): RDD[(Int,Int)] ={
 		GeoSparkSQLRegistrator.registerAll(spark)
 		val disjointQuery =
 			"""SELECT SOURCE._1 AS SOURCE_ID, TARGET._1 AS TARGET_ID
@@ -160,7 +160,7 @@ object Matching {
 		targetDT.createOrReplaceTempView("TARGET")
 
 		val disjointResults = spark.sql(disjointQuery)
-		disjointResults.rdd.map(r => (r.get(0).asInstanceOf[Long], r.get(1).asInstanceOf[Long]))
+		disjointResults.rdd.map(r => (r.get(0).asInstanceOf[Int], r.get(1).asInstanceOf[Int]))
 	}
 
 }

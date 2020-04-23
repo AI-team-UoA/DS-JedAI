@@ -32,7 +32,7 @@ case class ComparisonCentricPrioritization(totalBlocks: Long, weightingStrategy:
      * @return an RDD containing the IDs of the matches
      */
     def apply(blocks: RDD[Block], relation: String, cleaningStrategy: String = Constants.RANDOM):
-    RDD[(Long,Long)] = {
+    RDD[(Int,Int)] = {
 
         val weightedComparisonsPerBlock = getWeights(blocks.asInstanceOf[RDD[TBlock]])
             .asInstanceOf[RDD[(Any, ArrayBuffer[Long])]]
@@ -87,10 +87,10 @@ case class ComparisonCentricPrioritization(totalBlocks: Long, weightingStrategy:
             .collectAsMap()
         val sourceFrequenciesMapBD = sc.broadcast(sourceFrequenciesMap)
 
-        val entitiesBlockMapBD =
+        val entitiesBlockMapBD = // ERROR: the frequency of blocks, not comparisons
             if (weightingStrategy != Constants.CBS ){
-                val ce1:RDD[(Long, Long)] = blocks.flatMap(b => b.getSourceIDs.map(id => (id, b.id)))
-                val ce2:RDD[(Long, Long)] = blocks.flatMap(b => b.getTargetIDs.map(id => (id, b.id)))
+                val ce1:RDD[(Int, Long)] = blocks.flatMap(b => b.getSourceIDs.map(id => (id, b.id)))
+                val ce2:RDD[(Int, Long)] = blocks.flatMap(b => b.getTargetIDs.map(id => (id, b.id)))
                 val ce = ce1.union(ce2)
                     .map(c => (c._1, ArrayBuffer(c._2)))
                     .reduceByKey(_ ++ _)
@@ -129,7 +129,7 @@ case class ComparisonCentricPrioritization(totalBlocks: Long, weightingStrategy:
                         val entity1Frequency = sourceFrequenciesMapBD.value(sourceID)
                         val noOfBlocks1 = entitiesBlockMapBD.value(sourceID).size
                         val noOfBlocks2 = entitiesBlockMapBD.value(targetID).size
-                        val denominator = (noOfBlocks1 + noOfBlocks2 - entity1Frequency) // WARNING: how do we ensure the denominator is non zero
+                        val denominator = (noOfBlocks1 + noOfBlocks2 - entity1Frequency)
                         val weight = entity1Frequency / denominator
                         ((comparisonID, weight), blockIDs)
                     }
@@ -150,7 +150,7 @@ case class ComparisonCentricPrioritization(totalBlocks: Long, weightingStrategy:
                         val v2: Array[Long] = Array[Long](noOfBlocks1 - entity1Frequency, totalBlocksBD.value - (v1(0) + v1(1) +(noOfBlocks1 - entity1Frequency)) )
 
                         val chiTest = new ChiSquareTest()
-                        val weight = chiTest.chiSquare(Array(v1, v2)) //WARNING NoPositiveNumber Exception
+                        val weight = chiTest.chiSquare(Array(v1, v2))
                         ((comparisonID, weight), blockIDs)
                     }
             case Constants.CBS| _ =>

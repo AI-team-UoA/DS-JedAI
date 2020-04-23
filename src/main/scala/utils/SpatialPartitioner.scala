@@ -25,7 +25,7 @@ object SpatialPartitioner {
     val spark: SparkSession = SparkSession.builder().getOrCreate()
     var spatialPartitionMapBD: Broadcast[Map[Long, Int]] = _
     implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
-    implicit def singleLong[A](implicit c: ClassTag[Long]): Encoder[Long] = Encoders.scalaLong
+    implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
     implicit def tuple[String, Int](implicit e1: Encoder[String], e2: Encoder[Int]): Encoder[(String,Int)] = Encoders.tuple[String,Int](e1, e2)
     val geometryQuery: String =  """SELECT ST_GeomFromWKT(GEOMETRIES._1) AS WKT,  GEOMETRIES._2 AS ID FROM GEOMETRIES""".stripMargin
 

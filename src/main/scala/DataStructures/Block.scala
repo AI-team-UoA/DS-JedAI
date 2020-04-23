@@ -19,7 +19,7 @@ case class Block(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialEntity
 		comparisonsIDs.toSet
 	}
 
-	def getComparisonsPairs: ArrayBuffer[(Long, Long)]={
+	def getComparisonsPairs: ArrayBuffer[(Int, Int)]={
 		val comparisonsPairs = for (s <-source; t <- target)
 			yield (s.id, t.id)
 		comparisonsPairs
@@ -34,9 +34,9 @@ case class Block(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialEntity
 			yield Comparison(s, t)
 	}
 
-	def getSourceIDs: ArrayBuffer[Long] =  source.map(se => se.id)
+	def getSourceIDs: ArrayBuffer[Int] =  source.map(se => se.id)
 
-	def getTargetIDs: ArrayBuffer[Long] = target.map(se => se.id)
+	def getTargetIDs: ArrayBuffer[Int] = target.map(se => se.id)
 
 	def getSourceSize(): Long = source.size
 

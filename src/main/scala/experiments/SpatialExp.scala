@@ -157,8 +157,8 @@ object SpatialExp {
 
 			// Entity Matching
 			val matching_startTime = Calendar.getInstance().getTimeInMillis
-			val matches = PrioritizationAlgorithmFactory.getPrioritizationAlgorithm(conf, totalBlocks).apply(blocks, relation, Constants.RANDOM)
-			//val matches = Matching.SpatialMatching(blocks, relation)
+			//val matches = PrioritizationAlgorithmFactory.getPrioritizationAlgorithm(conf, totalBlocks).apply(blocks, relation, Constants.RANDOM)
+			val matches = Matching.SpatialMatching(blocks, relation)
 			log.info("DS-JEDAI: Matches: " + matches.count)
 			val matching_endTime = Calendar.getInstance().getTimeInMillis
 			log.info("DS-JEDAI: Matching Time: " + (matching_endTime - matching_startTime) / 1000.0)
