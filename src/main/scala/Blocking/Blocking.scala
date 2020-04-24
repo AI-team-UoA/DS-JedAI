@@ -112,19 +112,20 @@ trait Blocking {
 	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), ArrayBuffer[SpatialEntity])]
 
 
-		/**
+	/**
 	 * apply blocking
-	 * @return
+	 * @return an RDD of Blocks
 	 */
 	def apply(): RDD[Block] ={
 		val sourceIndex = index(source)
 		val sourceBlocks: Set[(Int, Int)] = sourceIndex.map(b => Set(b._1)).reduce(_++_)
 		val targetIndex = index(target, sourceBlocks)
 
-		val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[SpatialEntity]]))] = targetIndex.leftOuterJoin(sourceIndex)
+		val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[SpatialEntity]]))] = sourceIndex.leftOuterJoin(targetIndex)
 
 		// construct blocks from indexes
 		val blocksRDD = blocksIndex
+			.filter(_._2._2.isDefined)
 			.map { block =>
 				val blockCoords = block._1
 				val targetIndex = block._2._1
@@ -135,15 +136,21 @@ trait Blocking {
 		blocksRDD
 	}
 
+	/**
+	 * the ids of block is defined by their index after sorting them
+	 * based on the no comparisons
+	 * @return an RDD of Blocks
+	 */
 	def applyWithSort(): RDD[Block] ={
 		val sourceIndex = index(source)
 		val sourceBlocks: Set[(Int, Int)] = sourceIndex.map(b => Set(b._1)).reduce(_++_)
 		val targetIndex = index(target, sourceBlocks)
 
-		val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[SpatialEntity]]))] = targetIndex.leftOuterJoin(sourceIndex)
+		val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[SpatialEntity]]))] = sourceIndex.leftOuterJoin(targetIndex)
 
 		// construct blocks from indexes
 		val blocksRDD = blocksIndex
+			.filter(_._2._2.isDefined)
 			.map { block =>
 				val blockCoords = block._1
 				val targetIndex = block._2._1
