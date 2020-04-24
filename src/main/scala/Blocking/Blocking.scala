@@ -11,7 +11,7 @@ import scala.collection.mutable.ArrayBuffer
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-trait Blocking {
+trait 	Blocking {
 	var source: RDD[SpatialEntity]
 	var target: RDD[SpatialEntity]
 
@@ -128,8 +128,8 @@ trait Blocking {
 			.filter(_._2._2.isDefined)
 			.map { block =>
 				val blockCoords = block._1
-				val targetIndex = block._2._1
-				val  sourceIndex = block._2._2.get
+				val sourceIndex = block._2._1
+				val targetIndex = block._2._2.get
 				Block(blockCoords, sourceIndex, targetIndex)
 			}
 			.setName("BlocksRDD")
@@ -153,16 +153,16 @@ trait Blocking {
 			.filter(_._2._2.isDefined)
 			.map { block =>
 				val blockCoords = block._1
-				val targetIndex = block._2._1
-				val sourceIndex = block._2._2.get
+				val sourceIndex = block._2._1
+				val targetIndex = block._2._2.get
 				(sourceIndex.size * targetIndex.size, (blockCoords, sourceIndex, targetIndex))
 			}
     		.sortByKey()
 			.zipWithIndex()
 			.map{ case (b: (Int, ((Int, Int), ArrayBuffer[SpatialEntity], ArrayBuffer[SpatialEntity])), id: Long) =>
 				val blockCoords = b._2._1
-				val sourceIndex = b._2._2
-				val targetIndex = b._2._3
+				val targetIndex = b._2._2
+				val sourceIndex = b._2._3
 				Block(id, blockCoords, sourceIndex, targetIndex)
 			}
 			.setName("BlocksRDD")
