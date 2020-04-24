@@ -2,16 +2,13 @@ package experiments
 
 import java.util.Calendar
 
-import Blocking.{BlockUtils, BlockingFactory}
-import DataStructures.LightBlock
+import Blocking.    LightRADON
 import org.apache.log4j.{Level, LogManager, Logger}
-import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.storage.StorageLevel
 import utils.Reader.CSVReader
-import utils.{ConfigurationParser, Constants, Utils}
+import utils.{ConfigurationParser, Constants}
 
 
 /**
@@ -83,7 +80,7 @@ object LightExp {
                     System.exit(1)
                     null
             }
-        var sourceCount = sourceRDD.setName("SourceRDD").cache().count()
+        val sourceCount = sourceRDD.setName("SourceRDD").cache().count()
         log.info("DS-JEDAI: Number of ptofiles of Source: " + sourceCount)
         val indexSeparator = sourceCount.toInt
 
@@ -102,43 +99,13 @@ object LightExp {
                     System.exit(1)
                     null
             }
-        var targetCount = targetRDD.setName("TargetRDD").cache().count()
+        val targetCount = targetRDD.setName("TargetRDD").cache().count()
         log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
-        // Swapping: set the set with the smallest area as source
-        val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
-
-        val (sourceIDs_startsFrom, targetIDs_startsFrom) = if (Utils.swapped) (indexSeparator, 0) else (0, indexSeparator)
-        if (Utils.swapped) {
-            val temp = sourceCount
-            sourceCount = targetCount
-            targetCount = temp
-        }
-
-        val liTarget = sourceCount > targetCount
-        val blocking_startTime = Calendar.getInstance().getTimeInMillis
-        val blocks: RDD[LightBlock] = BlockingFactory.getBlocking(conf, source, target).apply(liTarget)
-            .setName("LightBlocks").persist(StorageLevel.MEMORY_AND_DISK)
-        val totalBlocks = blocks.count()
-        log.info("DS-JEDAI: Number of Blocks: " + totalBlocks)
-        val blocking_endTime = Calendar.getInstance().getTimeInMillis
-        log.info("DS-JEDAI: Blocking Time: " + (blocking_endTime - blocking_startTime) / 1000.0)
-
-        val matching_startTime = Calendar.getInstance().getTimeInMillis
-        val matches =
-            if (liTarget)
-                EntityMatching.Matching.lightMatching(blocks, target, targetIDs_startsFrom, relation, Utils.swapped)
-            else
-                EntityMatching.Matching.lightMatching(blocks, source, sourceIDs_startsFrom, relation, Utils.swapped)
-
+        val matches = LightRADON(sourceRDD, targetRDD).apply(indexSeparator, conf.relation)
         log.info("DS-JEDAI: Matches: " + matches.count)
-        val matching_endTime = Calendar.getInstance().getTimeInMillis
-        log.info("DS-JEDAI: Matching Time: " + (matching_endTime - matching_startTime) / 1000.0)
 
-        val endTime = Calendar.getInstance().getTimeInMillis
-        log.info("DS-JEDAI: Total Execution Time: " + (endTime - startTime) / 1000.0)
-
-//        System.in.read
-//        spark.stop()
+        val endTime = Calendar.getInstance()
+        log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime) / 1000.0)
     }
 }

@@ -1,94 +1,156 @@
 package Blocking
 
-import DataStructures.{LightBlock, SpatialEntity}
+import DataStructures.SpatialEntity
 import org.apache.spark.SparkContext
-import org.apache.spark.broadcast.Broadcast
+import EntityMatching.Matching
 import org.apache.spark.rdd.RDD
 import utils.Constants
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 
 /**
- *  Similar to RADON blocking algorithms, but blocks entities inside LightBlocks
+ * A blocking and Matching algorithm. Similar to RADON but the target dataset is
+ * collected and brodcasted during the matching procedure.
  *
- * @param source source set as RDD
- * @param target target set as RDD
- * @param thetaMsrSTR theta measure
- **/
-case class LightRADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity] = null, thetaMsrSTR: String = Constants.NO_USE ) extends Blocking with Serializable {
+ * @param source the distributed dataset (source)
+ * @param target the collected dataset
+ * @param thetaXY theta values
+ */
+case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double) ) extends Serializable {
 
     /**
-     * index a spatial entities set. If acceptedBlocks is provided then the entities will be assigned
-     * to blocks that exist in the accepted blocks
+     * find the blocks of a Spatial Entity
+     * @param se input SpatialEntity
+     * @return and array of Block coordinates
+     */
+    def indexSpatialEntity(se: SpatialEntity): ArrayBuffer[(Int, Int)] ={
+        val (thetaX, thetaY) = thetaXY
+        // TODO: crossing meridian
+        val maxX = math.ceil(se.mbb.maxX / thetaX).toInt
+        val minX = math.floor(se.mbb.minX / thetaX).toInt
+        val maxY = math.ceil(se.mbb.maxY / thetaY).toInt
+        val minY = math.floor(se.mbb.minY / thetaY).toInt
+
+        (for (x <- minX to maxX; y <- minY to maxY) yield (x, y)).to[ArrayBuffer]
+    }
+
+    /**
+     * Index the collected dataset
      *
-     * @param spatialEntitiesRDD the set to index
-     * @param acceptedBlocks the accepted blocks that the set can be indexed to
-     * @return an Array of block ids for each spatial entity
+     * @return a HashMap containing the block coordinates as keys and
+     *         lists of Spatial Entities ids as values
      */
-    def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), ArrayBuffer[SpatialEntity])] ={
-        val acceptedBlocksBD = SparkContext.getOrCreate().broadcast(acceptedBlocks)
-        broadcastMap += ("acceptedBlocks" -> acceptedBlocksBD.asInstanceOf[Broadcast[Any]])
-        spatialEntitiesRDD.mapPartitions { seIter =>
-            val thetaMsr = broadcastMap("theta").value.asInstanceOf[(Double, Double)]
-            val acceptedBlocks = acceptedBlocksBD.value
-            seIter.map(se => (indexSpatialEntity(se, acceptedBlocks, thetaMsr), se))
-        }
-        .flatMap(b => b._1.map(id => (id, ArrayBuffer[SpatialEntity](b._2) ))).reduceByKey(_ ++ _ )
-    }
+    def indexTarget():mutable.HashMap[(Int, Int), ListBuffer[Int]] = {
+       var blocksMap = mutable.HashMap[(Int, Int), ListBuffer[Int]]()
+       for (se <- target) {
+           val seID = se.id
+           val blocksIter = indexSpatialEntity(se)
+           blocksIter.foreach {
+               blockCoords =>
+                    if (blocksMap.contains(blockCoords))
+                        blocksMap(blockCoords).append(seID)
+                    else blocksMap += (blockCoords -> ListBuffer(seID))
+           }
+       }
+       blocksMap
+   }
 
     /**
-     * index a spatial entities set. If acceptedBlocks is provided then the entities will be assigned
-     * to blocks that exist in the accepted blocks.
-     * The difference is that instead of storing the whole entities, it just saves their id
+     * Get the matching pairs of the datasets. Broadcast the blocks hashmap and the collected dataset.
+     * Then index the distributed dataset and after obtaining their blocks, get the respective
+     * entities of the broadcasted dataset of the same block and perform the comparisons.
+     * First test their MBBs and then their geometries
      *
-     * @param spatialEntitiesRDD the set to index
-     * @param acceptedBlocks the accepted blocks that the set can be indexed to
-     * @return an Array of block ids for each spatial entity
+     * @param relation the examined relation
+     * @param idStart target ids starting value
+     * @param blocksMap HashMap of targets blocks
+     * @return an RDD of matches
      */
-    def lightIndex(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), ArrayBuffer[Int])] ={
-        val acceptedBlocksBD = SparkContext.getOrCreate().broadcast(acceptedBlocks)
-        broadcastMap += ("acceptedBlocks" -> acceptedBlocksBD.asInstanceOf[Broadcast[Any]])
-        spatialEntitiesRDD.mapPartitions { seIter =>
-            val thetaMsr = broadcastMap("theta").value.asInstanceOf[(Double, Double)]
-            val acceptedBlocks = acceptedBlocksBD.value
-            seIter.map(se => (indexSpatialEntity(se, acceptedBlocks, thetaMsr), se))
-        }
-        .flatMap(b => b._1.map(id => (id, ArrayBuffer[Int](b._2.id) ))).reduceByKey(_ ++ _ )
-    }
+   def matchTargetData(relation: String, idStart: Int, blocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(Int, Int)] ={
+       val sc = SparkContext.getOrCreate()
+       val blocksMapBD = sc.broadcast(blocksMap)
+       val collectedBD = sc.broadcast(target)
 
+       source
+           .map(se => (se, indexSpatialEntity(se)))
+           .flatMap { case (se, blocksArray) =>
+               val compared = mutable.HashSet[Int]()
+               val blocksMap = blocksMapBD.value
+               blocksArray
+                   .filter(blocksMap.contains)
+                   .flatMap{ block =>
+                       val entitiesIDs = blocksMap(block).filter(id => !compared.contains(id))
+                       compared ++= entitiesIDs
+                       entitiesIDs
+                           .map(id => collectedBD.value(id - idStart))
+                           .filter(tse => Matching.testMBB(se.mbb, tse.mbb, relation))
+                           .filter(tse => Matching.relate(se.geometry, tse.geometry, relation))
+                           .map(tse => (se.id, tse.id))
+               }
+           }
+   }
 
     /**
-     * blocks SpatialEntities inside LightBlocks
-     * @param liTarget if liTarget is true then the blocks will contain only the ids of target instead of
-     *                 the entities, else this will happen for source.
-     * @return an RDD of LightBlocks
+     * start LightRADON algorithm
+     * @param idStart target's id starting value
+     * @param relation the examined relation
+     * @return an RDD of matches
      */
-    override def apply(liTarget: Boolean = true): RDD[LightBlock] = {
-        initTheta(thetaMsrSTR)
+    def apply(idStart: Int, relation: String): RDD[(Int, Int)] = {
+        val blocksMap = indexTarget()
+        matchTargetData(relation, idStart, blocksMap)
+    }
+}
 
-        val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[Int]]))] =
-            if (liTarget){
-                val sIndex = index(source)
-                val allowedBlocks: Set[(Int, Int)] = sIndex.map(b => Set(b._1)).reduce(_++_)
-                val tIndex = lightIndex(target, allowedBlocks)
-                sIndex.leftOuterJoin(tIndex).filter(b => b._2._2.isDefined)
-            }
-            else{
-                val sIndex = lightIndex(source)
-                val allowedBlocks: Set[(Int, Int)] = sIndex.map(b => Set(b._1)).reduce(_++_)
-                val tIndex = index(target, allowedBlocks)
-                tIndex.leftOuterJoin(sIndex)
-            }
 
-        val blocksRDD:RDD[LightBlock] = blocksIndex
-            .map { block =>
-                val blockCoords = block._1
-                val sourceIndex = block._2._1
-                val targetIndex: ArrayBuffer[Int] = block._2._2.get
-                LightBlock(blockCoords, sourceIndex, targetIndex)
-            }
-        blocksRDD
+object LightRADON {
+    /**
+     * Constructor based on RDDs
+     *
+     * @param source source RDD
+     * @param target target RDD which will be collected
+     * @param thetaMsrSTR theta measure
+     * @return LightRADON instance
+     */
+    def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaMsrSTR: String = Constants.NO_USE): LightRADON ={
+        val thetaXY = initTheta(source, target, thetaMsrSTR)
+        LightRADON(source, target.sortBy(_.id).collect().to[ArrayBuffer], thetaXY)
     }
 
+    /**
+     * initialize theta based on theta measure
+     */
+    def initTheta(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String): (Double, Double) ={
+        val thetaMsr: RDD[(Double, Double)] = source
+            .union(target)
+            .map {
+                sp =>
+                    val env = sp.geometry.getEnvelopeInternal
+                    (env.getHeight, env.getWidth)
+            }
+            .setName("thetaMsr")
+            .cache()
+
+        var thetaX = 1d
+        var thetaY = 1d
+        thetaMsrSTR match {
+            // WARNING: small or big values of theta may affect negatively the indexing procedure
+            case Constants.MIN =>
+                // filtering because there are cases that the geometries are perpendicular to the axes
+                // and have width or height equals to 0.0
+                thetaX = thetaMsr.map(_._1).filter(_ != 0.0d).min
+                thetaY = thetaMsr.map(_._2).filter(_ != 0.0d).min
+            case Constants.MAX =>
+                thetaX = thetaMsr.map(_._1).max
+                thetaY = thetaMsr.map(_._2).max
+            case Constants.AVG =>
+                val length = thetaMsr.count
+                thetaX = thetaMsr.map(_._1).sum() / length
+                thetaY = thetaMsr.map(_._2).sum() / length
+            case _ =>
+        }
+        (thetaX, thetaY)
+    }
 }
