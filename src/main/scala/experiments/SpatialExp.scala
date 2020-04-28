@@ -2,7 +2,7 @@ package experiments
 
 import java.util.Calendar
 
-import Blocking.{BlockUtils, BlockingFactory}
+import Blocking. BlockingFactory
 import EntityMatching.Matching
 import EntityMatching.prioritization.{BlockCentricPrioritization, ComparisonCentricPrioritization, PrioritizationAlgorithmFactory}
 import org.apache.log4j.{Level, LogManager, Logger}
@@ -11,7 +11,7 @@ import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
-import utils.Reader.CSVReader
+import utils.Readers.{CSVReader, Reader}
 import utils.Utils.printPartitions
 import utils.{ConfigurationParser, Constants, SpatialPartitioner, Utils}
 
@@ -69,39 +69,13 @@ object SpatialExp {
 		val spatialPartition: Boolean = conf.configurations.getOrElse(Constants.CONF_SPATIAL_PARTITION, "false").toBoolean
 
 		// Loading Source
-		val sourcePath = conf.source.path
-		val sourceFileExtension = sourcePath.toString.split("\\.").last
-		val sourceRDD =
-			sourceFileExtension match {
-				case "csv" =>
-					val data = CSVReader.loadProfiles(sourcePath, conf.source.realIdField, conf.source.geometryField)
-					if (repartition && !spatialPartition)
-						data.repartition(partitions)
-					else data
-				case _ =>
-					log.error("DS-JEDAI: This filetype is not supported yet")
-					System.exit(1)
-					null
-			}
+		val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField)
 		val sourceCount = sourceRDD.setName("SourceRDD").cache().count()
 		log.info("DS-JEDAI: Number of ptofiles of Source: " + sourceCount)
 		val indexSeparator = sourceCount.toInt
 
 		// Loading Target
-		val targetPath = conf.target.path
-		val targetFileExtension = targetPath.toString.split("\\.").last
-		val targetRDD =
-			targetFileExtension match {
-				case "csv" =>
-					val data = CSVReader.loadProfiles2(targetPath, conf.target.realIdField, conf.target.geometryField, startIdFrom=indexSeparator)
-					if (repartition && !spatialPartition)
-						data.repartition(partitions)
-					else data
-				case _ =>
-					log.error("DS-JEDAI: This filetype is not supported yet")
-					System.exit(1)
-					null
-			}
+		val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, indexSeparator)
 		val targetCount = targetRDD.setName("TargetRDD").cache().count()
 		log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 

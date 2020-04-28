@@ -1,4 +1,4 @@
-package utils.Reader
+package utils.Readers
 
 import DataStructures.{KeyValue, SpatialEntity}
 import com.vividsolutions.jts.geom.Geometry
@@ -9,12 +9,12 @@ import org.apache.spark.sql.SparkSession
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-object CSVReader extends ReaderTrait {
+object CSVReader extends TReader {
 
     val spark: SparkSession = SparkSession.builder().getOrCreate()
 
-    override def loadProfiles(filePath: String, realIdField: String, geometryField: String) : RDD[SpatialEntity] = {
-        loadProfiles2(filePath, realIdField, geometryField)
+    override def loadProfiles(filePath: String, realIdField: String, geometryField: String, startIdFrom: Int = 0) : RDD[SpatialEntity] = {
+        loadProfiles2(filePath, realIdField, geometryField, startIdFrom)
     }
 
     def loadProfiles2(filePath: String, realIdField: String, geometryField: String,  startIdFrom: Int = 0, header: Boolean = true,
