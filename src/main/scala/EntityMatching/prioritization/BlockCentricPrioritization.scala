@@ -43,7 +43,7 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
 
         val blocksComparisons = blocks.map(b => (b.id, b))
         cleanWeightedComparisonsPerBlock
-            .leftOuterJoin(blocksComparisons)
+            .leftOuterJoin(blocksComparisons) //CMNT: JOIN
             .flatMap{
                 b =>
                     val comparisonsWeightsMap = b._2._1.toMap
@@ -76,21 +76,20 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
         val sc = SparkContext.getOrCreate()
         val totalBlocksBD = sc.broadcast(totalBlocks)
 
-        val entitiesBlockMapBD =
+        val entitiesBlockMapBD = // CMNT: reduce + collect + broadcast
             if (weightingStrategy == Constants.ECBS || weightingStrategy == Constants.JS){
                 val ce1:RDD[(Int, Long)] = blocks.flatMap(b => b.getSourceIDs.map(id => (id, b.id)))
                 val ce2:RDD[(Int, Long)] = blocks.flatMap(b => b.getTargetIDs.map(id => (id, b.id)))
                 val ce = ce1.union(ce2)
                     .map(c => (c._1, ArrayBuffer(c._2)))
                     .reduceByKey(_ ++ _)
-                    .sortByKey(ascending = false)
                     .map(c => (c._1, c._2.toSet))
                     .collectAsMap()
                 sc.broadcast(ce)
             }
             else null
 
-         weightingStrategy match {
+         weightingStrategy match { //CMNT: in reduceByKey don't shuffle arrays of block but choose block
             case Constants.ARCS =>
                 blocks
                     .map(b => (b.id, b.getComparisonsIDs))

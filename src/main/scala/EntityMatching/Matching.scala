@@ -82,7 +82,7 @@ object Matching {
 	 */
 	def SpatialMatching(blocks: RDD[Block], relation: String): RDD[(Int, Int)] ={
 
-		val allowedComparisons = BlockUtils.cleanBlocks(blocks.asInstanceOf[RDD[TBlock]])
+		val allowedComparisons = BlockUtils.cleanBlocks2(blocks.asInstanceOf[RDD[TBlock]])
 		val blocksComparisons = blocks.map(b => (b.id, b))
 
 		allowedComparisons

@@ -11,7 +11,7 @@ import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
-import utils.Readers.{CSVReader, Reader}
+import utils.Readers.Reader
 import utils.Utils.printPartitions
 import utils.{ConfigurationParser, Constants, SpatialPartitioner, Utils}
 

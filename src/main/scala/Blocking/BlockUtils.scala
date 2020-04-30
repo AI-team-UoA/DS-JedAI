@@ -15,6 +15,7 @@ import scala.collection.mutable.ArrayBuffer
  */
 object BlockUtils {
 
+	val chooseBlock = (b1: Long, b2: Long) => b1
 
 	def clean(blocksPerComparison: RDD[(Any, ArrayBuffer[Long])], cleanStrategy: String = Constants.RANDOM): RDD[(Long, ArrayBuffer[Any])] = {
 		cleanStrategy match {
@@ -33,6 +34,7 @@ object BlockUtils {
 	}
 
 
+
 	/**
 	 * Remove duplicate comparisons from blocks by applying the cleaning strategy
 	 *
@@ -40,7 +42,7 @@ object BlockUtils {
 	 * @param strategy decide to which block each comparison will be assigned to
 	 * @return an RDD of Comparisons
 	 */
-	def cleanBlocks(blocks: RDD[TBlock], strategy: String = Constants.RANDOM): RDD[(Long, HashSet[Long])] ={
+	def cleanBlocks(blocks: RDD[TBlock], strategy: String = Constants.RANDOM): RDD[(Long, HashSet[Long])] ={ // CMNT : don't shuffle arrays but choose during shuffle
 		val blocksPerComparison = blocks
 				.map(b => (b.id, b.getComparisonsIDs))
 				.flatMap(b => b._2.map(c => (c, ArrayBuffer(b._1))))
@@ -48,6 +50,18 @@ object BlockUtils {
 
 		val comparisonsPerBlock = clean(blocksPerComparison.asInstanceOf[RDD[(Any, ArrayBuffer[Long])]], strategy).asInstanceOf[RDD[(Long, ArrayBuffer[Long])]]
 		comparisonsPerBlock.filter(_._2.nonEmpty).map(b => (b._1, b._2.to[HashSet]))
+	}
+
+
+	def cleanBlocks2(blocks: RDD[TBlock], strategy: String = Constants.RANDOM): RDD[(Long, HashSet[Long])] ={ // CMNT : don't shuffle arrays but choose during shuffle
+		blocks
+			.map(b => (b.id, b.getComparisonsIDs))
+			.flatMap(b => b._2.map(c => (c, b._1)))
+			.reduceByKey(chooseBlock)
+			.map{ case (cid, bid) => (bid, ArrayBuffer(cid))}
+    		.reduceByKey(_ ++ _)
+			.filter(_._2.nonEmpty)
+			.map(b => (b._1, b._2.to[HashSet]))
 	}
 
 }
