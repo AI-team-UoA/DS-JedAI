@@ -1,8 +1,8 @@
-package Blocking
+package EntityMatching.LightAlgorithms
 
 import DataStructures.SpatialEntity
+import EntityMatching.SpatialMatching
 import org.apache.spark.SparkContext
-import EntityMatching.Matching
 import org.apache.spark.rdd.RDD
 import utils.Constants
 
@@ -18,46 +18,11 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
  * @param target the collected dataset
  * @param thetaXY theta values
  */
-case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double) ) extends Serializable {
+case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double) ) extends LightAlgorithmsTrait {
 
-    /**
-     * find the blocks of a Spatial Entity
-     * @param se input SpatialEntity
-     * @return and array of Block coordinates
-     */
-    def indexSpatialEntity(se: SpatialEntity): ArrayBuffer[(Int, Int)] ={
-        val (thetaX, thetaY) = thetaXY
-        // TODO: crossing meridian
-        val maxX = math.ceil(se.mbb.maxX / thetaX).toInt
-        val minX = math.floor(se.mbb.minX / thetaX).toInt
-        val maxY = math.ceil(se.mbb.maxY / thetaY).toInt
-        val minY = math.floor(se.mbb.minY / thetaY).toInt
 
-        (for (x <- minX to maxX; y <- minY to maxY) yield (x, y)).to[ArrayBuffer]
-    }
 
-    /**
-     * Index the collected dataset
-     *
-     * @return a HashMap containing the block coordinates as keys and
-     *         lists of Spatial Entities ids as values
-     */
-    def indexTarget():mutable.HashMap[(Int, Int), ListBuffer[Int]] = {
-       var blocksMap = mutable.HashMap[(Int, Int), ListBuffer[Int]]()
-       for (se <- target) {
-           val seID = se.id
-           val blocksIter = indexSpatialEntity(se)
-           blocksIter.foreach {
-               blockCoords =>
-                    if (blocksMap.contains(blockCoords))
-                        blocksMap(blockCoords).append(seID)
-                    else blocksMap += (blockCoords -> ListBuffer(seID))
-           }
-       }
-       blocksMap
-   }
-
-    /**
+       /**
      * Get the matching pairs of the datasets. Broadcast the blocks hashmap and the collected dataset.
      * Then index the distributed dataset and after obtaining their blocks, get the respective
      * entities of the broadcasted dataset of the same block and perform the comparisons.
@@ -85,23 +50,13 @@ case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEnt
                        compared ++= entitiesIDs
                        entitiesIDs
                            .map(id => collectedBD.value(id - idStart))
-                           .filter(tse => Matching.testMBB(se.mbb, tse.mbb, relation))
-                           .filter(tse => Matching.relate(se.geometry, tse.geometry, relation))
+                           .filter(tse => testMBB(se.mbb, tse.mbb, relation))
+                           .filter(tse => relate(se.geometry, tse.geometry, relation))
                            .map(tse => (se.id, tse.id))
                }
            }
    }
 
-    /**
-     * start LightRADON algorithm
-     * @param idStart target's id starting value
-     * @param relation the examined relation
-     * @return an RDD of matches
-     */
-    def apply(idStart: Int, relation: String): RDD[(Int, Int)] = {
-        val blocksMap = indexTarget()
-        matchTargetData(relation, idStart, blocksMap)
-    }
 }
 
 
