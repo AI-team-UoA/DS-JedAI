@@ -15,6 +15,8 @@ object PrioritizationAlgorithmFactory {
         algorithm match {
             case Constants.COMPARISON_CENTRIC =>
                 ComparisonCentricPrioritization(totalBlocks, weightingStrategy)
+            case Constants.ΕΝΤΙΤΥ_CENTRIC =>
+                EntityCentricPrioritization(totalBlocks, weightingStrategy)
             case Constants.BLOCK_CENTRIC|_ =>
                 BlockCentricPrioritization(totalBlocks, weightingStrategy)
         }
