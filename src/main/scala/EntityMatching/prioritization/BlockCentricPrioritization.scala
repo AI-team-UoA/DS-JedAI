@@ -72,7 +72,7 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
      * @param blocks blocks RDD
      * @return the weighted comparisons of each block
      */
-    def getWeights(blocks: RDD[TBlock]): RDD[((Long, Double), ArrayBuffer[Long])] ={
+    override def getWeights(blocks: RDD[TBlock]): RDD[((Long, Double), ArrayBuffer[Long])] ={
         val sc = SparkContext.getOrCreate()
         val totalBlocksBD = sc.broadcast(totalBlocks)
 
@@ -83,7 +83,7 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
                 val ce = ce1.union(ce2)
                     .map(c => (c._1, ArrayBuffer(c._2)))
                     .reduceByKey(_ ++ _)
-                    .sortByKey()
+                    .sortByKey(ascending = false)
                     .map(c => (c._1, c._2.toSet))
                     .collectAsMap()
                 sc.broadcast(ce)

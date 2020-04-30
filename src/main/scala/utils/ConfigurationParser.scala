@@ -78,7 +78,7 @@ object ConfigurationParser {
 							System.exit(1)
 						}
 					case Constants.CONF_PRIORITIZATION_ALG =>
-						if (! (value == Constants.BLOCK_CENTRIC || value == Constants.COMPARISON_CENTRIC)) {
+						if (! (value == Constants.BLOCK_CENTRIC || value == Constants.COMPARISON_CENTRIC || value == Constants.ΕΝΤΙΤΥ_CENTRIC)) {
 							log.error("DS-JEDAI: Prioritization Algorithm '" + value + "' is not supported")
 							System.exit(1)
 						}

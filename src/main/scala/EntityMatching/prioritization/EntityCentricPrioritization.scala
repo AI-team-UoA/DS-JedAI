@@ -5,12 +5,12 @@ import DataStructures.{Block, TBlock}
 import EntityMatching.Matching.{relate, testMBB}
 import org.apache.spark.rdd.RDD
 
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
-import scala.util.control.Breaks._
+import scala.collection.mutable.ArrayBuffer
+
 
 case class EntityCentricPrioritization(totalBlocks: Long, weightingStrategy: String) extends  PrioritizationTrait  {
 
-    // TODO : sort desc
+
     /**
      * Based on the weighted comparisons, weight the entities of source. The comparisons
      * of the entities with the higher weights, will be prioritized. Furthermore, for
@@ -57,10 +57,10 @@ case class EntityCentricPrioritization(totalBlocks: Long, weightingStrategy: Str
                         val weight = weights.sum / weights.size
                         (weight, (e1, weightedTarget))
                     }
-                    .sortBy(_._1)
+                    .sortBy(_._1)(Ordering.Double.reverse)
                     .flatMap{ case (w, (e1, weightedTarget)) =>
                         weightedTarget
-                            .sortBy(_._1)
+                            .sortBy(_._1)(Ordering.Double.reverse)
                             .map(_._2)
                             .filter(e2 => testMBB(e1.mbb, e2.mbb, relation))
                             .filter(e2 => relate(e1.geometry, e2.geometry, relation))
@@ -117,8 +117,8 @@ case class EntityCentricPrioritization(totalBlocks: Long, weightingStrategy: Str
                         val weight = weights.sum / weights.size
                         (weight, (e1, weightedTarget))
                     }
-                    .sortBy(_._1)
-                    .map(p => (p._2._1, p._2._2.sortBy(_._1).map(_._2).toIterator))
+                    .sortBy(_._1)(Ordering.Double.reverse)
+                    .map(p => (p._2._1, p._2._2.sortBy(_._1)(Ordering.Double.reverse).map(_._2).toIterator))
 
                 val matches = ArrayBuffer[(Int, Int)]()
                 var converged = false
