@@ -3,8 +3,8 @@ package experiments
 import java.util.Calendar
 
 import Blocking.BlockingFactory
-import EntityMatching.{MatchingAlgorithmFactory, SpatialMatching}
-import EntityMatching.prioritization.{BlockCentricPrioritization, ComparisonCentricPrioritization}
+import EntityMatching.DistributedAlgorithms.{MatchingAlgorithmFactory, SpatialMatching}
+import EntityMatching.DistributedAlgorithms.prioritization.{BlockCentricPrioritization, ComparisonCentricPrioritization}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer

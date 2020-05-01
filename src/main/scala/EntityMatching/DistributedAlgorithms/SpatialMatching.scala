@@ -1,4 +1,4 @@
-package EntityMatching
+package EntityMatching.DistributedAlgorithms
 
 import Blocking.BlockUtils
 import DataStructures.{Block, SpatialEntity, TBlock}
@@ -9,12 +9,6 @@ import utils.Constants
 
 import scala.reflect.ClassTag
 
-/**
- * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
- */
-
-// TODO meridian case
-// TODO: append ids or originalIDs
 /**
  *  Link discovery
  */

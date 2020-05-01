@@ -1,8 +1,8 @@
-package EntityMatching.prioritization
+package EntityMatching.DistributedAlgorithms.prioritization
 
 import Blocking.BlockUtils.clean
 import DataStructures.{Block, TBlock}
-import EntityMatching.MatchingTrait
+import EntityMatching.DistributedAlgorithms.MatchingTrait
 import org.apache.spark.rdd.RDD
 
 import scala.collection.mutable.ArrayBuffer

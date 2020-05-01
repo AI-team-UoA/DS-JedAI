@@ -1,4 +1,4 @@
-package EntityMatching
+package EntityMatching.DistributedAlgorithms
 
 import DataStructures.{Block, MBB, TBlock}
 import com.vividsolutions.jts.geom.Geometry

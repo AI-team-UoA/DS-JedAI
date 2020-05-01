@@ -79,8 +79,8 @@ object LightExp {
         val targetCount = targetRDD.setName("TargetRDD").cache().count()
         log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
-        //val matches = LightRADON(sourceRDD, targetRDD).apply(indexSeparator, conf.relation)
-        val matches = ComparisonCentricPrioritization(sourceRDD, targetRDD).apply(indexSeparator, conf.relation)
+        val matches = LightRADON(sourceRDD, targetRDD).apply(indexSeparator, conf.relation)
+        //val matches = ComparisonCentricPrioritization(sourceRDD, targetRDD).apply(indexSeparator, conf.relation)
 
         log.info("DS-JEDAI: Matches: " + matches.count)
 

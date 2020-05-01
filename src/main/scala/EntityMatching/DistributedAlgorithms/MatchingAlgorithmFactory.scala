@@ -1,6 +1,6 @@
-package EntityMatching
+package EntityMatching.DistributedAlgorithms
 
-import EntityMatching.prioritization.{BlockCentricPrioritization, ComparisonCentricPrioritization, EntityCentricPrioritization}
+import EntityMatching.DistributedAlgorithms.prioritization.{BlockCentricPrioritization, ComparisonCentricPrioritization, EntityCentricPrioritization}
 import utils.{Configuration, Constants}
 
 /**
