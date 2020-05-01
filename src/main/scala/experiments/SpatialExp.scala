@@ -3,7 +3,7 @@ package experiments
 import java.util.Calendar
 
 import Blocking.BlockingFactory
-import EntityMatching.DistributedAlgorithms.{MatchingAlgorithmFactory, SpatialMatching}
+import EntityMatching.DistributedAlgorithms.{DistributedMatchingFactory, SpatialMatching}
 import EntityMatching.DistributedAlgorithms.prioritization.{BlockCentricPrioritization, ComparisonCentricPrioritization}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.rdd.RDD
@@ -132,7 +132,7 @@ object SpatialExp {
 
 			// Entity Matching
 			val matching_startTime = Calendar.getInstance().getTimeInMillis
-			val matches = MatchingAlgorithmFactory.getMatchingAlgorithm(conf, totalBlocks).apply(blocks, relation, Constants.RANDOM)
+			val matches = DistributedMatchingFactory.getMatchingAlgorithm(conf, totalBlocks).apply(blocks, relation, Constants.RANDOM)
 			//val matches = SpatialMatching.SpatialMatching(blocks, relation)
 			log.info("DS-JEDAI: Matches: " + matches.count)
 			val matching_endTime = Calendar.getInstance().getTimeInMillis

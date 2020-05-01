@@ -7,9 +7,9 @@ import utils.{Configuration, Constants}
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 
-object MatchingAlgorithmFactory {
+object DistributedMatchingFactory {
 
-    def getMatchingAlgorithm(conf: Configuration, totalBlocks: Long): MatchingTrait = {
+    def getMatchingAlgorithm(conf: Configuration, totalBlocks: Long): DistributedMatchingTrait = {
         val algorithm = conf.configurations.getOrElse(Constants.CONF_PRIORITIZATION_ALG, Constants.BLOCK_CENTRIC)
         val weightingStrategy = conf.configurations.getOrElse(Constants.CONF_WEIGHTING_STRG, Constants.CBS)
         algorithm match {

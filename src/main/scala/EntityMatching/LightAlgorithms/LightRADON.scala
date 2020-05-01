@@ -18,7 +18,7 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
  * @param target the collected dataset
  * @param thetaXY theta values
  */
-case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double) ) extends LightAlgorithmsTrait {
+case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double) ) extends LightMatchingTrait {
 
 
 

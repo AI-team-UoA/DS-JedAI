@@ -12,7 +12,7 @@ import scala.reflect.ClassTag
 /**
  *  Link discovery
  */
-case class SpatialMatching(totalBlocks: Long, weightingStrategy: String = Constants.NO_USE) extends MatchingTrait {
+case class SpatialMatching(totalBlocks: Long, weightingStrategy: String = Constants.NO_USE) extends DistributedMatchingTrait {
 
 	/**
 	 * First calculate the allowed comparisons of each block. Then test which comparison

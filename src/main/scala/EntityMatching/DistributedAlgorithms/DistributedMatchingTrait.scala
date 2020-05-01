@@ -9,7 +9,7 @@ import utils.{Constants, Utils}
 
 import scala.collection.mutable.ArrayBuffer
 
-trait MatchingTrait extends Serializable{
+trait DistributedMatchingTrait extends Serializable{
     val totalBlocks: Long
     val weightingStrategy: String
 

@@ -2,13 +2,13 @@ package EntityMatching.DistributedAlgorithms.prioritization
 
 import Blocking.BlockUtils.clean
 import DataStructures.{Block, TBlock}
-import EntityMatching.DistributedAlgorithms.MatchingTrait
+import EntityMatching.DistributedAlgorithms.DistributedMatchingTrait
 import org.apache.spark.rdd.RDD
 
 import scala.collection.mutable.ArrayBuffer
 
 
-case class EntityCentricPrioritization(totalBlocks: Long, weightingStrategy: String) extends  MatchingTrait  {
+case class EntityCentricPrioritization(totalBlocks: Long, weightingStrategy: String) extends  DistributedMatchingTrait  {
 
 
     /**

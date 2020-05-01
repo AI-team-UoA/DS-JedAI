@@ -1,8 +1,7 @@
 package EntityMatching.LightAlgorithms.prioritization
 
 import DataStructures.SpatialEntity
-import EntityMatching.DistributedAlgorithms.SpatialMatching
-import EntityMatching.LightAlgorithms.LightAlgorithmsTrait
+import EntityMatching.LightAlgorithms.LightMatchingTrait
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
@@ -13,7 +12,7 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import math.log10
 
 
-case class ComparisonCentricPrioritization(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double), weightingStrategy: String) extends LightAlgorithmsTrait{
+case class ComparisonCentricPrioritization(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double), weightingStrategy: String) extends LightMatchingTrait{
 
 
     def matchTargetData(relation: String, idStart: Int, targetblocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(Int, Int)] = {
@@ -52,23 +51,6 @@ case class ComparisonCentricPrioritization(source: RDD[SpatialEntity], target: A
         }
     }
 
-    def getWeight(totalBlocks: Int, e1Blocks: ArrayBuffer[(Int, Int)], e2Blocks: ArrayBuffer[(Int, Int)], weightingStrategy: String = Constants.CBS): Double ={
-        val commonBlocks = e1Blocks.intersect(e2Blocks).size
-        weightingStrategy match {
-            case Constants.ECBS =>
-                commonBlocks * log10(totalBlocks / e1Blocks.size) * log10(totalBlocks / e2Blocks.size)
-            case Constants.JS =>
-                commonBlocks / (e1Blocks.size + e2Blocks.size - commonBlocks)
-            case Constants.PEARSON_X2 =>
-                val v1: Array[Long] = Array[Long](commonBlocks, e2Blocks.size - commonBlocks)
-                val v2: Array[Long] = Array[Long](e1Blocks.size - commonBlocks, totalBlocks - (v1(0) + v1(1) +(e1Blocks.size - commonBlocks)) )
-
-                val chiTest = new ChiSquareTest()
-                chiTest.chiSquare(Array(v1, v2))
-            case Constants.CBS | _ =>
-                commonBlocks
-        }
-    }
 }
 
 
