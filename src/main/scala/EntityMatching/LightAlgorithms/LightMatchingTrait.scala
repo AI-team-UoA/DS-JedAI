@@ -15,7 +15,7 @@ trait LightMatchingTrait extends Serializable {
     val target: ArrayBuffer[SpatialEntity]
     val thetaXY: (Double, Double)
 
-    def matchTargetData(relation: String, idStart: Int, blocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(Int, Int)]
+    def matchTargetData(relation: String, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(Int, Int)]
 
     /**
      * start LightRADON algorithm

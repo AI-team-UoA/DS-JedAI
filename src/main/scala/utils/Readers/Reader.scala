@@ -14,7 +14,7 @@ object Reader {
             case "csv" =>
                 CSVReader.loadProfiles(filepath, realID_field, geometryField, startIdFrom)
             case "nt" =>
-                RDFReader.loadProfiles(filepath, realID_field, geometryField, startIdFrom)
+                RDF_Reader.loadProfiles(filepath, realID_field, geometryField, startIdFrom)
             case _ =>
                 log.error("DS-JEDAI: This filetype is not supported yet")
                 System.exit(1)

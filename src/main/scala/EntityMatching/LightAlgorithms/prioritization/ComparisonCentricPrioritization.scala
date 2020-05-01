@@ -2,23 +2,21 @@ package EntityMatching.LightAlgorithms.prioritization
 
 import DataStructures.SpatialEntity
 import EntityMatching.LightAlgorithms.LightMatchingTrait
-import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import utils.Constants
 
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
-import math.log10
 
 
 case class ComparisonCentricPrioritization(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double), weightingStrategy: String) extends LightMatchingTrait{
 
 
-    def matchTargetData(relation: String, idStart: Int, targetblocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(Int, Int)] = {
+    def matchTargetData(relation: String, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(Int, Int)] = {
 
         val sc = SparkContext.getOrCreate()
-        val targetBlocksMapBD = sc.broadcast(targetblocksMap)
+        val targetBlocksMapBD = sc.broadcast(targetBlocksMap)
         val targetBD = sc.broadcast(target)
 
         source.mapPartitions { sourceIter =>
@@ -27,13 +25,13 @@ case class ComparisonCentricPrioritization(source: RDD[SpatialEntity], target: A
             sourceAr
                 .zipWithIndex
                 .flatMap { case (e1, e1ID) =>
-                    val candiates = mutable.HashSet[Int]()
+                    val candidates = mutable.HashSet[Int]()
                     val coords = indexSpatialEntity(e1)
                     coords
                         .filter(targetBlocksMapBD.value.contains)
                         .flatMap { c =>
-                            val targetEntities = targetBlocksMapBD.value(c).filter(e2 => !candiates.contains(e2))
-                            candiates ++= targetEntities
+                            val targetEntities = targetBlocksMapBD.value(c).filter(e2 => !candidates.contains(e2))
+                            candidates ++= targetEntities
 
                             targetEntities.map { e2ID =>
                                 val e2Blocks = indexSpatialEntity(targetBD.value(e2ID - idStart))
