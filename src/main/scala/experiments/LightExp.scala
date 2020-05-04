@@ -2,8 +2,8 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.LightAlgorithms.LightRADON
-import EntityMatching.LightAlgorithms.prioritization.ComparisonCentricPrioritization
+import EntityMatching.LightAlgorithms.{LightMatchingFactory, LightRADON}
+import EntityMatching.LightAlgorithms.prioritization.{ComparisonCentricPrioritization, EntityCentricPrioritization}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
@@ -79,8 +79,7 @@ object LightExp {
         val targetCount = targetRDD.setName("TargetRDD").cache().count()
         log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
-        val matches = LightRADON(sourceRDD, targetRDD).apply(indexSeparator, conf.relation)
-        //val matches = ComparisonCentricPrioritization(sourceRDD, targetRDD).apply(indexSeparator, conf.relation)
+        val matches = LightMatchingFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).apply(indexSeparator, conf.relation)
 
         log.info("DS-JEDAI: Matches: " + matches.count)
 

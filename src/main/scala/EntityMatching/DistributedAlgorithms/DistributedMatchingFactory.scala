@@ -10,7 +10,7 @@ import utils.{Configuration, Constants}
 object DistributedMatchingFactory {
 
     def getMatchingAlgorithm(conf: Configuration, totalBlocks: Long): DistributedMatchingTrait = {
-        val algorithm = conf.configurations.getOrElse(Constants.CONF_PRIORITIZATION_ALG, Constants.BLOCK_CENTRIC)
+        val algorithm = conf.configurations.getOrElse(Constants.CONF_MATCHING_ALG, Constants.BLOCK_CENTRIC)
         val weightingStrategy = conf.configurations.getOrElse(Constants.CONF_WEIGHTING_STRG, Constants.CBS)
         algorithm match {
             case Constants.COMPARISON_CENTRIC =>

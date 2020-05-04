@@ -14,6 +14,6 @@ configurations:
   blockingAlg: "RADON"
   partitions: "12"
   spatialPartition: "false"
-  theta_measure: "none"
-  prioritization_alg: "COMPARISON_CENTRIC"
+  theta_measure: "min"
+  matchingAlg: "SPATIAL"
   weighting_strategy: "ECBS"
