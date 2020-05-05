@@ -33,7 +33,7 @@ case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEnt
      * @param blocksMap HashMap of targets blocks
      * @return an RDD of matches
      */
-   def matchTargetData(relation: String, idStart: Int, blocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(Int, Int)] ={
+   def matchTargetData(relation: String, idStart: Int, blocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(Int, Int)] = {
        val sc = SparkContext.getOrCreate()
        val blocksMapBD = sc.broadcast(blocksMap)
        val collectedBD = sc.broadcast(target)
@@ -45,7 +45,7 @@ case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEnt
                val blocksMap = blocksMapBD.value
                blocksArray
                    .filter(blocksMap.contains)
-                   .flatMap{ block =>
+                   .flatMap { block =>
                        val entitiesIDs = blocksMap(block).filter(id => !compared.contains(id))
                        compared ++= entitiesIDs
                        entitiesIDs
@@ -53,7 +53,7 @@ case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEnt
                            .filter(tse => testMBB(se.mbb, tse.mbb, relation))
                            .filter(tse => relate(se.geometry, tse.geometry, relation))
                            .map(tse => (se.id, tse.id))
-               }
+                   }
            }
    }
 

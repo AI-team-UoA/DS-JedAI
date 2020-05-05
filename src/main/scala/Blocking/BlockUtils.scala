@@ -1,10 +1,8 @@
 package Blocking
 
 import DataStructures.TBlock
-import com.vividsolutions.jts.geom.Geometry
-import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import utils.{Constants, Utils}
+import utils.Constants
 
 import scala.collection.immutable.HashSet
 import scala.collection.mutable.ArrayBuffer
@@ -15,8 +13,15 @@ import scala.collection.mutable.ArrayBuffer
  */
 object BlockUtils {
 
-	val chooseBlock = (b1: Long, b2: Long) => b1
+	val chooseBlock: (Long, Long) => Long = (b1: Long, b2: Long) => b1
 
+	/**
+	 * decide to which block each comparison will be assigned to based on the cleanStrategy
+	 *
+	 * @param blocksPerComparison an RDD of blocks per comparison
+	 * @param cleanStrategy the strategy that will clean the blocks
+	 * @return an RDD of comparisons per block
+	 */
 	def clean(blocksPerComparison: RDD[(Any, ArrayBuffer[Long])], cleanStrategy: String = Constants.RANDOM): RDD[(Long, ArrayBuffer[Any])] = {
 		cleanStrategy match {
 			case Constants.RANDOM =>
@@ -40,7 +45,7 @@ object BlockUtils {
 	 *
 	 * @param blocks an RDD of Blocks
 	 * @param strategy decide to which block each comparison will be assigned to
-	 * @return an RDD of Comparisons
+	 * @return an RDD of Comparisons per blocks
 	 */
 	def cleanBlocks(blocks: RDD[TBlock], strategy: String = Constants.RANDOM): RDD[(Long, HashSet[Long])] ={ // CMNT : don't shuffle arrays but choose during shuffle
 		val blocksPerComparison = blocks
@@ -53,7 +58,14 @@ object BlockUtils {
 	}
 
 
-	def cleanBlocks2(blocks: RDD[TBlock], strategy: String = Constants.RANDOM): RDD[(Long, HashSet[Long])] ={ // CMNT : don't shuffle arrays but choose during shuffle
+	/**
+	 * Remove duplicate comparisons from blocks by choosing a block during reduce
+	 *
+	 * @param blocks an RDD of Blocks
+	 * @param strategy decide to which block each comparison will be assigned to
+	 * @return an RDD of Comparisons per block
+	 */
+	def cleanBlocks2(blocks: RDD[TBlock], strategy: String = Constants.RANDOM): RDD[(Long, HashSet[Long])] ={
 		blocks
 			.map(b => (b.id, b.getComparisonsIDs))
 			.flatMap(b => b._2.map(c => (c, b._1)))

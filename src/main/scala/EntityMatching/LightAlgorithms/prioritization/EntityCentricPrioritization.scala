@@ -45,7 +45,7 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
                 .flatMap { case ((e1ID, w), weightedComparisons) =>
                     val e1 = sourceAr(e1ID)
                     weightedComparisons
-                        .sortBy(_._1)
+                        .sortBy(_._1)(Ordering.Double.reverse)
                         .map(p => targetBD.value(p._2 - idStart))
                         .filter(e2 => testMBB(e1.mbb, e2.mbb, relation))
                         .filter(e2 => relate(e1.geometry, e2.geometry, relation))
