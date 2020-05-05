@@ -42,12 +42,13 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
             .filter(_._2.nonEmpty)
 
         val blocksComparisons = blocks.map(b => (b.id, b))
-        cleanWeightedComparisonsPerBlock
-            .leftOuterJoin(blocksComparisons) //CMNT: JOIN
+        blocksComparisons
+            .leftOuterJoin(cleanWeightedComparisonsPerBlock) //CMNT: JOIN
+            .filter(_._2._2.isDefined)
             .flatMap{
                 b =>
-                    val comparisonsWeightsMap = b._2._1.toMap
-                    val comparisons = b._2._2.get.getComparisons
+                    val comparisonsWeightsMap = b._2._2.get.toMap
+                    val comparisons = b._2._1.getComparisons
                     comparisons
                         .filter(c => comparisonsWeightsMap.contains(c.id))
                         .map{c =>
@@ -70,7 +71,7 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
      * The accepted weighing strategies are CBS(default), ECBS, ARCS and JS
      *
      * @param blocks blocks RDD
-     * @return the weighted comparisons of each block
+     * @return the weighted comparisons of each block //CMNT instead of returning blocks for each weighted comparisons, return just a block based on th chooseBlock
      */
     override def getWeights(blocks: RDD[TBlock]): RDD[((Long, Double), ArrayBuffer[Long])] ={
         val sc = SparkContext.getOrCreate()
@@ -89,7 +90,7 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
             }
             else null
 
-         weightingStrategy match { //CMNT: in reduceByKey don't shuffle arrays of block but choose block
+        weightingStrategy match {
             case Constants.ARCS =>
                 blocks
                     .map(b => (b.id, b.getComparisonsIDs))

@@ -40,12 +40,12 @@ case class ComparisonCentricPrioritization(totalBlocks: Long, weightingStrategy:
             .filter(_._2.nonEmpty)
 
         val blocksComparisons = blocks.map(b => (b.id, b))
-        cleanWeightedComparisonsPerBlock
-            .leftOuterJoin(blocksComparisons)
+        blocksComparisons.leftOuterJoin(cleanWeightedComparisonsPerBlock)
+            .filter(_._2._2.isDefined)
             .flatMap {
                 b =>
-                    val comparisonsWeightsMap = b._2._1.toMap
-                    val comparisons = b._2._2.get.getComparisons
+                    val comparisonsWeightsMap = b._2._2.get.toMap
+                    val comparisons = b._2._1.getComparisons
                     comparisons
                         .filter(c => comparisonsWeightsMap.contains(c.id))
                         .map { c =>
