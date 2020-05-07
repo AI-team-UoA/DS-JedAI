@@ -32,7 +32,7 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
      * @return an RDD containing the IDs of the matches
      */
     def apply(blocks: RDD[Block], relation: String, cleaningStrategy: String = Constants.RANDOM):
-    RDD[(Int,Int)] = {
+    RDD[(String,String)] = {
 
         val weightedComparisonsPerBlock = getWeights(blocks.asInstanceOf[RDD[TBlock]])
             .asInstanceOf[RDD[(Any, ArrayBuffer[Long])]]
@@ -61,7 +61,7 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
                         .sortBy(_._1)(Ordering.Double.reverse)
                         .filter(c => testMBB(c._2.entity1.mbb, c._2.entity2.mbb, relation))
                         .filter(c => relate(c._2.entity1.geometry, c._2.entity2.geometry, relation))
-                        .map(c => (c._2.entity1.id, c._2.entity2.id))
+                        .map(c => (c._2.entity1.originalID, c._2.entity2.originalID))
             }
     }
 

@@ -11,7 +11,7 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double), weightingStrategy: String) extends LightMatchingTrait {
 
-    def matchTargetData(relation: String, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(Int, Int)] = {
+    def matchTargetData(relation: String, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)] = {
 
         val sc = SparkContext.getOrCreate()
         val targetBlocksMapBD = sc.broadcast(targetBlocksMap)
@@ -49,14 +49,14 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
                         .map(p => targetBD.value(p._2 - idStart))
                         .filter(e2 => testMBB(e1.mbb, e2.mbb, relation))
                         .filter(e2 => relate(e1.geometry, e2.geometry, relation))
-                        .map(e2 => (e1.id, e2.id))
+                        .map(e2 => (e1.originalID, e2.originalID))
                 }
                 .toIterator
         }
     }
 
 
-    def iterativeExecution(relation: String, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(Int, Int)] = {
+    def iterativeExecution(relation: String, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)] = {
 
         val sc = SparkContext.getOrCreate()
         val targetBlocksMapBD = sc.broadcast(targetBlocksMap)
@@ -92,7 +92,7 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
                                                                             .map(p => targetBD.value(p._2 - idStart))
                                                                             .toIterator)}
 
-            val matches = ArrayBuffer[(Int, Int)]()
+            val matches = ArrayBuffer[(String, String)]()
             var converged = false
             while (!converged) {
                 converged = true
@@ -102,7 +102,7 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
                         val (e1, e2) = (c._1, c._2.next())
                         if (testMBB(e1.mbb, e2.mbb, relation))
                             if (relate(e1.geometry, e2.geometry, relation))
-                                matches.append((e1.id, e2.id))
+                                matches.append((e1.originalID, e2.originalID))
                     }
                 }
             }

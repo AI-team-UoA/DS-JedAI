@@ -19,7 +19,7 @@ case class SpatialMatching(totalBlocks: Long, weightingStrategy: String = Consta
 	 * might result to a match by comparing their MBB, and then perform the actual comparisons.
 	 *
 	 */
-	def apply(blocks: RDD[Block], relation: String, cleaningStrategy: String = Constants.RANDOM): RDD[(Int, Int)] ={
+	def apply(blocks: RDD[Block], relation: String, cleaningStrategy: String = Constants.RANDOM): RDD[(String, String)] ={
 		val allowedComparisons = BlockUtils.cleanBlocks2(blocks.asInstanceOf[RDD[TBlock]])
 		val blocksComparisons = blocks.map(b => (b.id, b))
 
@@ -33,7 +33,7 @@ case class SpatialMatching(totalBlocks: Long, weightingStrategy: String = Consta
 			}
     		.filter(c => testMBB(c.entity1.mbb, c.entity2.mbb, relation))
     		.filter(c => relate(c.entity1.geometry, c.entity2.geometry, relation))
-    		.map(c => (c.entity1.id, c.entity2.id))
+    		.map(c => (c.entity1.originalID, c.entity2.originalID))
 	}
 
 

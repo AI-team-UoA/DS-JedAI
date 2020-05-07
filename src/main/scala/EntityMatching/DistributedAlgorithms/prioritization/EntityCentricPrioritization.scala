@@ -21,7 +21,7 @@ case class EntityCentricPrioritization(totalBlocks: Long, weightingStrategy: Str
      * @param cleaningStrategy  the cleaning strategy
      * @return an RDD containing the IDs of the matches
      */
-    def apply(blocks: RDD[Block], relation: String, cleaningStrategy: String): RDD[(Int,Int)] ={
+    def apply(blocks: RDD[Block], relation: String, cleaningStrategy: String): RDD[(String,String)] ={
 
         val weightedComparisonsPerBlock = getWeights(blocks.asInstanceOf[RDD[TBlock]])
             .asInstanceOf[RDD[(Any, ArrayBuffer[Long])]]
@@ -65,7 +65,7 @@ case class EntityCentricPrioritization(totalBlocks: Long, weightingStrategy: Str
                             .map(_._2)
                             .filter(e2 => testMBB(e1.mbb, e2.mbb, relation))
                             .filter(e2 => relate(e1.geometry, e2.geometry, relation))
-                            .map(e2 => (e1.id, e2.id))
+                            .map(e2 => (e1.originalID, e2.originalID))
                     }
                     .toIterator
             }

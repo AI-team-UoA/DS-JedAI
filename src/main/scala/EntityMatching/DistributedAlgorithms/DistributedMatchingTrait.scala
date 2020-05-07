@@ -13,7 +13,7 @@ trait DistributedMatchingTrait extends MatchingTrait{
     val totalBlocks: Long
     val weightingStrategy: String
 
-    def apply(blocks: RDD[Block], relation: String, cleaningStrategy: String): RDD[(Int,Int)]
+    def apply(blocks: RDD[Block], relation: String, cleaningStrategy: String): RDD[(String, String)]
 
     /**
      * Weight the comparisons of blocks and clean the duplicate comparisons.

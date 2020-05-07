@@ -15,7 +15,7 @@ trait LightMatchingTrait extends MatchingTrait {
     val target: ArrayBuffer[SpatialEntity]
     val thetaXY: (Double, Double)
 
-    def matchTargetData(relation: String, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(Int, Int)]
+    def matchTargetData(relation: String, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)]
 
     /**
      * start LightRADON algorithm
@@ -23,7 +23,7 @@ trait LightMatchingTrait extends MatchingTrait {
      * @param relation the examined relation
      * @return an RDD of matches
      */
-    def apply(idStart: Int, relation: String): RDD[(Int, Int)] = {
+    def apply(idStart: Int, relation: String): RDD[(String, String)] = {
         val blocksMap = indexTarget()
         matchTargetData(relation, idStart, blocksMap)
     }

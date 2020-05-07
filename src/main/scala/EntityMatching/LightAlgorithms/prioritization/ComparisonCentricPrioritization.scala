@@ -13,7 +13,7 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 case class ComparisonCentricPrioritization(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double), weightingStrategy: String) extends LightMatchingTrait{
 
 
-    def matchTargetData(relation: String, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(Int, Int)] = {
+    def matchTargetData(relation: String, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)] = {
 
         val sc = SparkContext.getOrCreate()
         val targetBlocksMapBD = sc.broadcast(targetBlocksMap)
@@ -44,7 +44,7 @@ case class ComparisonCentricPrioritization(source: RDD[SpatialEntity], target: A
                 .map(p => (sourceAr(p._2._1), targetBD.value(p._2._2 - idStart)))
                 .filter(c => testMBB(c._1.mbb, c._2.mbb, relation))
                 .filter(c => relate(c._1.geometry, c._2.geometry, relation))
-                .map(c => (c._1.id, c._2.id))
+                .map(c => (c._1.originalID, c._2.originalID))
                 .toIterator
         }
     }
