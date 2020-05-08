@@ -10,8 +10,7 @@ case class SpatialEntity(id: Int, originalID: String = "", geometry: Geometry,  
 
 object SpatialEntity {
 
-    // TODO: Remove attributes if necessary
-    def apply(id: Int, originalID: String, attributes: Array[KeyValue], wkt: String): SpatialEntity ={
+    def apply(id: Int, originalID: String, wkt: String): SpatialEntity ={
         val wktReader = new WKTReader()
         val geometry: Geometry = wktReader.read(wkt)
         val mbb = MBB(geometry)
@@ -20,7 +19,7 @@ object SpatialEntity {
         SpatialEntity(id, originalID, geometry, mbb, crossesMeridian)
     }
 
-    def apply(id: Int, originalID: String, attributes: Array[KeyValue], geom: Geometry): SpatialEntity ={
+    def apply(id: Int, originalID: String, geom: Geometry): SpatialEntity ={
         val geometry: Geometry = geom
         val mbb = MBB(geometry)
         val crossesMeridian =  mbb.crossesMeridian

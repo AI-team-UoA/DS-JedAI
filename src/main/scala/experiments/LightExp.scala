@@ -63,19 +63,16 @@ object LightExp {
         val conf_path = options("conf")
         val conf = ConfigurationParser.parse(conf_path)
         val partitions: Int = conf.configurations.getOrElse(Constants.CONF_PARTITIONS, "0").toInt
+        val spatialPartition: Boolean = conf.configurations.getOrElse(Constants.CONF_SPATIAL_PARTITION, "false").toBoolean
 
-        // Loading Source
-        val sourceRDD = if (partitions == 0 )
-            Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField)
-        else
-            Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField)
-            .repartition(partitions)
+
+        val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, spatialPartition)
         val sourceCount = sourceRDD.setName("SourceRDD").cache().count()
         log.info("DS-JEDAI: Number of ptofiles of Source: " + sourceCount)
         val indexSeparator = sourceCount.toInt
 
         // Loading Target
-        val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, indexSeparator)
+        val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, spatialPartition, indexSeparator)
         val targetCount = targetRDD.setName("TargetRDD").cache().count()
         log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 

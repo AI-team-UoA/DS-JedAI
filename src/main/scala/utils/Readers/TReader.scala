@@ -8,7 +8,7 @@ import org.apache.spark.rdd.RDD
  */
 trait TReader {
 
-  def loadProfiles( filePath: String,
+  def load( filePath: String,
                     realID_field: String,
                     geometryField: String,
                     startIdFrom: Int

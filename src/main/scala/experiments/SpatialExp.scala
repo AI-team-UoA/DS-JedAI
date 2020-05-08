@@ -11,7 +11,7 @@ import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
-import utils.Readers.Reader
+import utils.Readers.{Reader, SpatialReader}
 import utils.Utils.printPartitions
 import utils.{ConfigurationParser, Constants, SpatialPartitioner, Utils}
 
@@ -62,6 +62,7 @@ object SpatialExp {
 			System.exit(1)
 		}
 
+		// TODO configuration arguments must return from configuration
 		val conf_path = options("conf")
 		val conf = ConfigurationParser.parse(conf_path)
 		val partitions: Int = conf.configurations.getOrElse(Constants.CONF_PARTITIONS, "-1").toInt
@@ -69,46 +70,18 @@ object SpatialExp {
 		val spatialPartition: Boolean = conf.configurations.getOrElse(Constants.CONF_SPATIAL_PARTITION, "false").toBoolean
 
 		// Loading Source
-		val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField)
+		val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, spatialPartition)
 		val sourceCount = sourceRDD.setName("SourceRDD").cache().count()
 		log.info("DS-JEDAI: Number of ptofiles of Source: " + sourceCount)
 		val indexSeparator = sourceCount.toInt
 
 		// Loading Target
-		val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, indexSeparator)
+		val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, spatialPartition, indexSeparator)
 		val targetCount = targetRDD.setName("TargetRDD").cache().count()
 		log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
-		// Swapping: set the set with the smallest area as source
-		val (source, target, relation) = {
-			if (spatialPartition) {
-				// swapping
-				val (s, t, r) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
+		val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
 
-				// Spatial partitioning
-				val sPartitioning_startTime = Calendar.getInstance()
-				var (spatialPartitionedSource, spatialPartitionedTarget) =
-					if (repartition) SpatialPartitioner.spatialPartitionT(s, t, partitions=partitions)
-					else SpatialPartitioner.spatialPartitionT(s, t)
-
-				// caching and un-persisting previous RDDs
-				spatialPartitionedSource = spatialPartitionedSource.setName("SpatialPartitionedSource").persist(StorageLevel.MEMORY_AND_DISK)
-				spatialPartitionedTarget = spatialPartitionedTarget.setName("SpatialPartitionedTarget").persist(StorageLevel.MEMORY_AND_DISK)
-				sourceRDD.unpersist()
-				targetRDD.unpersist()
-
-				val sPartitioning_time = (Calendar.getInstance().getTimeInMillis - sPartitioning_startTime.getTimeInMillis)/ 1000.0
-				log.info("DS-JEDAI: Spatial Partitioning Took: " + sPartitioning_time )
-				log.info("DS-JEDAI: Source Partition Distribution")
-				printPartitions(spatialPartitionedSource.asInstanceOf[RDD[Any]])
-				log.info("DS-JEDAI: Target Partition Distribution")
-				printPartitions(spatialPartitionedTarget.asInstanceOf[RDD[Any]])
-
-				(spatialPartitionedSource, spatialPartitionedTarget, r)
-			}
-			else
-				Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
-		}
 
 		if (conf.relation == Constants.DISJOINT) {
 			val matching_startTime = Calendar.getInstance().getTimeInMillis

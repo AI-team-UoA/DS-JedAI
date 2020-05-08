@@ -13,11 +13,11 @@ object CSVReader extends TReader {
 
     val spark: SparkSession = SparkSession.builder().getOrCreate()
 
-    override def loadProfiles(filePath: String, realIdField: String, geometryField: String, startIdFrom: Int = 0) : RDD[SpatialEntity] = {
-        loadProfiles2(filePath, realIdField, geometryField, startIdFrom)
+    def load(filePath: String, realIdField: String, geometryField: String, startIdFrom: Int = 0) : RDD[SpatialEntity] = {
+        loadProfiles(filePath, realIdField, geometryField, startIdFrom)
     }
 
-    def loadProfiles2(filePath: String, realIdField: String, geometryField: String,  startIdFrom: Int = 0, header: Boolean = true,
+    def loadProfiles(filePath: String, realIdField: String, geometryField: String,  startIdFrom: Int = 0, header: Boolean = true,
                               separator: String = ","): RDD[SpatialEntity] = {
 
         val dt = spark.read.option("header", header).option("sep", separator).option("delimiter", "\"").csv(filePath)
@@ -40,10 +40,7 @@ object CSVReader extends TReader {
                 case((geometry, row), index) =>
                     val id = index + startIdFrom
                     val originalID: String = row.getAs(realIdField).toString
-                    val attr = attrColumns
-                        .filter({ case(_, index) => !row. isNullAt(index)})
-                        .map({case(col, index) => KeyValue(col, row.get(index).toString)})
-                    SpatialEntity(id.toInt, originalID, attr, geometry)
+                    SpatialEntity(id.toInt, originalID, geometry)
             }
         SpatialEntities.filter(!_.geometry.isEmpty)
     }
