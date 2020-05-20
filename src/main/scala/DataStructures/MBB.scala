@@ -1,6 +1,6 @@
 package DataStructures
 
-import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
+import com.vividsolutions.jts.geom.{Coordinate, Envelope, Geometry, GeometryFactory}
 import utils.Constants
 
 /**
@@ -114,6 +114,10 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
 object  MBB {
     def apply(geom: Geometry): MBB ={
         val env = geom.getEnvelopeInternal
+        MBB(env.getMaxX, env.getMinX, env.getMaxY, env.getMinY)
+    }
+
+    def apply(env: Envelope): MBB ={
         MBB(env.getMaxX, env.getMinX, env.getMaxY, env.getMinY)
     }
 }
