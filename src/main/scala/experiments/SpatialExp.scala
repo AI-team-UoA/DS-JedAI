@@ -6,14 +6,12 @@ import Blocking.BlockingFactory
 import EntityMatching.DistributedAlgorithms.{DistributedMatchingFactory, SpatialMatching}
 import EntityMatching.DistributedAlgorithms.prioritization.{BlockCentricPrioritization, ComparisonCentricPrioritization}
 import org.apache.log4j.{Level, LogManager, Logger}
-import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
-import utils.Readers.{Reader, SpatialReader}
-import utils.Utils.printPartitions
-import utils.{ConfigurationParser, Constants, SpatialPartitioner, Utils}
+import utils.Readers.Reader
+import utils.{ConfigurationParser, Constants, Utils}
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
@@ -95,7 +93,7 @@ object SpatialExp {
 
 			// Blocking
 			val blocking_startTime = Calendar.getInstance().getTimeInMillis
-			val blocking = BlockingFactory.getBlocking(conf, source, target)
+			val blocking = BlockingFactory.getBlocking(conf, source, target, spatialPartition)
 			val blocks = blocking.apply().setName("Blocks").persist(StorageLevel.MEMORY_AND_DISK)
 			val totalBlocks = blocks.count()
 			log.info("DS-JEDAI: Number of Blocks: " + totalBlocks)
