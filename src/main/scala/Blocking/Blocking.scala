@@ -121,19 +121,17 @@ trait 	Blocking {
 		val sourceBlocks: Set[(Int, Int)] = sourceIndex.map(b => Set(b._1)).reduce(_++_)
 		val targetIndex = index(target, sourceBlocks)
 
-		val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[SpatialEntity]]))] = sourceIndex.leftOuterJoin(targetIndex)
+		val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[SpatialEntity]]))] = targetIndex.leftOuterJoin(sourceIndex)
 
 		// construct blocks from indexes
-		val blocksRDD = blocksIndex
+		blocksIndex
 			.filter(_._2._2.isDefined)
 			.map { block =>
 				val blockCoords = block._1
-				val sourceIndex = block._2._1
-				val targetIndex = block._2._2.get
+				val sourceIndex = block._2._2.get
+				val targetIndex = block._2._1
 				Block(blockCoords, sourceIndex, targetIndex)
 			}
-			.setName("BlocksRDD")
-		blocksRDD
 	}
 
 	/**
@@ -146,10 +144,10 @@ trait 	Blocking {
 		val sourceBlocks: Set[(Int, Int)] = sourceIndex.map(b => Set(b._1)).reduce(_++_)
 		val targetIndex = index(target, sourceBlocks)
 
-		val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[SpatialEntity]]))] = sourceIndex.leftOuterJoin(targetIndex)
+		val blocksIndex: RDD[((Int, Int), (ArrayBuffer[SpatialEntity], Option[ArrayBuffer[SpatialEntity]]))] = targetIndex.leftOuterJoin(sourceIndex)
 
 		// construct blocks from indexes
-		val blocksRDD = blocksIndex
+		blocksIndex
 			.filter(_._2._2.isDefined)
 			.map { block =>
 				val blockCoords = block._1
@@ -165,8 +163,6 @@ trait 	Blocking {
 				val sourceIndex = b._2._3
 				Block(id, blockCoords, sourceIndex, targetIndex)
 			}
-			.setName("BlocksRDD")
-		blocksRDD
 	}
 
 	def apply(liTarget: Boolean = true): RDD[LightBlock] = {null}
