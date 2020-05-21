@@ -1,7 +1,7 @@
 package EntityMatching.DistributedAlgorithms
 
 import Blocking.BlockUtils
-import DataStructures.{Block, SpatialEntity, TBlock}
+import DataStructures.{Block, SpatialEntity}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Encoder, Encoders, SparkSession}
 import org.datasyslab.geosparksql.utils.GeoSparkSQLRegistrator
@@ -20,7 +20,7 @@ case class SpatialMatching(totalBlocks: Long, weightingStrategy: String = Consta
 	 *
 	 */
 	def apply(blocks: RDD[Block], relation: String, cleaningStrategy: String = Constants.RANDOM): RDD[(String, String)] ={
-		val allowedComparisons = BlockUtils.cleanBlocks2(blocks.asInstanceOf[RDD[TBlock]])
+		val allowedComparisons = BlockUtils.cleanBlocks2(blocks.asInstanceOf[RDD[Block]])
 		val blocksComparisons = blocks.map(b => (b.id, b))
 
 		allowedComparisons
@@ -35,7 +35,6 @@ case class SpatialMatching(totalBlocks: Long, weightingStrategy: String = Consta
     		.filter(c => relate(c.entity1.geometry, c.entity2.geometry, relation))
     		.map(c => (c.entity1.originalID, c.entity2.originalID))
 	}
-
 
 
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING

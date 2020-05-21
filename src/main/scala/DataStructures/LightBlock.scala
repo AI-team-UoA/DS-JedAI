@@ -4,7 +4,7 @@ import utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
-case class LightBlock(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialEntity], targetIDs: ArrayBuffer[Int]) extends TBlock {
+case class LightBlock(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialEntity], targetIDs: ArrayBuffer[Int]) {
 
     /**
      * For each compaison in the block, return its id
@@ -36,9 +36,9 @@ case class LightBlock(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialE
 
     def getTargetIDs: ArrayBuffer[Int] = targetIDs.map(tid => tid)
 
-    def getSourceSize(): Long = source.size
+    def getSourceSize: Long = source.size
 
-    def getTargetSize(): Long = targetIDs.size
+    def getTargetSize: Long = targetIDs.size
 
 }
 

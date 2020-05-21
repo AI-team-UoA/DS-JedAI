@@ -1,7 +1,7 @@
 package EntityMatching.DistributedAlgorithms.prioritization
 
 import Blocking.BlockUtils.clean
-import DataStructures.{Block, TBlock}
+import DataStructures.Block
 import EntityMatching.DistributedAlgorithms.DistributedMatchingTrait
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
@@ -34,7 +34,7 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
     def apply(blocks: RDD[Block], relation: String, cleaningStrategy: String = Constants.RANDOM):
     RDD[(String,String)] = {
 
-        val weightedComparisonsPerBlock = getWeights(blocks.asInstanceOf[RDD[TBlock]])
+        val weightedComparisonsPerBlock = getWeights(blocks.asInstanceOf[RDD[Block]])
             .asInstanceOf[RDD[(Any, ArrayBuffer[Long])]]
 
         val cleanWeightedComparisonsPerBlock = clean(weightedComparisonsPerBlock, cleaningStrategy)
@@ -73,7 +73,7 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
      * @param blocks blocks RDD
      * @return the weighted comparisons of each block //CMNT instead of returning blocks for each weighted comparisons, return just a block based on th chooseBlock
      */
-    override def getWeights(blocks: RDD[TBlock]): RDD[((Long, Double), ArrayBuffer[Long])] ={
+    override def getWeights(blocks: RDD[Block]): RDD[((Long, Double), ArrayBuffer[Long])] ={
         val sc = SparkContext.getOrCreate()
         val totalBlocksBD = sc.broadcast(totalBlocks)
 

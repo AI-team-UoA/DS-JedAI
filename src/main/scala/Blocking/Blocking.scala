@@ -1,6 +1,6 @@
 package Blocking
 
-import DataStructures.{Block, LightBlock, SpatialEntity, TBlock}
+import DataStructures.{Block, LightBlock, SpatialEntity}
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD

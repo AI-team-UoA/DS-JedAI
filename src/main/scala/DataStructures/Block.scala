@@ -7,7 +7,7 @@ import scala.collection.mutable.ArrayBuffer
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-case class Block(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialEntity], target: ArrayBuffer[SpatialEntity]) extends TBlock {
+case class Block(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialEntity], target: ArrayBuffer[SpatialEntity]) {
 
 	/**
 	 * For each compaison in the block, return its id
@@ -38,9 +38,9 @@ case class Block(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialEntity
 
 	def getTargetIDs: ArrayBuffer[Int] = target.map(se => se.id)
 
-	def getSourceSize(): Long = source.size
+	def getSourceSize: Long = source.size
 
-	def getTargetSize(): Long = target.size
+	def getTargetSize: Long = target.size
 }
 
 object Block {

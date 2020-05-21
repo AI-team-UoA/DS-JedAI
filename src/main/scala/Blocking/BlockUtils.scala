@@ -1,6 +1,6 @@
 package Blocking
 
-import DataStructures.TBlock
+import DataStructures.Block
 import org.apache.spark.rdd.RDD
 import utils.Constants
 
@@ -47,7 +47,7 @@ object BlockUtils {
 	 * @param strategy decide to which block each comparison will be assigned to
 	 * @return an RDD of Comparisons per blocks
 	 */
-	def cleanBlocks(blocks: RDD[TBlock], strategy: String = Constants.RANDOM): RDD[(Long, HashSet[Long])] ={ // CMNT : don't shuffle arrays but choose during shuffle
+	def cleanBlocks(blocks: RDD[Block], strategy: String = Constants.RANDOM): RDD[(Long, HashSet[Long])] ={ // CMNT : don't shuffle arrays but choose during shuffle
 		val blocksPerComparison = blocks
 				.map(b => (b.id, b.getComparisonsIDs))
 				.flatMap(b => b._2.map(c => (c, ArrayBuffer(b._1))))
@@ -65,7 +65,7 @@ object BlockUtils {
 	 * @param strategy decide to which block each comparison will be assigned to
 	 * @return an RDD of Comparisons per block
 	 */
-	def cleanBlocks2(blocks: RDD[TBlock], strategy: String = Constants.RANDOM): RDD[(Long, HashSet[Long])] ={
+	def cleanBlocks2(blocks: RDD[Block], strategy: String = Constants.RANDOM): RDD[(Long, HashSet[Long])] ={
 		blocks
 			.map(b => (b.id, b.getComparisonsIDs))
 			.flatMap(b => b._2.map(c => (c, b._1)))

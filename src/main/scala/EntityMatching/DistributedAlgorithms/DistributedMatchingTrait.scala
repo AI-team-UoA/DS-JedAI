@@ -1,6 +1,6 @@
 package EntityMatching.DistributedAlgorithms
 
-import DataStructures.{Block, TBlock}
+import DataStructures.Block
 import EntityMatching.MatchingTrait
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.SparkContext
@@ -22,7 +22,7 @@ trait DistributedMatchingTrait extends MatchingTrait{
      * @param blocks blocks RDD
      * @return the weighted comparisons of each block
      */
-    def getWeights(blocks: RDD[TBlock]): RDD[((Long, Double), ArrayBuffer[Long])] ={
+    def getWeights(blocks: RDD[Block]): RDD[((Long, Double), ArrayBuffer[Long])] ={
         val sc = SparkContext.getOrCreate()
         val totalBlocksBD = sc.broadcast(totalBlocks)
 
