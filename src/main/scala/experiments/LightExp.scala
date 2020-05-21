@@ -69,14 +69,13 @@ object LightExp {
         val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, spatialPartition)
         val sourceCount = sourceRDD.setName("SourceRDD").cache().count()
         log.info("DS-JEDAI: Number of ptofiles of Source: " + sourceCount)
-        val indexSeparator = sourceCount.toInt
 
         // Loading Target
-        val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, spatialPartition, indexSeparator)
+        val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, spatialPartition)
         val targetCount = targetRDD.setName("TargetRDD").cache().count()
         log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
-        val matches = LightMatchingFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).apply(indexSeparator, conf.relation)
+        val matches = LightMatchingFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).apply(0, conf.relation) // TODO fix this..there is no indexSeparator any more
 
         log.info("DS-JEDAI: Matches: " + matches.count)
 

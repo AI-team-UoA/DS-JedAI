@@ -17,6 +17,42 @@ import utils.Constants
  */
 case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
 
+
+    /**
+     * return true if the reference point is in the block.
+     * The reference point is the upper left point of their intersection
+     *
+     * @param mbb the mbb that intersects
+     * @param b the examined block
+     * @return true if the reference point is in the block
+     */
+    def referencePointFiltering(mbb:MBB, b:(Int, Int)): Boolean ={
+        val rf: (Double, Double) = (math.max(minX, mbb.minX), math.min(maxY, mbb.maxY))
+        rf._1 >= b._1 && rf._1 <= b._1+1 && rf._2 >= b._2 & rf._2 <= b._2+1
+    }
+
+    /**
+     *  check relation among MBBs
+     *
+     * @param mbb MBB to examine
+     * @param relation requested relation
+     * @return whether the relation is true
+     */
+    def testMBB(mbb:MBB, relation: String): Boolean ={
+        relation match {
+            case Constants.CONTAINS | Constants.COVERS =>
+                contains(mbb)
+            case Constants.WITHIN | Constants.COVEREDBY =>
+                within(mbb)
+            case Constants.INTERSECTS | Constants.CROSSES | Constants.OVERLAPS =>
+                intersects(mbb)
+            case Constants.TOUCHES => touches(mbb)
+            case Constants.DISJOINT => disjoint(mbb)
+            case Constants.EQUALS => equals(mbb)
+            case _ => false
+        }
+    }
+
     /**
      * convert MBB into jts.Geometry
      * @return jts.Geometry
@@ -109,6 +145,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
     def disjoint(mbb:MBB): Boolean ={
         ! (contains(mbb) || intersects(mbb))
     }
+
 }
 
 object  MBB {

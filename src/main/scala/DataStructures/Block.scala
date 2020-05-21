@@ -26,11 +26,22 @@ case class Block(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialEntity
 	}
 
 	/**
-	 * For each compaison in the block, return its id
+	 * Return all blocks comparisons
 	 * @return block's comparisons
 	 */
 	def getComparisons: ArrayBuffer[Comparison]={
 		for (s <-source; t <- target)
+			yield Comparison(s, t)
+	}
+
+	/**
+	 * Return only the comparisons that their MBBs relate and that their\
+	 * reference points are inside the block
+	 *
+	 * @return blocks comparisons after filtering
+	 */
+	def getFilteredComparisons(relation: String): ArrayBuffer[Comparison]={
+		for (s <-source; t <- target; if s.mbb.testMBB(t.mbb, relation) && s.mbb.referencePointFiltering(t.mbb, coords) )
 			yield Comparison(s, t)
 	}
 
@@ -41,6 +52,7 @@ case class Block(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialEntity
 	def getSourceSize: Long = source.size
 
 	def getTargetSize: Long = target.size
+
 }
 
 object Block {
