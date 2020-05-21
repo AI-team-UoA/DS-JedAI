@@ -11,7 +11,7 @@ import org.apache.spark.sql.SparkSession
 object RDF_Reader extends TReader {
 
 
-    def load(filePath: String, realID_field: String, geometryField: String, startIdFrom: Int = 0): RDD[SpatialEntity] ={
+    def load(filePath: String, realID_field: String, geometryField: String): RDD[SpatialEntity] ={
         val spark: SparkSession = SparkSession.builder().getOrCreate()
 
         val lang = Lang.NTRIPLES

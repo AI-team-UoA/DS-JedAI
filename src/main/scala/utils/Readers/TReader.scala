@@ -10,7 +10,6 @@ trait TReader {
 
   def load( filePath: String,
                     realID_field: String,
-                    geometryField: String,
-                    startIdFrom: Int
+                    geometryField: String
                   ): RDD[SpatialEntity]
 }

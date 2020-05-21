@@ -71,10 +71,9 @@ object SpatialExp {
 		val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, spatialPartition)
 		val sourceCount = sourceRDD.setName("SourceRDD").cache().count()
 		log.info("DS-JEDAI: Number of ptofiles of Source: " + sourceCount)
-		val indexSeparator = sourceCount.toInt
 
 		// Loading Target
-		val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, spatialPartition, indexSeparator)
+		val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, spatialPartition)
 		val targetCount = targetRDD.setName("TargetRDD").cache().count()
 		log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 

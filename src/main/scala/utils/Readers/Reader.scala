@@ -8,16 +8,16 @@ object Reader {
 
     private val log = LogManager.getRootLogger
 
-    def read(filepath: String, realID_field: String, geometryField: String, spatialPartition: Boolean = false, startIdFrom: Int = 0): RDD[SpatialEntity] ={
+    def read(filepath: String, realID_field: String, geometryField: String, spatialPartition: Boolean = false): RDD[SpatialEntity] ={
         val extension = filepath.toString.split("\\.").last
         extension match {
             case "csv" =>
                 if(!spatialPartition)
-                    CSVReader.load(filepath, realID_field, geometryField, startIdFrom)
+                    CSVReader.load(filepath, realID_field, geometryField)
                 else
-                    SpatialReader.loadCSV(filepath, realID_field, geometryField, startIdFrom)
+                    SpatialReader.loadCSV(filepath, realID_field, geometryField)
             case "nt" =>
-                RDF_Reader.load(filepath, realID_field, geometryField, startIdFrom)
+                RDF_Reader.load(filepath, realID_field, geometryField)
             case _ =>
                 log.error("DS-JEDAI: This filetype is not supported yet")
                 System.exit(1)

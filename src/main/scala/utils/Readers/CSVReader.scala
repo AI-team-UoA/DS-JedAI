@@ -13,15 +13,14 @@ object CSVReader extends TReader {
 
     val spark: SparkSession = SparkSession.builder().getOrCreate()
 
-    def load(filePath: String, realIdField: String, geometryField: String, startIdFrom: Int = 0) : RDD[SpatialEntity] = {
-        loadProfiles(filePath, realIdField, geometryField, startIdFrom)
+    def load(filePath: String, realIdField: String, geometryField: String) : RDD[SpatialEntity] = {
+        loadProfiles(filePath, realIdField, geometryField)
     }
 
-    def loadProfiles(filePath: String, realIdField: String, geometryField: String,  startIdFrom: Int = 0, header: Boolean = true,
+    def loadProfiles(filePath: String, realIdField: String, geometryField: String, header: Boolean = true,
                               separator: String = ","): RDD[SpatialEntity] = {
 
         val dt = spark.read.option("header", header).option("sep", separator).option("delimiter", "\"").csv(filePath)
-        val attrColumns: Array[(String, Int)] = dt.columns.zipWithIndex.filter{ case(col, i) => col != realIdField && col != geometryField}
 
         val SpatialEntities: RDD[SpatialEntity] = dt.rdd
             .mapPartitions{
@@ -37,8 +36,7 @@ object CSVReader extends TReader {
             .filter(!_._1.isEmpty)
             .zipWithIndex()
             .map {
-                case((geometry, row), index) =>
-                    val id = index + startIdFrom
+                case((geometry, row), id) =>
                     val originalID: String = row.getAs(realIdField).toString
                     SpatialEntity(id.toInt, originalID, geometry)
             }

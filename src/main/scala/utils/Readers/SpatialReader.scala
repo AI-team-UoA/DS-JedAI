@@ -22,11 +22,11 @@ object SpatialReader extends TReader {
     var partitionsZones: Array[MBB] = Array()
 
 
-    def load(filepath: String, realIdField: String, geometryField: String, startIdFrom: Int = 0): RDD[SpatialEntity] ={
+    def load(filepath: String, realIdField: String, geometryField: String): RDD[SpatialEntity] ={
         val extension = filepath.toString.split("\\.").last
         extension match {
             case "csv" =>
-                loadCSV(filepath, realIdField, geometryField, startIdFrom)
+                loadCSV(filepath, realIdField, geometryField)
 
             case _ =>
                 null
@@ -34,7 +34,7 @@ object SpatialReader extends TReader {
 
     }
 
-    def loadCSV(filepath: String, realIdField: String, geometryField: String, startIdFrom: Int, delimiter: String = ",", header: Boolean = true): RDD[SpatialEntity] ={
+    def loadCSV(filepath: String, realIdField: String, geometryField: String, delimiter: String = ",", header: Boolean = true): RDD[SpatialEntity] ={
 
         val conf = new SparkConf()
         conf.set("spark.serializer", classOf[KryoSerializer].getName)
@@ -72,11 +72,7 @@ object SpatialReader extends TReader {
             spatialPartitioner = srdd.getPartitioner
             val zones = srdd.partitionTree.getLeafZones
             partitionsZones = zones.toArray(Array.ofDim[QuadRectangle](zones.size())).map(qr => MBB(qr.getEnvelope))
-            val p = srdd.spatialPartitionedRDD.rdd.mapPartitions({
-                iter =>
-                    Iterator(TaskContext.getPartitionId(), iter.toArray.map(_.toText).mkString("\n"))
-            }).collect()
-            print()
+
         }
         else
             srdd.spatialPartitioning(spatialPartitioner)
@@ -88,7 +84,7 @@ object SpatialReader extends TReader {
                     val id = ids(1).toInt
                     (g, realID, id)
             }
-            .map{ case(g, realID, id) => SpatialEntity(id + startIdFrom, realID, g)}
+            .map{ case(g, realID, id) => SpatialEntity(id, realID, g)}
 
     }
 }
