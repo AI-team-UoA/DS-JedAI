@@ -1,6 +1,5 @@
 package EntityMatching
 
-import DataStructures.MBB
 import com.vividsolutions.jts.geom.Geometry
 import utils.Constants
 
@@ -29,31 +28,6 @@ trait MatchingTrait extends Serializable{
             case _ => false
         }
     }
-
-
-    /**
-     *  check relation among MBBs
-     *
-     * @param s MBB from source
-     * @param t MBB form target
-     * @param relation requested relation
-     * @return whether the relation is true
-     */
-    def testMBB(s:MBB, t:MBB, relation: String): Boolean ={
-        relation match {
-            case Constants.CONTAINS | Constants.COVERS =>
-                s.contains(t)
-            case Constants.WITHIN | Constants.COVEREDBY =>
-                s.within(t)
-            case Constants.INTERSECTS | Constants.CROSSES | Constants.OVERLAPS =>
-                s.intersects(t)
-            case Constants.TOUCHES => s.touches(t)
-            case Constants.DISJOINT => s.disjoint(t)
-            case Constants.EQUALS => s.equals(t)
-            case _ => false
-        }
-    }
-
 
     def normalizeWeight(weight: Double, entity1: Geometry, entity2:Geometry): Double ={
         val area1 = entity1.getArea
