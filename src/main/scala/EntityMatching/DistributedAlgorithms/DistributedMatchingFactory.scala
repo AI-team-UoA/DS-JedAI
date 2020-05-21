@@ -1,6 +1,8 @@
 package EntityMatching.DistributedAlgorithms
 
-import EntityMatching.DistributedAlgorithms.prioritization.{BlockCentricPrioritization, ComparisonCentricPrioritization, EntityCentricPrioritization}
+import DataStructures.Block
+import EntityMatching.DistributedAlgorithms.prioritization.{BlockCentricPrioritization}//, ComparisonCentricPrioritization, EntityCentricPrioritization}
+import org.apache.spark.rdd.RDD
 import utils.{Configuration, Constants}
 
 /**
@@ -9,18 +11,18 @@ import utils.{Configuration, Constants}
 
 object DistributedMatchingFactory {
 
-    def getMatchingAlgorithm(conf: Configuration, totalBlocks: Long): DistributedMatchingTrait = {
+    def getMatchingAlgorithm(conf: Configuration, blocks: RDD[Block], relation: String, totalBlocks: Long = -1): DistributedMatchingTrait = {
         val algorithm = conf.configurations.getOrElse(Constants.CONF_MATCHING_ALG, Constants.BLOCK_CENTRIC)
-        val weightingStrategy = conf.configurations.getOrElse(Constants.CONF_WEIGHTING_STRG, Constants.CBS)
+        val weightingScheme = conf.configurations.getOrElse(Constants.CONF_WEIGHTING_STRG, Constants.CBS)
         algorithm match {
-            case Constants.COMPARISON_CENTRIC =>
+         /*   case Constants.COMPARISON_CENTRIC =>
                 ComparisonCentricPrioritization(totalBlocks, weightingStrategy)
             case Constants.ΕΝΤΙΤΥ_CENTRIC =>
                 EntityCentricPrioritization(totalBlocks, weightingStrategy)
-            case Constants.BLOCK_CENTRIC =>
-                BlockCentricPrioritization(totalBlocks, weightingStrategy)
+           */ case Constants.BLOCK_CENTRIC =>
+                BlockCentricPrioritization(blocks, relation, totalBlocks, weightingScheme)
             case _=>
-                SpatialMatching(totalBlocks)
+                SpatialMatching(blocks, relation)
         }
     }
 

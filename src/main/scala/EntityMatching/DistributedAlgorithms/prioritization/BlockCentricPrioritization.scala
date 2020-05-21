@@ -2,7 +2,6 @@ package EntityMatching.DistributedAlgorithms.prioritization
 
 import Blocking.BlockUtils.clean
 import DataStructures.Block
-import EntityMatching.DistributedAlgorithms.DistributedMatchingTrait
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import utils.{Constants, Utils}
@@ -14,7 +13,7 @@ import scala.collection.mutable.ArrayBuffer
  */
 
 
-case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: String) extends  DistributedMatchingTrait  {
+case class BlockCentricPrioritization(blocks: RDD[Block], relation: String, totalBlocks: Long, weightingScheme: String) extends DistributedProgressiveMatching  {
 
 
     /**
@@ -26,18 +25,14 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
      * During the matching, first test the relation to geometries's MBBs and then
      * performs the relation to the geometries
      *
-     * @param blocks the input Blocks
-     * @param relation the examined relation
-     * @param cleaningStrategy  the cleaning strategy
      * @return an RDD containing the IDs of the matches
      */
-    def apply(blocks: RDD[Block], relation: String, cleaningStrategy: String = Constants.RANDOM):
-    RDD[(String,String)] = {
+    def apply(): RDD[(String,String)] = {
 
-        val weightedComparisonsPerBlock = getWeights(blocks.asInstanceOf[RDD[Block]])
+        val weightedComparisonsPerBlock = getWeights()
             .asInstanceOf[RDD[(Any, ArrayBuffer[Long])]]
 
-        val cleanWeightedComparisonsPerBlock = clean(weightedComparisonsPerBlock, cleaningStrategy)
+        val cleanWeightedComparisonsPerBlock = clean(weightedComparisonsPerBlock)
             .asInstanceOf[ RDD[(Long, ArrayBuffer[(Long, Double)])]]
             .filter(_._2.nonEmpty)
 
@@ -59,7 +54,7 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
                             (normalizedWeight, c)
                         }
                         .sortBy(_._1)(Ordering.Double.reverse)
-                        .filter(c => testMBB(c._2.entity1.mbb, c._2.entity2.mbb, relation))
+                        .filter(c => c._2.entity1.mbb.testMBB(c._2.entity2.mbb, relation))
                         .filter(c => relate(c._2.entity1.geometry, c._2.entity2.geometry, relation))
                         .map(c => (c._2.entity1.originalID, c._2.entity2.originalID))
             }
@@ -70,15 +65,14 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
      * Weight the comparisons of blocks and clean the duplicate comparisons.
      * The accepted weighing strategies are CBS(default), ECBS, ARCS and JS
      *
-     * @param blocks blocks RDD
      * @return the weighted comparisons of each block //CMNT instead of returning blocks for each weighted comparisons, return just a block based on th chooseBlock
      */
-    override def getWeights(blocks: RDD[Block]): RDD[((Long, Double), ArrayBuffer[Long])] ={
+    override def getWeights(): RDD[((Long, Double), ArrayBuffer[Long])] ={
         val sc = SparkContext.getOrCreate()
         val totalBlocksBD = sc.broadcast(totalBlocks)
 
         val entitiesBlockMapBD = // CMNT: reduce + collect + broadcast
-            if (weightingStrategy == Constants.ECBS || weightingStrategy == Constants.JS){
+            if (weightingScheme == Constants.ECBS || weightingScheme == Constants.JS){
                 val ce1:RDD[(Int, Long)] = blocks.flatMap(b => b.getSourceIDs.map(id => (id, b.id)))
                 val ce2:RDD[(Int, Long)] = blocks.flatMap(b => b.getTargetIDs.map(id => (id, b.id)))
                 val ce = ce1.union(ce2)
@@ -90,7 +84,7 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
             }
             else null
 
-        weightingStrategy match {
+        weightingScheme match {
             case Constants.ARCS =>
                 blocks
                     .map(b => (b.id, b.getComparisonsIDs))
@@ -141,5 +135,11 @@ case class BlockCentricPrioritization(totalBlocks: Long, weightingStrategy: Stri
                     .map(c => ((c._1, c._2.length), c._2))
         }
     }
+}
 
+object BlockCentricPrioritization {
+
+    def apply(blocks: RDD[Block], relation: String, weightingScheme : String): BlockCentricPrioritization ={
+        BlockCentricPrioritization(blocks, relation, blocks.count(), weightingScheme)
+    }
 }
