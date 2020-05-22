@@ -11,7 +11,8 @@ import utils.{Configuration, Constants}
 
 object DistributedMatchingFactory {
 
-    def getMatchingAlgorithm(conf: Configuration, blocks: RDD[Block], relation: String, totalBlocks: Long = -1): DistributedMatchingTrait = {
+    def getMatchingAlgorithm(conf: Configuration, blocks: RDD[Block], relation: String, d: (Int, Int),
+                             totalBlocks: Long = -1): DistributedMatchingTrait = {
         val algorithm = conf.configurations.getOrElse(Constants.CONF_MATCHING_ALG, Constants.BLOCK_CENTRIC)
         val weightingScheme = conf.configurations.getOrElse(Constants.CONF_WEIGHTING_STRG, Constants.CBS)
         algorithm match {
@@ -20,7 +21,7 @@ object DistributedMatchingFactory {
             case Constants.ΕΝΤΙΤΥ_CENTRIC =>
                 EntityCentricPrioritization(totalBlocks, weightingStrategy)
            */ case Constants.BLOCK_CENTRIC =>
-                BlockCentricPrioritization(blocks, relation, totalBlocks, weightingScheme)
+                BlockCentricPrioritization(blocks, relation, d, totalBlocks, weightingScheme)
             case _=>
                 SpatialMatching(blocks, relation)
         }

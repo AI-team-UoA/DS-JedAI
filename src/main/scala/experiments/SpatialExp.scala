@@ -69,16 +69,16 @@ object SpatialExp {
 
 		// Loading Source
 		val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, spatialPartition)
-		val sourceCount = sourceRDD.setName("SourceRDD").cache().count()
-		log.info("DS-JEDAI: Number of ptofiles of Source: " + sourceCount)
+		val sourceCount = sourceRDD.setName("SourceRDD").cache().count().toInt
+		log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount)
 
 		// Loading Target
 		val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, spatialPartition)
-		val targetCount = targetRDD.setName("TargetRDD").cache().count()
-		log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
+		val targetCount = targetRDD.setName("TargetRDD").cache().count().toInt
+		log.info("DS-JEDAI: Number of profiles of Target: " + targetCount)
 
 		val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
-
+		val dimensions = if (Utils.swapped ) (targetCount, sourceCount) else (sourceCount, targetCount)
 
 		if (conf.relation == Constants.DISJOINT) {
 			val matching_startTime = Calendar.getInstance().getTimeInMillis
@@ -102,7 +102,7 @@ object SpatialExp {
 
 			// Entity Matching
 			val matching_startTime = Calendar.getInstance().getTimeInMillis
-			val matches = DistributedMatchingFactory.getMatchingAlgorithm(conf, blocks, relation, totalBlocks).apply()
+			val matches = DistributedMatchingFactory.getMatchingAlgorithm(conf, blocks, relation, dimensions, totalBlocks).apply()
 			//val matches = SpatialMatching.SpatialMatching(blocks, relation)
 			log.info("DS-JEDAI: Matches: " + matches.count)
 			val matching_endTime = Calendar.getInstance().getTimeInMillis

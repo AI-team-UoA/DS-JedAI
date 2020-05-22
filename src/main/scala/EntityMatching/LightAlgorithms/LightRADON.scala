@@ -50,7 +50,7 @@ case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEnt
                        compared ++= entitiesIDs
                        entitiesIDs
                            .map(id => collectedBD.value(id - idStart))
-                           .filter(tse => testMBB(se.mbb, tse.mbb, relation))
+                           .filter(tse => se.mbb.testMBB(tse.mbb, relation))
                            .filter(tse => relate(se.geometry, tse.geometry, relation))
                            .map(tse => (se.originalID, tse.originalID))
                    }

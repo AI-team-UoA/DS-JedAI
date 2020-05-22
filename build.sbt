@@ -8,9 +8,10 @@ val sparkVersion = "2.4.5"
 libraryDependencies ++= Seq(
 	"net.sansa-stack" %% "sansa-rdf-spark" % "0.7.1",
 	"org.apache.spark" %%  "spark-core" % sparkVersion % Provided,
-	"org.apache.spark" %%  "spark-sql" % sparkVersion  % Provided
+	"org.apache.spark" %%  "spark-sql" % sparkVersion  % Provided,
+	"org.apache.spark" %% "spark-mllib" % sparkVersion % Provided,
+	"org.scalanlp" %% "breeze" % "1.0"
 )
-
 
 // https://mvnrepository.com/artifact/org.datasyslab/geospark
 libraryDependencies += "org.datasyslab" % "geospark" % "1.2.0"

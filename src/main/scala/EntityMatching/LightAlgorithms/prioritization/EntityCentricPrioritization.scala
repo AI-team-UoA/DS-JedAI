@@ -47,7 +47,7 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
                     weightedComparisons
                         .sortBy(_._1)(Ordering.Double.reverse)
                         .map(p => targetBD.value(p._2 - idStart))
-                        .filter(e2 => testMBB(e1.mbb, e2.mbb, relation))
+                        .filter(e2 => e1.mbb.testMBB(e2.mbb, relation))
                         .filter(e2 => relate(e1.geometry, e2.geometry, relation))
                         .map(e2 => (e1.originalID, e2.originalID))
                 }
@@ -100,7 +100,7 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
                     if (c._2.hasNext) {
                         converged = false
                         val (e1, e2) = (c._1, c._2.next())
-                        if (testMBB(e1.mbb, e2.mbb, relation))
+                        if (e1.mbb.testMBB(e2.mbb, relation))
                             if (relate(e1.geometry, e2.geometry, relation))
                                 matches.append((e1.originalID, e2.originalID))
                     }
