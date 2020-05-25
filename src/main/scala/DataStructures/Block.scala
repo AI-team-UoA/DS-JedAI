@@ -35,6 +35,12 @@ case class Block(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialEntity
 	}
 
 	/**
+	 *
+	 * @return the total comparisons of the block
+	 */
+	def getTotalComparisons: Int = source.size * target.size
+
+	/**
 	 * Return only the comparisons that their MBBs relate and that their\
 	 * reference points are inside the block
 	 *
