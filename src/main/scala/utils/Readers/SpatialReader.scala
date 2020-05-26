@@ -1,11 +1,10 @@
 package utils.Readers
 
-import Blocking.PartitionBlocking
 import DataStructures.{MBB, SpatialEntity}
 import com.vividsolutions.jts.geom.Geometry
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.{SparkConf, SparkContext, TaskContext}
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.{Row, SparkSession}
 import org.datasyslab.geospark.enums.GridType
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator

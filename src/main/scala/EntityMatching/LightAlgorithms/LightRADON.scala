@@ -1,7 +1,6 @@
 package EntityMatching.LightAlgorithms
 
 import DataStructures.SpatialEntity
-import EntityMatching.DistributedAlgorithms.SpatialMatching
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import utils.Constants
