@@ -1,4 +1,4 @@
-package EntityMatching.DistributedAlgorithms
+package EntityMatching.BlockBasedAlgorithms
 
 import DataStructures.{Block, SpatialEntity}
 import org.apache.spark.rdd.RDD
@@ -9,15 +9,14 @@ import scala.reflect.ClassTag
 /**
  *  Link discovery
  */
-case class SpatialMatching(blocks:RDD[Block], relation: String) extends DistributedMatchingTrait {
+case class BlockMatching(blocks:RDD[Block]) extends BlockMatchingTrait {
 
 
 	/**
 	 * Perform the only the necessary comparisons
 	 * @return the original ids of the matches
 	 */
-	def apply(): RDD[(String, String)] ={
-
+	def apply(relation: String): RDD[(String, String)] ={
 		blocks.flatMap(b => b.getFilteredComparisons(relation))
 			.filter(c => relate(c.entity1.geometry, c.entity2.geometry, relation))
 			.map(c => (c.entity1.originalID, c.entity2.originalID))
@@ -38,7 +37,6 @@ case class SpatialMatching(blocks:RDD[Block], relation: String) extends Distribu
 
 		//import spark.implicits._
 		//spark.catalog.listFunctions.filter('name like "ST_%").show(200, false)
-
 		val sourceDT = spark.createDataset(source.map(se => (se.id, se.geometry.toText)))
 		sourceDT.createOrReplaceTempView("SOURCE")
 

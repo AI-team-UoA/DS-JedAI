@@ -1,19 +1,20 @@
-package EntityMatching.DistributedAlgorithms.prioritization
+package EntityMatching.BlockBasedAlgorithms
 
-import DataStructures.{Block, Comparison}
+import DataStructures.Block
+import breeze.linalg.{DenseVector, SparseVector}
 import org.apache.spark.SparkContext
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import utils.Constants
-import breeze.linalg.{SparseVector, DenseVector}
-import org.apache.spark.broadcast.Broadcast
 
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 
-case class BlockCentricPrioritization(blocks: RDD[Block], relation: String, d: (Int, Int), totalBlocks: Long,
-                                      weightingScheme: String) extends DistributedProgressiveMatching  {
+// TODO consider placing relation in apply
+case class BlockCentricPrioritization(blocks: RDD[Block], d: (Int, Int), totalBlocks: Long,
+                                      weightingScheme: String) extends BlockMatchingTrait  {
 
 
     var commonBlocksSMBD: Broadcast[Array[SparseVector[Int]]] = _
@@ -111,8 +112,9 @@ case class BlockCentricPrioritization(blocks: RDD[Block], relation: String, d: (
      *
      * @return an RDD containing the IDs of the matches
      */
-    def apply(): RDD[(String, String)] ={
+    def apply(relation: String): RDD[(String, String)] ={
         init()
+        // TODO normalize weights
         blocks.flatMap(b => b.getFilteredComparisons(relation))
             .map(c => (getWeights(c.entity1.id, c.entity2.id), c))
             .sortByKey(ascending = false)
@@ -153,13 +155,13 @@ case class BlockCentricPrioritization(blocks: RDD[Block], relation: String, d: (
 object BlockCentricPrioritization {
 
     // auxiliary constructors
-    def apply(blocks: RDD[Block], relation: String, d: (Int, Int), weightingScheme : String): BlockCentricPrioritization ={
-        BlockCentricPrioritization(blocks, relation, d, blocks.count(), weightingScheme)
+    def apply(blocks: RDD[Block], d: (Int, Int), weightingScheme : String): BlockCentricPrioritization ={
+        BlockCentricPrioritization(blocks, d, blocks.count(), weightingScheme)
     }
 
-    def apply(blocks: RDD[Block], relation: String, weightingScheme : String): BlockCentricPrioritization ={
+    def apply(blocks: RDD[Block], weightingScheme : String): BlockCentricPrioritization ={
         val d1 = blocks.map(b => b.getSourceIDs.toSet).reduce(_ ++ _).size
         val d2 = blocks.map(b => b.getTargetIDs.toSet).reduce(_ ++ _).size
-        BlockCentricPrioritization(blocks, relation, (d1, d2), blocks.count(), weightingScheme)
+        BlockCentricPrioritization(blocks, (d1, d2), blocks.count(), weightingScheme)
     }
 }

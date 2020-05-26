@@ -3,8 +3,7 @@ package experiments
 import java.util.Calendar
 
 import Blocking.BlockingFactory
-import EntityMatching.DistributedAlgorithms.{DistributedMatchingFactory, SpatialMatching}
-import EntityMatching.DistributedAlgorithms.prioritization.{BlockCentricPrioritization}
+import EntityMatching.BlockBasedAlgorithms.{BlockMatchingFactory, BlockMatching}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
@@ -22,7 +21,7 @@ import utils.{ConfigurationParser, Constants, Utils}
  *         		spark-submit --master local[*] --conf spark.driver.extraJavaOptions=-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 --class experiments.SpatialExp target/scala-2.11/DS-JedAI-assembly-0.1.jar -conf <conf>
  */
 
-object SpatialExp {
+object BlockingExp {
 
 	def main(args: Array[String]): Unit = {
 		val startTime =  Calendar.getInstance().getTimeInMillis
@@ -82,7 +81,7 @@ object SpatialExp {
 
 		if (conf.relation == Constants.DISJOINT) {
 			val matching_startTime = Calendar.getInstance().getTimeInMillis
-			val matcher = SpatialMatching(null, relation)
+			val matcher = BlockMatching(null)
 			val matches = matcher.disjointMatches(source, target).setName("Matches").persist(StorageLevel.MEMORY_AND_DISK)
 			log.info("DS-JEDAI: Matches: " + matches.count)
 			val matching_endTime = Calendar.getInstance().getTimeInMillis
@@ -102,7 +101,7 @@ object SpatialExp {
 
 			// Entity Matching
 			val matching_startTime = Calendar.getInstance().getTimeInMillis
-			val matches = DistributedMatchingFactory.getMatchingAlgorithm(conf, blocks, relation, dimensions, totalBlocks).apply()
+			val matches = BlockMatchingFactory.getMatchingAlgorithm(conf, blocks, dimensions, totalBlocks).apply(relation)
 			//val matches = SpatialMatching.SpatialMatching(blocks, relation)
 			log.info("DS-JEDAI: Matches: " + matches.count)
 			val matching_endTime = Calendar.getInstance().getTimeInMillis
