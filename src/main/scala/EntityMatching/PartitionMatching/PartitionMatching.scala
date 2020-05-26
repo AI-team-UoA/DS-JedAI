@@ -1,6 +1,6 @@
 package EntityMatching.PartitionMatching
 
-import DataStructures.{MBB, SpatialEntity}
+import DataStructures.{MBB, SpatialEntity, SpatialIndex}
 import EntityMatching.MatchingTrait
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
@@ -48,30 +48,17 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (List[SpatialEntity], List[Spa
     }
 
 
-    def index(entities: List[SpatialEntity], zone: MBB): mutable.HashMap[Int, mutable.HashMap[Int, mutable.ListBuffer[Int]]]
+    def index(entities: List[SpatialEntity], zone: MBB): SpatialIndex
     = {
-        val sourceIndex: mutable.HashMap[Int, mutable.HashMap[Int, mutable.ListBuffer[Int]]] = mutable.HashMap()
+        val spatialIndex = new SpatialIndex()
 
         entities
             .zipWithIndex
             .foreach { case (se, index) =>
                 val indices: Array[(Int, Int)] = indexSpatialEntity(se, zone)
-                indices
-                    .foreach { i =>
-                        if (sourceIndex.contains(i._1))
-                            if (sourceIndex(i._1).contains(i._2))
-                                sourceIndex(i._1)(i._2) += index
-                            else
-                                sourceIndex(i._1).put(i._2, ListBuffer(index))
-                        else {
-                            val l = ListBuffer[Int](index)
-                            val h = mutable.HashMap[Int, ListBuffer[Int]]()
-                            h.put(i._2, l)
-                            sourceIndex.put(i._1, h)
-                        }
-                    }
+                indices.foreach(i => spatialIndex.insert(i, index))
             }
-        sourceIndex
+        spatialIndex
     }
 
 
@@ -89,9 +76,8 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (List[SpatialEntity], List[Spa
                 .map(se => (indexSpatialEntity(se, zone), se))
                 .flatMap { case (coordsAr: Array[(Int, Int)], se: SpatialEntity) =>
                     coordsAr
-                        .filter(c => sourceIndex.contains(c._1))
-                        .filter(c => sourceIndex(c._1).contains(c._2))
-                        .flatMap(c => sourceIndex(c._1)(c._2).map(j => (source(j), se, c)))
+                        .filter(c => sourceIndex.contains(c))
+                        .flatMap(c => sourceIndex.get(c).map(j => (source(j), se, c)))
                 }
                 .filter { case (e1: SpatialEntity, e2: SpatialEntity, b: (Int, Int)) =>
                     e1.mbb.testMBB(e2.mbb, relation) && e1.mbb.referencePointFiltering(e2.mbb, b)
