@@ -12,7 +12,6 @@ import utils.Constants
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 
-// TODO consider placing relation in apply
 case class BlockCentricPrioritization(blocks: RDD[Block], d: (Int, Int), totalBlocks: Long,
                                       weightingScheme: String) extends BlockMatchingTrait  {
 

@@ -42,9 +42,9 @@ case class PartitionBlocking(var source: RDD[SpatialEntity], var target: RDD[Spa
             val partitionZone = partitionsZones(TaskContext.getPartitionId())
             val thetaMsr = broadcastMap("theta").value.asInstanceOf[(Double, Double)]
             val acceptedBlocks = acceptedBlocksBD.value
-            val p = seIter.toArray.map(se => (indexSpatialEntity(se, acceptedBlocks, thetaMsr), se))
-                .map(b => (b._1.filter( coords => partitionZone.minX < coords._1 && partitionZone.maxX > coords._1 &&
-                                                  partitionZone.minY < coords._2 && partitionZone.maxY > coords._2 ), b._2))
+            val p = seIter.toArray.map(se => (indexSpatialEntity(se, acceptedBlocks, thetaMsr), se)) // WARNING: wrong no matches
+                .map(b => (b._1.filter( coords => partitionZone.minX <= coords._1 && partitionZone.maxX >= coords._1 &&
+                                                  partitionZone.minY <= coords._2 && partitionZone.maxY >= coords._2 ), b._2))
                 .flatMap(b => b._1.map(id => (id, ArrayBuffer[SpatialEntity](b._2))))
                 .groupBy( _._1)
                 .map(p => (p._1, p._2.flatMap(ar => ar._2).to[ArrayBuffer]))
