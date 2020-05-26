@@ -1,66 +1,13 @@
 package EntityMatching.PartitionMatching
 
-import DataStructures.{MBB, SpatialEntity, SpatialIndex}
-import EntityMatching.MatchingTrait
+import DataStructures.SpatialEntity
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import utils.Constants
 import utils.Readers.SpatialReader
 
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
-
-case class PartitionMatching(joinedRDD: RDD[(Int, (List[SpatialEntity], List[SpatialEntity]))], weightingScheme: String,
-                             thetaXY: (Double, Double)) extends MatchingTrait{
-
-    var partitionsZones: Array[MBB]  = SpatialReader.partitionsZones
-
-    def setPartitionsZones(boundaries: Array[MBB]): Unit = partitionsZones = boundaries
-
-    def zoneCheck(zone: MBB, coords: (Int, Int)): Boolean =  zone.minX <= coords._1 && zone.maxX >= coords._1 &&
-        zone.minY <= coords._2 && zone.maxY >= coords._2
-
-
-    def adjustPartitionsZones() : Unit ={
-        val (thetaX, thetaY) = thetaXY
-
-        partitionsZones = partitionsZones.map(mbb =>{
-            val maxX = math.ceil(mbb.maxX / thetaX).toInt
-            val minX = math.floor(mbb.minX / thetaX).toInt
-            val maxY = math.ceil(mbb.maxY / thetaY).toInt
-            val minY = math.floor(mbb.minY / thetaY).toInt
-
-            MBB(maxX, minX, maxY, minY)
-        })
-    }
-
-
-
-    def indexSpatialEntity(se: SpatialEntity, zone: MBB): Array[(Int, Int)] = {
-        val (thetaX, thetaY) = thetaXY
-
-        val maxX = math.ceil(se.mbb.maxX / thetaX).toInt
-        val minX = math.floor(se.mbb.minX / thetaX).toInt
-        val maxY = math.ceil(se.mbb.maxY / thetaY).toInt
-        val minY = math.floor(se.mbb.minY / thetaY).toInt
-
-        (for (x <- minX to maxX; y <- minY to maxY; if zoneCheck(zone, (x, y))) yield (x, y)).toArray
-    }
-
-
-    def index(entities: List[SpatialEntity], zone: MBB): SpatialIndex
-    = {
-        val spatialIndex = new SpatialIndex()
-
-        entities
-            .zipWithIndex
-            .foreach { case (se, index) =>
-                val indices: Array[(Int, Int)] = indexSpatialEntity(se, zone)
-                indices.foreach(i => spatialIndex.insert(i, index))
-            }
-        spatialIndex
-    }
-
+case class PartitionMatching(joinedRDD: RDD[(Int, (List[SpatialEntity],  List[SpatialEntity]))],
+                             thetaXY: (Double, Double), weightingScheme: String) extends PartitionMatchingTrait {
 
 
     def apply(relation: String): RDD[(String, String)] ={
@@ -69,11 +16,10 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (List[SpatialEntity], List[Spa
             val partitionId = p._1
             val source = p._2._1
             val target = p._2._2
-            val zone =  partitionsZones(partitionId)
-            val sourceIndex = index(source, zone)
+            val sourceIndex = index(source, partitionId)
 
             target
-                .map(se => (indexSpatialEntity(se, zone), se))
+                .map(se => (indexSpatialEntity(se, partitionId), se))
                 .flatMap { case (coordsAr: Array[(Int, Int)], se: SpatialEntity) =>
                     coordsAr
                         .filter(c => sourceIndex.contains(c))
@@ -88,19 +34,20 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (List[SpatialEntity], List[Spa
     }
 
 
-
-
 }
 
+/**
+ * auxiliary constructor
+ */
 object PartitionMatching{
 
-    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], weightingScheme: String,  thetaMsrSTR: String = Constants.NO_USE): PartitionMatching ={
+    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String = Constants.NO_USE): PartitionMatching ={
        val thetaXY = initTheta(source, target, thetaMsrSTR)
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), List(se))).reduceByKey(_ ++ _)
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), List(se))).reduceByKey(_ ++ _)
 
         val joinedRDD = sourcePartitions.join(targetPartitions, SpatialReader.spatialPartitioner)
-        PartitionMatching(joinedRDD, weightingScheme, thetaXY)
+        PartitionMatching(joinedRDD, thetaXY, weightingScheme)
     }
 
 
@@ -121,7 +68,6 @@ object PartitionMatching{
         var thetaX = 1d
         var thetaY = 1d
         thetaMsrSTR match {
-            // WARNING: small or big values of theta may affect negatively the indexing procedure
             case Constants.MIN =>
                 // filtering because there are cases that the geometries are perpendicular to the axes
                 // and have width or height equals to 0.0
