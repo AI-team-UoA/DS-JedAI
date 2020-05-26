@@ -2,10 +2,9 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.BlockBasedAlgorithms.BlockMatchingFactory
-import EntityMatching.PartitionMatching.PartitionMatching
+import EntityMatching.PartitionMatching.{ComparisonCentricPrioritization, PartitionMatching}
 import org.apache.log4j.{Level, LogManager, Logger}
-import org.apache.spark.{SparkConf, SparkContext, TaskContext}
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
@@ -50,19 +49,18 @@ object SpatialExp {
         }
 
         // TODO configuration arguments must return from configuration
+        // TODO add a budget configuration
         val conf_path = options("conf")
         val conf = ConfigurationParser.parse(conf_path)
         val partitions: Int = conf.configurations.getOrElse(Constants.CONF_PARTITIONS, "-1").toInt
-        val repartition: Boolean = partitions > 0
-        val spatialPartition: Boolean = conf.configurations.getOrElse(Constants.CONF_SPATIAL_PARTITION, "false").toBoolean
 
         // Loading Source
-        val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, spatialPartition)
+        val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
         val sourceCount = sourceRDD.setName("SourceRDD").cache().count().toInt
         log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount)
 
         // Loading Target
-        val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, spatialPartition)
+        val targetRDD = SpatialReader.load(conf.target.path, conf.source.realIdField, conf.source.geometryField)
         val targetCount = targetRDD.setName("TargetRDD").cache().count().toInt
         log.info("DS-JEDAI: Number of profiles of Target: " + targetCount)
 
@@ -73,6 +71,7 @@ object SpatialExp {
 
         val matching_startTime = Calendar.getInstance().getTimeInMillis
         val matches = PartitionMatching(source, target, weightingScheme, theta_msr).apply(relation)
+        // val matches = ComparisonCentricPrioritization(source, target, weightingScheme, theta_msr).apply(relation)
         log.info("DS-JEDAI: Matches: " + matches.count)
         val matching_endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Matching Time: " + (matching_endTime - matching_startTime) / 1000.0)
