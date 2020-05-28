@@ -2,7 +2,7 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.PartitionMatching.{ComparisonCentricPrioritization, PartitionMatching}
+import EntityMatching.PartitionMatching.{ComparisonCentricPrioritization, EntityCentricPrioritization, IterativeEntityCentricPrioritization, PartitionMatching}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
@@ -70,8 +70,11 @@ object SpatialExp {
         val weightingScheme = conf.configurations.getOrElse(Constants.CONF_WEIGHTING_STRG, Constants.CBS)
 
         val matching_startTime = Calendar.getInstance().getTimeInMillis
-        val matches = PartitionMatching(source, target, weightingScheme, theta_msr).apply(relation)
-        // val matches = ComparisonCentricPrioritization(source, target, weightingScheme, theta_msr).apply(relation)
+        // val matches = PartitionMatching(source, target, theta_msr, weightingScheme).apply(relation)
+        // val matches = ComparisonCentricPrioritization(source, target, theta_msr, weightingScheme).apply(relation)
+        // val matches = EntityCentricPrioritization(source, target, theta_msr, weightingScheme).apply(relation, 100000, targetCount)
+        val matches = IterativeEntityCentricPrioritization(source, target, theta_msr, weightingScheme).apply(relation, 100000, targetCount)
+
         log.info("DS-JEDAI: Matches: " + matches.count)
         val matching_endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Matching Time: " + (matching_endTime - matching_startTime) / 1000.0)
