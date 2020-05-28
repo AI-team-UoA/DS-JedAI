@@ -10,6 +10,12 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (List[SpatialEntity],  List[Sp
                              thetaXY: (Double, Double), weightingScheme: String) extends PartitionMatchingTrait {
 
 
+    /**
+     * First index the source and then use the index to find the comparisons with target's entities.
+     *
+     * @param relation the examining relation
+     * @return an RDD containing the matching pairs
+     */
     def apply(relation: String): RDD[(String, String)] ={
         adjustPartitionsZones()
         joinedRDD.flatMap { p =>

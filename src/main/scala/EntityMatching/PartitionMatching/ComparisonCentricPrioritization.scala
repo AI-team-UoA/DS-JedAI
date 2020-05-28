@@ -12,6 +12,16 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (List[SpatialEnt
                                            thetaXY: (Double, Double), weightingScheme: String) extends PartitionMatchingTrait {
 
 
+    /**
+     * First index source and then for each entity of target, find its comparisons from source's index.
+     * Weight the comparisons based the weighting scheme and then perform them in a ascending way.
+     *
+     * For the weighting, for each entity of target we construct a matrix that contains the frequencies
+     * of each entity of source - i.e. the no of common blocks
+     *
+     * @param relation the examining relation
+     * @return an RDD containing the matching pairs
+     */
     def apply(relation: String): RDD[(String, String)] ={
         init()
         joinedRDD.flatMap { p =>
@@ -29,20 +39,18 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (List[SpatialEnt
                     val frequency = Array.fill(source.size)(0)
                     sIndices.flatMap(_._2).foreach(i => frequency(i) += 1)
 
-                    sIndices.flatMap{ case(c, indices) =>
+                    sIndices.flatMap { case (c, indices) =>
                         indices.map(i => (source(i), frequency(i)))
-                        .filter{ case(e1, _) =>  e1.mbb.testMBB(e2.mbb, relation) && e1.mbb.referencePointFiltering(e2.mbb, c)}
-                        .map{ case(e1, f) => (getWeight(f, e1, e2), (e1, e2))}
+                            .filter { case (e1, _) => e1.mbb.testMBB(e2.mbb, relation) && e1.mbb.referencePointFiltering(e2.mbb, c) }
+                            .map { case (e1, f) => (getWeight(f, e1, e2), (e1, e2)) }
                     }
                 }
-                .sortBy(_._1)(Ordering.Double.reverse)
-                .map(_._2)
-                .filter(c => relate(c._1.geometry, c._2.geometry, relation))
-                .map(c => (c._1.originalID, c._2.originalID))
         }
+        .sortByKey(ascending = false)
+        .map(_._2)
+        .filter(c => relate(c._1.geometry, c._2.geometry, relation))
+        .map(c => (c._1.originalID, c._2.originalID))
     }
-
-
 }
 
 object ComparisonCentricPrioritization {
