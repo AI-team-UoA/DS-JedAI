@@ -2,14 +2,14 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.PartitionMatching.{ComparisonCentricPrioritization, EntityCentricPrioritization, IterativeEntityCentricPrioritization, PartitionMatching, PartitionMatchingFactory}
+import EntityMatching.PartitionMatching.PartitionMatchingFactory
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import utils.{ConfigurationParser, Constants, Utils}
-import utils.Readers.{Reader, SpatialReader}
+import utils.{ConfigurationParser, Utils}
+import utils.Readers.SpatialReader
 
 object PartitionExp {
     def main(args: Array[String]): Unit = {
@@ -48,11 +48,8 @@ object PartitionExp {
             System.exit(1)
         }
 
-        // TODO configuration arguments must return from configuration
-        // TODO add a budget configuration
         val conf_path = options("conf")
         val conf = ConfigurationParser.parse(conf_path)
-        val partitions: Int = conf.configurations.getOrElse(Constants.CONF_PARTITIONS, "-1").toInt
 
         // Loading Source
         val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
@@ -66,9 +63,6 @@ object PartitionExp {
 
         val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
 
-        val theta_msr = conf.configurations.getOrElse(Constants.CONF_THETA_MEASURE, Constants.NO_USE)
-        val weightingScheme = conf.configurations.getOrElse(Constants.CONF_WEIGHTING_STRG, Constants.CBS)
-
         val budget = 30000
         val matching_startTime = Calendar.getInstance().getTimeInMillis
         val matches = PartitionMatchingFactory.getMatchingAlgorithm(conf, source, target, budget).apply(relation)
@@ -76,6 +70,9 @@ object PartitionExp {
         log.info("DS-JEDAI: Matches: " + matches.count)
         val matching_endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Matching Time: " + (matching_endTime - matching_startTime) / 1000.0)
+
+        val endTime = Calendar.getInstance()
+        log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime) / 1000.0)
 
     }
 

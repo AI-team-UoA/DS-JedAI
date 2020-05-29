@@ -59,6 +59,7 @@ object Constants {
 	val CONF_SPATIAL_BLOCKING_FACTOR = "spatial_blocking_factor"
 	val CONF_MATCHING_ALG = "matchingAlg"
 	val CONF_WEIGHTING_STRG = "weighting_strategy"
+	val CONF_BUDGET = "budget"
 
 	/**
 	 * Matching Algorithms

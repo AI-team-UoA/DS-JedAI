@@ -2,13 +2,12 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.LightAlgorithms.{LightMatchingFactory, LightRADON}
-import EntityMatching.LightAlgorithms.prioritization.{ComparisonCentricPrioritization, EntityCentricPrioritization}
+import EntityMatching.LightAlgorithms.LightMatchingFactory
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
-import utils.Readers.{CSVReader, Reader}
+import utils.Readers.Reader
 import utils.{ConfigurationParser, Constants}
 
 
@@ -62,20 +61,18 @@ object LightExp {
 
         val conf_path = options("conf")
         val conf = ConfigurationParser.parse(conf_path)
-        val partitions: Int = conf.configurations.getOrElse(Constants.CONF_PARTITIONS, "0").toInt
-        val spatialPartition: Boolean = conf.configurations.getOrElse(Constants.CONF_SPATIAL_PARTITION, "false").toBoolean
+        val partitions: Int = conf.getPartitions
 
-
-        val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, spatialPartition)
+        val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField)
         val sourceCount = sourceRDD.setName("SourceRDD").cache().count()
         log.info("DS-JEDAI: Number of ptofiles of Source: " + sourceCount)
 
         // Loading Target
-        val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, spatialPartition)
+        val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField)
         val targetCount = targetRDD.setName("TargetRDD").cache().count()
         log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
-        val matches = LightMatchingFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).apply(0, conf.relation) // TODO fix this..there is no indexSeparator any more
+        val matches = LightMatchingFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).apply(0, conf.relation)
 
         log.info("DS-JEDAI: Matches: " + matches.count)
 

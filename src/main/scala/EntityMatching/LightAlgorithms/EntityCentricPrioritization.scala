@@ -1,7 +1,6 @@
-package EntityMatching.LightAlgorithms.prioritization
+package EntityMatching.LightAlgorithms
 
 import DataStructures.SpatialEntity
-import EntityMatching.LightAlgorithms.LightMatchingTrait
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import utils.Constants

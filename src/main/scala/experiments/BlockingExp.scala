@@ -3,12 +3,12 @@ package experiments
 import java.util.Calendar
 
 import Blocking.BlockingFactory
-import EntityMatching.BlockBasedAlgorithms.{BlockMatchingFactory, BlockMatching}
+import EntityMatching.BlockBasedAlgorithms.{BlockMatching, BlockMatchingFactory}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.SparkSession
 import utils.Readers.Reader
 import utils.{ConfigurationParser, Constants, Utils}
 
@@ -59,12 +59,11 @@ object BlockingExp {
 			System.exit(1)
 		}
 
-		// TODO configuration arguments must return from configuration
 		val conf_path = options("conf")
 		val conf = ConfigurationParser.parse(conf_path)
-		val partitions: Int = conf.configurations.getOrElse(Constants.CONF_PARTITIONS, "-1").toInt
+		val partitions: Int = conf.getPartitions
 		val repartition: Boolean = partitions > 0
-		val spatialPartition: Boolean = conf.configurations.getOrElse(Constants.CONF_SPATIAL_PARTITION, "false").toBoolean
+		val spatialPartition: Boolean = conf.getSpatialPartitioning
 
 		// Loading Source
 		val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, spatialPartition)
@@ -102,7 +101,6 @@ object BlockingExp {
 			// Entity Matching
 			val matching_startTime = Calendar.getInstance().getTimeInMillis
 			val matches = BlockMatchingFactory.getMatchingAlgorithm(conf, blocks, dimensions, totalBlocks).apply(relation)
-			//val matches = SpatialMatching.SpatialMatching(blocks, relation)
 			log.info("DS-JEDAI: Matches: " + matches.count)
 			val matching_endTime = Calendar.getInstance().getTimeInMillis
 			log.info("DS-JEDAI: Matching Time: " + (matching_endTime - matching_startTime) / 1000.0)
@@ -110,7 +108,5 @@ object BlockingExp {
 			val endTime = Calendar.getInstance()
 			log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime) / 1000.0)
 		}
-		//System.in.read
-		//spark.stop()
 	}
 }

@@ -15,9 +15,9 @@ object PartitionMatchingFactory {
                              tcount: Long = -1): PartitionMatchingTrait ={
 
         val targetCount = if (tcount == -1) target.count() else tcount
-        val algorithm = conf.configurations.getOrElse(Constants.CONF_MATCHING_ALG, Constants.BLOCK_CENTRIC)
-        val weightingStrategy = conf.configurations.getOrElse(Constants.CONF_WEIGHTING_STRG, Constants.CBS)
-        val theta_msr = conf.configurations.getOrElse(Constants.CONF_THETA_MEASURE, Constants.NO_USE)
+        val algorithm = conf.getMatchingAlgorithm
+        val weightingStrategy = conf.getWeightingScheme
+        val theta_msr = conf.getThetaMSR
         algorithm match {
             case Constants.COMPARISON_CENTRIC =>
                 log.info("Matching Algorithm: " + Constants.COMPARISON_CENTRIC)

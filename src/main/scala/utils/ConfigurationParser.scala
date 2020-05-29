@@ -11,7 +11,34 @@ import scala.io.Source
 
 case class Dataset(path: String, realIdField: String, geometryField: String)
 
-case class Configuration(source: Dataset, target:Dataset, relation: String, var configurations: Map[String, String])
+case class Configuration(source: Dataset, target:Dataset, relation: String, var configurations: Map[String, String]){
+
+	def getSource: String = source.path
+
+	def getTarget: String = target.path
+
+	def getRelation: String = relation
+
+	def getPartitions: Int = configurations.getOrElse(Constants.CONF_PARTITIONS, "-1").toInt
+
+	def getThetaMSR: String = configurations.getOrElse(Constants.CONF_THETA_MEASURE, Constants.NO_USE)
+
+	def getWeightingScheme: String = configurations.getOrElse(Constants.CONF_WEIGHTING_STRG, Constants.CBS)
+
+	def getBudget: Int = configurations.getOrElse(Constants.CONF_BUDGET, "10000").toInt
+
+	def getSpatialPartitioning: Boolean = configurations.getOrElse(Constants.CONF_SPATIAL_PARTITION, "false").toBoolean
+
+	def getMatchingAlgorithm: String = configurations.getOrElse(Constants.CONF_MATCHING_ALG, Constants.SPATIAL)
+
+	def getBlockingAlgorithm: String = configurations.getOrElse(Constants.CONF_BLOCK_ALG, Constants.RADON)
+
+	def getBlockingFactor: Int = configurations.getOrElse(Constants.CONF_SPATIAL_BLOCKING_FACTOR, "10").toInt
+
+	def getBlockingDistance: Double = configurations.getOrElse(Constants.CONF_STATIC_BLOCKING_DISTANCE, "0.0").toDouble
+
+
+}
 
 object ConfigurationYAML extends DefaultYamlProtocol {
 	implicit val DatasetFormat = yamlFormat3(Dataset)
@@ -77,6 +104,12 @@ object ConfigurationParser {
 							log.error("DS-JEDAI: Not valid measure for theta")
 							System.exit(1)
 						}
+					case Constants.CONF_BUDGET =>
+						val allDigits = value forall Character.isDigit
+						if (!allDigits) {
+							log.error("DS-JEDAI: Not valid measure for budget")
+							System.exit(1)
+						}
 					case Constants.CONF_MATCHING_ALG =>
 						if (! (value == Constants.BLOCK_CENTRIC || value == Constants.COMPARISON_CENTRIC || value == Constants.ΕΝΤΙΤΥ_CENTRIC
 							|| value == Constants.SPATIAL)) {
@@ -106,4 +139,5 @@ object ConfigurationParser {
 
 		conf
 	}
+
 }
