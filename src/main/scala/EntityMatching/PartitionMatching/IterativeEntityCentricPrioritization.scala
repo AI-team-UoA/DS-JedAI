@@ -9,14 +9,9 @@ import utils.Readers.SpatialReader
 import scala.collection.mutable
 
 case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (List[SpatialEntity], List[SpatialEntity]))],
-                                           thetaXY: (Double, Double), weightingScheme: String) extends PartitionMatchingTrait {
+                                           thetaXY: (Double, Double), weightingScheme: String, budget: Int, targetSize: Long) extends PartitionMatchingTrait {
 
     val orderByWeight: Ordering[(Double, (SpatialEntity, SpatialEntity))] = Ordering.by[(Double, (SpatialEntity, SpatialEntity)), Double](_._1).reverse
-
-    def apply(relation: String): RDD[(String, String)] = {
-        val tSize = joinedRDD.flatMap(_._2._2).count()
-        apply(relation, 10000, tSize)
-    }
 
 
     /**
@@ -26,11 +21,9 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (List[Spati
      * and sorts based on that.
      *
      * @param relation the examining relation
-     * @param budget the total comparisons we want to implement
-     * @param targetSize no entities in target
      * @return an RDD containing the matching pairs
      */
-    def apply(relation: String, budget: Int, targetSize: Long): RDD[(String, String)] = {
+    def apply(relation: String): RDD[(String, String)] = {
         val k = budget / targetSize
         init()
         joinedRDD
@@ -101,13 +94,14 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (List[Spati
 
 object IterativeEntityCentricPrioritization{
 
-    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String): IterativeEntityCentricPrioritization ={
+    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String, budget: Int, tcount: Long):
+    IterativeEntityCentricPrioritization ={
         val thetaXY = initTheta(source, target, thetaMsrSTR)
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), List(se))).reduceByKey(_ ++ _)
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), List(se))).reduceByKey(_ ++ _)
 
         val joinedRDD = sourcePartitions.join(targetPartitions, SpatialReader.spatialPartitioner)
-        IterativeEntityCentricPrioritization(joinedRDD, thetaXY, weightingScheme)
+        IterativeEntityCentricPrioritization(joinedRDD, thetaXY, weightingScheme, budget, tcount)
     }
 
 

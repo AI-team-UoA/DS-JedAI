@@ -2,7 +2,7 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.PartitionMatching.{ComparisonCentricPrioritization, EntityCentricPrioritization, IterativeEntityCentricPrioritization, PartitionMatching}
+import EntityMatching.PartitionMatching.{ComparisonCentricPrioritization, EntityCentricPrioritization, IterativeEntityCentricPrioritization, PartitionMatching, PartitionMatchingFactory}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
@@ -11,7 +11,7 @@ import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import utils.{ConfigurationParser, Constants, Utils}
 import utils.Readers.{Reader, SpatialReader}
 
-object SpatialExp {
+object PartitionExp {
     def main(args: Array[String]): Unit = {
         val startTime = Calendar.getInstance().getTimeInMillis
         Logger.getLogger("org").setLevel(Level.ERROR)
@@ -69,11 +69,9 @@ object SpatialExp {
         val theta_msr = conf.configurations.getOrElse(Constants.CONF_THETA_MEASURE, Constants.NO_USE)
         val weightingScheme = conf.configurations.getOrElse(Constants.CONF_WEIGHTING_STRG, Constants.CBS)
 
+        val budget = 30000
         val matching_startTime = Calendar.getInstance().getTimeInMillis
-        // val matches = PartitionMatching(source, target, theta_msr, weightingScheme).apply(relation)
-        // val matches = ComparisonCentricPrioritization(source, target, theta_msr, weightingScheme).apply(relation)
-        // val matches = EntityCentricPrioritization(source, target, theta_msr, weightingScheme).apply(relation, 100000, targetCount)
-        val matches = IterativeEntityCentricPrioritization(source, target, theta_msr, weightingScheme).apply(relation, 100000, targetCount)
+        val matches = PartitionMatchingFactory.getMatchingAlgorithm(conf, source, target, budget).apply(relation)
 
         log.info("DS-JEDAI: Matches: " + matches.count)
         val matching_endTime = Calendar.getInstance().getTimeInMillis

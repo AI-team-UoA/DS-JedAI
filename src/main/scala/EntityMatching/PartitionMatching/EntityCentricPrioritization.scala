@@ -9,7 +9,7 @@ import utils.Readers.SpatialReader
 import scala.collection.mutable
 
 case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (List[SpatialEntity], List[SpatialEntity]))],
-                                       thetaXY: (Double, Double), weightingScheme: String) extends PartitionMatchingTrait{
+                                       thetaXY: (Double, Double), weightingScheme: String,  budget: Int, targetSize: Long) extends PartitionMatchingTrait{
 
     val orderByWeight: Ordering[(Double, (SpatialEntity, SpatialEntity))] = Ordering.by[(Double, (SpatialEntity, SpatialEntity)), Double](_._1).reverse
 
@@ -72,7 +72,7 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (List[SpatialEntity]
                     val topComparisons = weightedComparisons.map(_._2).map(i => (source(i), e2))
                     (weight, topComparisons)
                 }
-                comparisons//.filter(_._1 > 0d)
+                comparisons.filter(_._1 >= 0d)
             }
 
             // sort the comparisons based on their mean weight
@@ -87,13 +87,14 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (List[SpatialEntity]
 
 object EntityCentricPrioritization{
 
-    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String): EntityCentricPrioritization ={
+    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String, budget: Int, tcount: Long):
+    EntityCentricPrioritization ={
         val thetaXY = initTheta(source, target, thetaMsrSTR)
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), List(se))).reduceByKey(_ ++ _)
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), List(se))).reduceByKey(_ ++ _)
 
         val joinedRDD = sourcePartitions.join(targetPartitions, SpatialReader.spatialPartitioner)
-        EntityCentricPrioritization(joinedRDD, thetaXY, weightingScheme)
+        EntityCentricPrioritization(joinedRDD, thetaXY, weightingScheme, budget, tcount)
     }
 
 

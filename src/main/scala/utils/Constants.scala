@@ -67,6 +67,7 @@ object Constants {
 	val BLOCK_CENTRIC = "BLOCK_CENTRIC"
 	val COMPARISON_CENTRIC = "COMPARISON_CENTRIC"
 	val ΕΝΤΙΤΥ_CENTRIC = "ΕΝΤΙΤΥ_CENTRIC"
+	val ITERATIVE_ΕΝΤΙΤΥ_CENTRIC = "ITERATIVE_ΕΝΤΙΤΥ_CENTRIC"
 
 	/**
 	 * Weighting Strategies
