@@ -25,15 +25,21 @@ object SpatialReader extends TReader {
         val extension = filepath.toString.split("\\.").last
         extension match {
             case "csv" =>
-                loadCSV(filepath, realIdField, geometryField)
-
+                loadCSV(filepath, realIdField, geometryField, header = true)
+            case "tsv" =>
+                loadTSV(filepath, realIdField, geometryField, header = true)
             case _ =>
                 null
         }
-
     }
 
-    def loadCSV(filepath: String, realIdField: String, geometryField: String, delimiter: String = ",", header: Boolean = true): RDD[SpatialEntity] ={
+    def loadCSV(filepath: String, realIdField: String, geometryField: String, header: Boolean): RDD[SpatialEntity] =
+        load(filepath, realIdField, geometryField, ",", header)
+
+    def loadTSV(filepath: String, realIdField: String, geometryField: String, header: Boolean): RDD[SpatialEntity] =
+        load(filepath, realIdField, geometryField, "\t", header)
+
+    def load(filepath: String, realIdField: String, geometryField: String, delimiter: String, header: Boolean): RDD[SpatialEntity] ={
 
         val conf = new SparkConf()
         conf.set("spark.serializer", classOf[KryoSerializer].getName)

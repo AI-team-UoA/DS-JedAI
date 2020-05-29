@@ -13,12 +13,16 @@ object CSVReader extends TReader {
 
     val spark: SparkSession = SparkSession.builder().getOrCreate()
 
-    def load(filePath: String, realIdField: String, geometryField: String) : RDD[SpatialEntity] = {
-        loadProfiles(filePath, realIdField, geometryField)
-    }
+    def load(filePath: String, realIdField: String, geometryField: String) : RDD[SpatialEntity] =
+        loadCSV(filePath, realIdField, geometryField, header = true)
 
-    def loadProfiles(filePath: String, realIdField: String, geometryField: String, header: Boolean = true,
-                              separator: String = ","): RDD[SpatialEntity] = {
+    def loadCSV(filePath: String, realIdField: String, geometryField: String, header: Boolean) : RDD[SpatialEntity] =
+        loadProfiles(filePath, realIdField, geometryField, header, ",")
+
+    def loadTSV(filePath: String, realIdField: String, geometryField: String, header: Boolean) : RDD[SpatialEntity] =
+        loadProfiles(filePath, realIdField, geometryField, header, "\t")
+
+    def loadProfiles(filePath: String, realIdField: String, geometryField: String, header: Boolean, separator: String): RDD[SpatialEntity] = {
 
         val dt = spark.read.option("header", header).option("sep", separator).option("delimiter", "\"").csv(filePath)
 
