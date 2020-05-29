@@ -99,11 +99,13 @@ object Utils {
 	 * @param relation relation
 	 * @return the swapped values
 	 */
-	def swappingStrategy(sourceRDD: RDD[SpatialEntity], targetRDD: RDD[SpatialEntity], relation: String):
-	(RDD[SpatialEntity], RDD[SpatialEntity], String)= {
+	def swappingStrategy(sourceRDD: RDD[SpatialEntity], targetRDD: RDD[SpatialEntity], relation: String,
+						 scount: Long = -1, tcount: Long = -1):	(RDD[SpatialEntity], RDD[SpatialEntity], String)= {
 
-		val sourceETH = getETH(sourceRDD)
-		val targetETH = getETH(targetRDD)
+		val sourceCount = if (scount > 0) scount else sourceRDD.count()
+		val targetCount = if (tcount > 0) tcount else targetRDD.count()
+		val sourceETH = getETH(sourceRDD, sourceCount)
+		val targetETH = getETH(targetRDD, targetCount)
 
 		if (targetETH < sourceETH){
 			swapped = true

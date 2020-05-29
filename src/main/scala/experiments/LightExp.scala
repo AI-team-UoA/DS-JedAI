@@ -26,13 +26,13 @@ object LightExp {
     def main(args: Array[String]): Unit = {
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        Logger.getLogger("org").setLevel(Level.ERROR)
-        Logger.getLogger("akka").setLevel(Level.ERROR)
+        Logger.getLogger("org").setLevel(Level.INFO)
+        Logger.getLogger("akka").setLevel(Level.INFO)
         val log = LogManager.getRootLogger
         log.setLevel(Level.INFO)
 
         val sparkConf = new SparkConf()
-            .setAppName("SD-JedAI")
+            .setAppName("DS-JedAI")
             .set("spark.serializer", classOf[KryoSerializer].getName)
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()

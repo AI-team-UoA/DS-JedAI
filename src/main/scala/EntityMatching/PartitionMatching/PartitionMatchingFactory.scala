@@ -7,8 +7,7 @@ import utils.{Configuration, Constants}
 
 object PartitionMatchingFactory {
 
-    Logger.getLogger("org").setLevel(Level.ERROR)
-    Logger.getLogger("akka").setLevel(Level.ERROR)
+
     val log: Logger = LogManager.getRootLogger
 
     def getMatchingAlgorithm(conf: Configuration, source: RDD[SpatialEntity], target: RDD[SpatialEntity], budget: Int,

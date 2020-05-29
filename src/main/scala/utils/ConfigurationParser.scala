@@ -48,8 +48,6 @@ object ConfigurationYAML extends DefaultYamlProtocol {
 object ConfigurationParser {
 
 	import ConfigurationYAML._
-	Logger.getLogger("org").setLevel(Level.ERROR)
-	Logger.getLogger("akka").setLevel(Level.ERROR)
 	val log: Logger = LogManager.getRootLogger
 
 	def checkRelation(relation: String): Unit ={

@@ -1,11 +1,13 @@
 package EntityMatching.LightAlgorithms
 
 import DataStructures.SpatialEntity
-import EntityMatching.PartitionMatching.PartitionMatchingFactory.log
+import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import utils.{Configuration, Constants}
 
 object LightMatchingFactory {
+
+    val log: Logger = LogManager.getRootLogger
 
     def getMatchingAlgorithm(conf: Configuration, source: RDD[SpatialEntity], target: RDD[SpatialEntity]): LightMatchingTrait = {
         val algorithm = conf.getMatchingAlgorithm
