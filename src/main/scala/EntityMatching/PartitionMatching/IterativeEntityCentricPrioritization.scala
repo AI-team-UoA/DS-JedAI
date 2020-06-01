@@ -3,6 +3,7 @@ package EntityMatching.PartitionMatching
 import DataStructures.SpatialEntity
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
 import utils.Constants
 import utils.Readers.SpatialReader
 
@@ -101,6 +102,7 @@ object IterativeEntityCentricPrioritization{
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
 
         val joinedRDD = sourcePartitions.join(targetPartitions, SpatialReader.spatialPartitioner)
+        joinedRDD.setName("JoinedRDD").persist(StorageLevel.MEMORY_AND_DISK)
         IterativeEntityCentricPrioritization(joinedRDD, thetaXY, weightingScheme, budget, tcount)
     }
 
