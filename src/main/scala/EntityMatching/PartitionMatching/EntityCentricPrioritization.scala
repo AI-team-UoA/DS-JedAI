@@ -8,7 +8,7 @@ import utils.Readers.SpatialReader
 
 import scala.collection.mutable
 
-case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (List[SpatialEntity], List[SpatialEntity]))],
+case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Array[SpatialEntity], Array[SpatialEntity]))],
                                        thetaXY: (Double, Double), weightingScheme: String,  budget: Int, targetSize: Long) extends PartitionMatchingTrait{
 
     val orderByWeight: Ordering[(Double, (SpatialEntity, SpatialEntity))] = Ordering.by[(Double, (SpatialEntity, SpatialEntity)), Double](_._1).reverse
@@ -36,10 +36,10 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (List[SpatialEntity]
         joinedRDD
             .flatMap { p =>
                 val partitionId = p._1
-                val source: List[SpatialEntity] = p._2._1
-                val target: List[SpatialEntity] = p._2._2
+                val source: Array[SpatialEntity] = p._2._1
+                val target: Array[SpatialEntity] = p._2._2
                 val sourceIndex = index(source, partitionId)
-                val sourceSize = source.size
+                val sourceSize = source.length
                 val targetsCoords = target.zipWithIndex.map { case (e2, i) =>
                     val coords = indexSpatialEntity(e2, partitionId).filter(c => sourceIndex.contains(c))
                     (i, coords)
@@ -90,8 +90,8 @@ object EntityCentricPrioritization{
     def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String, budget: Int, tcount: Long):
     EntityCentricPrioritization ={
         val thetaXY = initTheta(source, target, thetaMsrSTR)
-        val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), List(se))).reduceByKey(_ ++ _)
-        val targetPartitions = target.map(se => (TaskContext.getPartitionId(), List(se))).reduceByKey(_ ++ _)
+        val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
+        val targetPartitions = target.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
 
         val joinedRDD = sourcePartitions.join(targetPartitions, SpatialReader.spatialPartitioner)
         EntityCentricPrioritization(joinedRDD, thetaXY, weightingScheme, budget, tcount)

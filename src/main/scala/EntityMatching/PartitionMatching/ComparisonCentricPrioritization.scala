@@ -8,7 +8,7 @@ import utils.Constants
 import utils.Readers.SpatialReader
 
 
-case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (List[SpatialEntity], List[SpatialEntity]))],
+case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Array[SpatialEntity], Array[SpatialEntity]))],
                                            thetaXY: (Double, Double), weightingScheme: String) extends PartitionMatchingTrait {
 
 
@@ -36,7 +36,7 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (List[SpatialEnt
                     val sIndices = coordsAr
                         .filter(c => sourceIndex.contains(c))
                         .map(c => (c, sourceIndex.get(c)))
-                    val frequency = Array.fill(source.size)(0)
+                    val frequency = Array.fill(source.length)(0)
                     sIndices.flatMap(_._2).foreach(i => frequency(i) += 1)
 
                     sIndices.flatMap { case (c, indices) =>
@@ -57,8 +57,8 @@ object ComparisonCentricPrioritization {
 
     def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String): ComparisonCentricPrioritization ={
         val thetaXY = initTheta(source, target, thetaMsrSTR)
-        val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), List(se))).reduceByKey(_ ++ _)
-        val targetPartitions = target.map(se => (TaskContext.getPartitionId(), List(se))).reduceByKey(_ ++ _)
+        val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
+        val targetPartitions = target.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
 
         val joinedRDD = sourcePartitions.join(targetPartitions, SpatialReader.spatialPartitioner)
         ComparisonCentricPrioritization(joinedRDD, thetaXY, weightingScheme)

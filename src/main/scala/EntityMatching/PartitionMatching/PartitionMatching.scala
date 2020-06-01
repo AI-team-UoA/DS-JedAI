@@ -3,10 +3,11 @@ package EntityMatching.PartitionMatching
 import DataStructures.SpatialEntity
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
 import utils.Constants
 import utils.Readers.SpatialReader
 
-case class PartitionMatching(joinedRDD: RDD[(Int, (List[SpatialEntity],  List[SpatialEntity]))],
+case class PartitionMatching(joinedRDD: RDD[(Int, (Array[SpatialEntity],  Array[SpatialEntity]))],
                              thetaXY: (Double, Double), weightingScheme: String) extends PartitionMatchingTrait {
 
 
@@ -49,10 +50,10 @@ object PartitionMatching{
 
     def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String = Constants.NO_USE): PartitionMatching ={
        val thetaXY = initTheta(source, target, thetaMsrSTR)
-        val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), List(se))).reduceByKey(_ ++ _)
-        val targetPartitions = target.map(se => (TaskContext.getPartitionId(), List(se))).reduceByKey(_ ++ _)
+        val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
+        val targetPartitions = target.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
 
-        val joinedRDD = sourcePartitions.join(targetPartitions, SpatialReader.spatialPartitioner)
+        val joinedRDD = sourcePartitions.join(targetPartitions, SpatialReader.spatialPartitioner).persist(StorageLevel.MEMORY_AND_DISK)
         PartitionMatching(joinedRDD, thetaXY, weightingScheme)
     }
 

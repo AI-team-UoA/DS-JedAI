@@ -7,6 +7,7 @@ import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.storage.StorageLevel
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import utils.{ConfigurationParser, Utils}
 import utils.Readers.SpatialReader
@@ -53,19 +54,21 @@ object PartitionExp {
 
         // Loading Source
         val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
-        val sourceCount = sourceRDD.setName("SourceRDD").cache().count().toInt
+            .setName("SourceRDD")persist(StorageLevel.MEMORY_AND_DISK)
+        val sourceCount = sourceRDD.count().toInt
         log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount)
 
         // Loading Target
         val targetRDD = SpatialReader.load(conf.target.path, conf.source.realIdField, conf.source.geometryField)
-        val targetCount = targetRDD.setName("TargetRDD").cache().count().toInt
+            .setName("TargetRDD")persist(StorageLevel.MEMORY_AND_DISK)
+        val targetCount = targetRDD.count().toInt
         log.info("DS-JEDAI: Number of profiles of Target: " + targetCount)
 
-        val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
+        val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation, sourceCount, targetCount)
 
         val budget = 30000
         val matching_startTime = Calendar.getInstance().getTimeInMillis
-        val matches = PartitionMatchingFactory.getMatchingAlgorithm(conf, source, target, budget).apply(relation)
+        val matches = PartitionMatchingFactory.getMatchingAlgorithm(conf, source, target, budget, targetCount).apply(relation)
 
         log.info("DS-JEDAI: Matches: " + matches.count)
         val matching_endTime = Calendar.getInstance().getTimeInMillis

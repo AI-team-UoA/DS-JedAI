@@ -9,7 +9,7 @@ import utils.Readers.SpatialReader
 
 trait PartitionMatchingTrait extends MatchingTrait {
 
-    val joinedRDD: RDD[(Int, (List[SpatialEntity], List[SpatialEntity]))]
+    val joinedRDD: RDD[(Int, (Array[SpatialEntity], Array[SpatialEntity]))]
     val thetaXY: (Double, Double)
     val weightingScheme: String
     var partitionsZones: Array[MBB] = SpatialReader.partitionsZones
@@ -85,7 +85,7 @@ trait PartitionMatchingTrait extends MatchingTrait {
      * @param pid      partition's id to get partition's zone
      * @return a SpatialIndex
      */
-    def index(entities: List[SpatialEntity], pid: Int): SpatialIndex = {
+    def index(entities: Array[SpatialEntity], pid: Int): SpatialIndex = {
         val spatialIndex = new SpatialIndex()
         entities.zipWithIndex.foreach { case (se, index) =>
             val indices: Array[(Int, Int)] = indexSpatialEntity(se, pid)
