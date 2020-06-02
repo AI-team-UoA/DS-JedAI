@@ -19,15 +19,16 @@ object SpatialReader extends TReader {
 
     var spatialPartitioner: SpatialPartitioner = _
     var partitionsZones: Array[MBB] = Array()
+    var partitions: Int = 0
 
-
+    def setPartitions(p: Int): Unit = partitions = p
     def load(filepath: String, realIdField: String, geometryField: String): RDD[SpatialEntity] ={
         val extension = filepath.toString.split("\\.").last
         extension match {
             case "csv" =>
-                loadCSV(filepath, realIdField, geometryField, header = true)
+                loadCSV(filepath, realIdField, geometryField, header = true )
             case "tsv" =>
-                loadTSV(filepath, realIdField, geometryField, header = true)
+                loadTSV(filepath, realIdField, geometryField, header = true )
             case _ =>
                 null
         }
@@ -73,11 +74,10 @@ object SpatialReader extends TReader {
 
         srdd.analyze()
         if (spatialPartitioner == null) {
-            srdd.spatialPartitioning(GridType.QUADTREE)
+            if (partitions > 0) srdd.spatialPartitioning(GridType.QUADTREE, partitions) else srdd.spatialPartitioning(GridType.QUADTREE)
             spatialPartitioner = srdd.getPartitioner
             val zones = srdd.partitionTree.getLeafZones
             partitionsZones = zones.toArray(Array.ofDim[QuadRectangle](zones.size())).map(qr => MBB(qr.getEnvelope))
-
         }
         else
             srdd.spatialPartitioning(spatialPartitioner)

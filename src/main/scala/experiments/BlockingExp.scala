@@ -62,18 +62,17 @@ object BlockingExp {
 		val conf_path = options("conf")
 		val conf = ConfigurationParser.parse(conf_path)
 		val partitions: Int = conf.getPartitions
-		val repartition: Boolean = partitions > 0
 		val spatialPartition: Boolean = conf.getSpatialPartitioning
 
 		// Loading Source
-		val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, spatialPartition)
+		val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, partitions, spatialPartition)
 		val sourceCount = sourceRDD.setName("SourceRDD").cache().count().toInt
-		log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount)
+		log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions +" partitions")
 
 		// Loading Target
-		val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, spatialPartition)
+		val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, partitions, spatialPartition)
 		val targetCount = targetRDD.setName("TargetRDD").cache().count().toInt
-		log.info("DS-JEDAI: Number of profiles of Target: " + targetCount)
+		log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions +" partitions")
 
 		val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
 		val dimensions = if (Utils.swapped ) (targetCount, sourceCount) else (sourceCount, targetCount)

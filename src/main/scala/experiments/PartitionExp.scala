@@ -51,18 +51,20 @@ object PartitionExp {
 
         val conf_path = options("conf")
         val conf = ConfigurationParser.parse(conf_path)
+        val partitions: Int = conf.getPartitions
 
         // Loading Source
+        SpatialReader.setPartitions(partitions)
         val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
-            .setName("SourceRDD")persist(StorageLevel.MEMORY_AND_DISK)
+            .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
         val sourceCount = sourceRDD.count().toInt
-        log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount)
+        log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions +" partitions")
 
         // Loading Target
         val targetRDD = SpatialReader.load(conf.target.path, conf.source.realIdField, conf.source.geometryField)
             .setName("TargetRDD")persist(StorageLevel.MEMORY_AND_DISK)
         val targetCount = targetRDD.count().toInt
-        log.info("DS-JEDAI: Number of profiles of Target: " + targetCount)
+        log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions +" partitions")
 
         val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation, sourceCount, targetCount)
 
