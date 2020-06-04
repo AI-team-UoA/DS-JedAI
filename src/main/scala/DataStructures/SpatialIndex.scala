@@ -1,7 +1,8 @@
 package DataStructures
 
 import scala.collection.mutable
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.Set
 
 class SpatialIndex(){
 
@@ -24,5 +25,8 @@ class SpatialIndex(){
     def contains(c: (Int, Int)): Boolean = index.contains(c._1) && index(c._1).contains(c._2)
 
     def get(c:(Int, Int)): ArrayBuffer[Int] = index(c._1)(c._2)
+
+    def asKeys: mutable.HashMap[Int, Set[Int]] =
+       index.map(i => i._1 -> i._2.keySet)
 
 }

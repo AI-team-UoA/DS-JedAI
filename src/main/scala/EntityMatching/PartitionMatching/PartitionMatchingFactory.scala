@@ -29,7 +29,8 @@ object PartitionMatchingFactory {
                 IterativeEntityCentricPrioritization(source, target, theta_msr, weightingStrategy, budget, targetCount)
             case _ =>
                 log.info("Matching Algorithm: " + Constants.SPATIAL)
-                PartitionMatching(source, target, theta_msr)
+                null
+               // PartitionMatching(source, target, theta_msr)
         }
     }
 }

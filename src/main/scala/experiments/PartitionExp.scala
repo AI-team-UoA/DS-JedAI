@@ -2,7 +2,7 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.PartitionMatching.PartitionMatchingFactory
+import EntityMatching.PartitionMatching.{PartitionMatching, PartitionMatchingFactory}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
@@ -13,6 +13,7 @@ import utils.{ConfigurationParser, Utils}
 import utils.Readers.SpatialReader
 
 object PartitionExp {
+
     def main(args: Array[String]): Unit = {
         val startTime = Calendar.getInstance().getTimeInMillis
         Logger.getLogger("org").setLevel(Level.INFO)
@@ -71,8 +72,9 @@ object PartitionExp {
 
         val budget = 30000
         val matching_startTime = Calendar.getInstance().getTimeInMillis
-        val matches = PartitionMatchingFactory.getMatchingAlgorithm(conf, source, target, budget, targetCount).apply(relation)
-
+        //val matches = PartitionMatchingFactory.getMatchingAlgorithm(conf, source, target, budget, targetCount).apply(relation)
+        val theta_msr = conf.getThetaMSR
+        val matches = PartitionMatching(source, target, theta_msr).apply(relation)
         log.info("DS-JEDAI: Matches: " + matches.count)
         val matching_endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Matching Time: " + (matching_endTime - matching_startTime) / 1000.0)
