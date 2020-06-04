@@ -15,10 +15,10 @@ import utils.Readers.SpatialReader
 object PartitionExp {
     def main(args: Array[String]): Unit = {
         val startTime = Calendar.getInstance().getTimeInMillis
-        Logger.getLogger("org").setLevel(Level.INFO)
-        Logger.getLogger("akka").setLevel(Level.INFO)
+        Logger.getLogger("org").setLevel(Level.ERROR)
+        Logger.getLogger("akka").setLevel(Level.ERROR)
         val log = LogManager.getRootLogger
-        log.setLevel(Level.INFO)
+        log.setLevel(Level.ERROR)
 
         val sparkConf = new SparkConf()
             .setAppName("DS-JedAI")
@@ -55,6 +55,7 @@ object PartitionExp {
 
         // Loading Source
         SpatialReader.setPartitions(partitions)
+        SpatialReader.noConsecutiveID()
         val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
             .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
         val sourceCount = sourceRDD.count().toInt
@@ -78,7 +79,6 @@ object PartitionExp {
 
         val endTime = Calendar.getInstance()
         log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime) / 1000.0)
-
     }
 
 }
