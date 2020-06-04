@@ -12,8 +12,7 @@ import utils.{Configuration, Constants}
 
 object BlockMatchingFactory {
 
-    def getMatchingAlgorithm(conf: Configuration, blocks: RDD[Block], d: (Int, Int),
-                             totalBlocks: Long = -1): BlockMatchingTrait = {
+    def getMatchingAlgorithm(conf: Configuration, blocks: RDD[Block], d: (Int, Int), totalBlocks: Long = -1): BlockMatchingTrait = {
         val algorithm = conf.getMatchingAlgorithm
         val weightingScheme = conf.getWeightingScheme
         algorithm match {

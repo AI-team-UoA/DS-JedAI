@@ -1,10 +1,8 @@
 package Blocking
 
 import DataStructures.{Block, LightBlock, SpatialEntity}
-import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-import utils.Constants
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -12,47 +10,11 @@ import scala.collection.mutable.ArrayBuffer
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 trait 	Blocking {
-	var source: RDD[SpatialEntity]
-	var target: RDD[SpatialEntity]
+	val source: RDD[SpatialEntity]
+	val target: RDD[SpatialEntity]
+	val thetaXY: (Double, Double)
 
 	var broadcastMap: Map[String, Broadcast[Any]] = Map()
-
-	/**
-	 * initialize theta based on theta measure
-	 */
-	def initTheta(thetaMsrSTR: String = Constants.NO_USE): Unit ={
-		val thetaMsr: RDD[(Double, Double)] = source
-			.union(target)
-			.map {
-				sp =>
-					val env = sp.geometry.getEnvelopeInternal
-					(env.getHeight, env.getWidth)
-			}
-			.setName("thetaMsr")
-			.cache()
-
-		var thetaX = 1d
-		var thetaY = 1d
-		thetaMsrSTR match {
-			// WARNING: small or big values of theta may affect negatively the indexing procedure
-			case Constants.MIN =>
-				// filtering because there are cases that the geometries are perpendicular to the axes
-				// and have width or height equals to 0.0
-				thetaX = thetaMsr.map(_._1).filter(_ != 0.0d).min
-				thetaY = thetaMsr.map(_._2).filter(_ != 0.0d).min
-			case Constants.MAX =>
-				thetaX = thetaMsr.map(_._1).max
-				thetaY = thetaMsr.map(_._2).max
-			case Constants.AVG =>
-				val length = thetaMsr.count
-				thetaX = thetaMsr.map(_._1).sum() / length
-				thetaY = thetaMsr.map(_._2).sum() / length
-			case _ =>
-		}
-		val broadcastedTheta = SparkContext.getOrCreate().broadcast((thetaX, thetaY))
-		broadcastMap += ("theta" -> broadcastedTheta.asInstanceOf[Broadcast[Any]])
-		thetaMsr.unpersist()
-	}
 
 
 	/**
@@ -62,9 +24,9 @@ trait 	Blocking {
 	 * @param acceptedBlocks the accepted blocks that the set can be indexed to
 	 * @return an array of blocks
 	 */
-	def indexSpatialEntity(se: SpatialEntity, acceptedBlocks: Set[(Int, Int)] = Set(), thetaMsr: (Double, Double)): IndexedSeq[(Int, Int)] = {
+	def indexSpatialEntity(se: SpatialEntity, acceptedBlocks: Set[(Int, Int)] = Set()): IndexedSeq[(Int, Int)] = {
 
-		val (thetaX, thetaY) = thetaMsr
+		val (thetaX, thetaY) = thetaXY
 		if (se.crossesMeridian) {
 			val (westernMBB, easternMBB) = se.mbb.splitOnMeridian
 

@@ -4,6 +4,7 @@ import DataStructures.{Block, SpatialEntity}
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
+import utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -15,9 +16,9 @@ import scala.collection.mutable.ArrayBuffer
  * RADON blocking algorithm
  * @param source source set as RDD
  * @param target target set as RDD
- * @param thetaMsrSTR theta measure
+ * @param thetaXY theta measure
  */
-case class RADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], thetaMsrSTR: String) extends  Blocking with Serializable
+case class RADON(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY: (Double, Double)) extends  Blocking with Serializable
 {
 
 	/**
@@ -32,9 +33,8 @@ case class RADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity],
 		val acceptedBlocksBD = SparkContext.getOrCreate().broadcast(acceptedBlocks)
 		broadcastMap += ("acceptedBlocks" -> acceptedBlocksBD.asInstanceOf[Broadcast[Any]])
 		spatialEntitiesRDD.mapPartitions { seIter =>
-			val thetaMsr = broadcastMap("theta").value.asInstanceOf[(Double, Double)]
 			val acceptedBlocks = acceptedBlocksBD.value
-			seIter.map(se => (indexSpatialEntity(se, acceptedBlocks, thetaMsr), se))
+			seIter.map(se => (indexSpatialEntity(se, acceptedBlocks), se))
 		}
 		.flatMap(b => b._1.map(id => (id, ArrayBuffer[SpatialEntity](b._2) ))).reduceByKey(_ ++ _ )
 	}
@@ -44,8 +44,13 @@ case class RADON(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity],
 	 * @return RDD of blocks
 	 */
 	override def apply(): RDD[Block] = {
-		initTheta(thetaMsrSTR)
 		super.apply()
 	}
+}
 
+object RADON{
+	def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaMsrSTR: String): RADON={
+		val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
+		RADON(source, target, thetaXY)
+	}
 }

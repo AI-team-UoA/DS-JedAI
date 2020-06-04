@@ -4,14 +4,15 @@ import DataStructures.SpatialEntity
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-import utils.Constants
+import utils.{Constants, Utils}
 
 import scala.collection.mutable.ArrayBuffer
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-case class StaticBlocking (var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], blockingParameter: Double, distance: Double) extends  Blocking with Serializable {
+case class StaticBlocking (source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY: (Double, Double),
+						   blockingParameter: Double, distance: Double) extends  Blocking with Serializable {
 
 
 	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), ArrayBuffer[SpatialEntity])] = {
@@ -41,6 +42,11 @@ case class StaticBlocking (var source: RDD[SpatialEntity], var target: RDD[Spati
 		}
 		blocks.flatMap(p => p._1.map(blockID => (blockID, ArrayBuffer(p._2)))).reduceByKey(_++_)
 	}
+}
 
-
+object StaticBlocking{
+	def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaMsrSTR: String, blockingParameter: Double, distance: Double): StaticBlocking={
+		val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
+		StaticBlocking(source, target, thetaXY, blockingParameter, distance)
+	}
 }

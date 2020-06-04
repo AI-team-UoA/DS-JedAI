@@ -23,7 +23,7 @@ object BlockingFactory {
 			case Constants.STATIC_BLOCKING =>
 				val blockingFactor: Int = conf.getBlockingFactor
 				val distance: Double = conf.getBlockingDistance
-				StaticBlocking(source, target, blockingFactor, distance)
+				StaticBlocking(source, target, theta_msr, blockingFactor, distance)
 			case Constants.RADON| _ =>
 				RADON(source, target, theta_msr)
 		}

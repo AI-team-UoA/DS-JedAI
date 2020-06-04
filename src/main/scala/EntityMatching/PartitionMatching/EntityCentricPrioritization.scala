@@ -4,7 +4,7 @@ import DataStructures.SpatialEntity
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
-import utils.Constants
+import utils.{Constants, Utils}
 import utils.Readers.SpatialReader
 
 import scala.collection.mutable
@@ -58,7 +58,7 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Array[SpatialEntity
                     for (k <- sIndicesList.indices) {
                         val c = coords(k)
                         val sIndices = sIndicesList(k).filter(i => source(i).mbb.testMBB(e2.mbb, relation) &&
-                            source(i).mbb.referencePointFiltering(e2.mbb, c))
+                            source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY))
                         for (i <- sIndices) {
                             val e1 = source(i)
                             val f = frequency(i)
@@ -90,7 +90,7 @@ object EntityCentricPrioritization{
 
     def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String, budget: Int, tcount: Long):
     EntityCentricPrioritization ={
-        val thetaXY = initTheta(source, target, thetaMsrSTR)
+        val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
 
@@ -99,38 +99,4 @@ object EntityCentricPrioritization{
         EntityCentricPrioritization(joinedRDD, thetaXY, weightingScheme, budget, tcount)
     }
 
-
-    /**
-     * initialize theta based on theta measure
-     */
-    def initTheta(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String): (Double, Double) ={
-        val thetaMsr: RDD[(Double, Double)] = source
-            .union(target)
-            .map {
-                sp =>
-                    val env = sp.geometry.getEnvelopeInternal
-                    (env.getHeight, env.getWidth)
-            }
-            .setName("thetaMsr")
-            .cache()
-
-        var thetaX = 1d
-        var thetaY = 1d
-        thetaMsrSTR match {
-            case Constants.MIN =>
-                // filtering because there are cases that the geometries are perpendicular to the axes
-                // and have width or height equals to 0.0
-                thetaX = thetaMsr.map(_._1).filter(_ != 0.0d).min
-                thetaY = thetaMsr.map(_._2).filter(_ != 0.0d).min
-            case Constants.MAX =>
-                thetaX = thetaMsr.map(_._1).max
-                thetaY = thetaMsr.map(_._2).max
-            case Constants.AVG =>
-                val length = thetaMsr.count
-                thetaX = thetaMsr.map(_._1).sum() / length
-                thetaY = thetaMsr.map(_._2).sum() / length
-            case _ =>
-        }
-        (thetaX, thetaY)
-    }
 }

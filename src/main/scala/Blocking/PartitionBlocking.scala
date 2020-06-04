@@ -4,16 +4,18 @@ import DataStructures.{Block, MBB, SpatialEntity}
 import org.apache.spark.{SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
+import utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
-case class PartitionBlocking(var source: RDD[SpatialEntity], var target: RDD[SpatialEntity], thetaMsrSTR: String) extends  Blocking with Serializable {
+case class PartitionBlocking(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY: (Double,Double))
+    extends  Blocking with Serializable {
 
     var partitionsZones: Array[MBB] = Array()
     def setPartitionsZones(boundaries: Array[MBB]): Unit = partitionsZones = boundaries
 
     def adjustPartitionsZones() : Unit ={
-        val (thetaX, thetaY) = broadcastMap("theta").value.asInstanceOf[(Double, Double)]
+        val (thetaX, thetaY) = thetaXY
 
         partitionsZones = partitionsZones.map(mbb =>{
             val maxX = math.ceil(mbb.maxX / thetaX).toInt
@@ -42,7 +44,7 @@ case class PartitionBlocking(var source: RDD[SpatialEntity], var target: RDD[Spa
             val partitionZone = partitionsZones(TaskContext.getPartitionId())
             val thetaMsr = broadcastMap("theta").value.asInstanceOf[(Double, Double)]
             val acceptedBlocks = acceptedBlocksBD.value
-            val p = seIter.toArray.map(se => (indexSpatialEntity(se, acceptedBlocks, thetaMsr), se)) // WARNING: wrong no matches
+            val p = seIter.toArray.map(se => (indexSpatialEntity(se, acceptedBlocks), se)) // WARNING: wrong no matches
                 .map(b => (b._1.filter( coords => partitionZone.minX <= coords._1 && partitionZone.maxX >= coords._1 &&
                                                   partitionZone.minY <= coords._2 && partitionZone.maxY >= coords._2 ), b._2))
                 .flatMap(b => b._1.map(id => (id, ArrayBuffer[SpatialEntity](b._2))))
@@ -57,7 +59,6 @@ case class PartitionBlocking(var source: RDD[SpatialEntity], var target: RDD[Spa
      * @return RDD of blocks
      */
     override def apply(): RDD[Block] = {
-        initTheta(thetaMsrSTR)
         adjustPartitionsZones()
 
         val sourceIndex = index(source)
@@ -78,5 +79,12 @@ case class PartitionBlocking(var source: RDD[SpatialEntity], var target: RDD[Spa
     }
 
 
+}
+
+object PartitionBlocking {
+    def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaMsrSTR: String): PartitionBlocking={
+        val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
+        PartitionBlocking(source, target, thetaXY)
+    }
 }
 

@@ -26,9 +26,16 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param b the examined block
      * @return true if the reference point is in the block
      */
-    def referencePointFiltering(mbb:MBB, b:(Int, Int)): Boolean ={
-        val rf: (Double, Double) = (math.max(minX, mbb.minX), math.min(maxY, mbb.maxY))
-        rf._1 >= b._1 && rf._1 <= b._1+1 && rf._2 >= b._2 & rf._2 <= b._2+1
+    def referencePointFiltering(mbb:MBB, b:(Int, Int), thetaXY: (Double, Double)): Boolean ={
+        val (thetaX, thetaY) = thetaXY
+
+        val minX1 = minX / thetaX
+        val minX2 = mbb.minX / thetaX
+        val maxY1 = maxY / thetaY
+        val maxY2 = mbb.maxY / thetaY
+
+        val rf: (Double, Double) = (math.max(minX1, minX2), math.min(maxY1, maxY2))
+        rf._1 >= b._1 && rf._1 <= b._1+thetaX && rf._2 >= b._2 & rf._2 <= b._2+thetaY
     }
 
     /**
