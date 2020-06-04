@@ -54,7 +54,7 @@ object PartitionMatching{
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
 
         val joinedRDD = sourcePartitions.join(targetPartitions, SpatialReader.spatialPartitioner)
-        joinedRDD.setName("JoinedRDD").persist(StorageLevel.MEMORY_AND_DISK)
+        //joinedRDD.setName("JoinedRDD").persist(StorageLevel.MEMORY_AND_DISK)
         PartitionMatching(joinedRDD, thetaXY, weightingScheme)
     }
 
