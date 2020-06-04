@@ -66,12 +66,12 @@ object BlockingExp {
 
 		// Loading Source
 		val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, partitions, spatialPartition)
-		val sourceCount = sourceRDD.setName("SourceRDD").cache().count().toInt
+		val sourceCount = sourceRDD.setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK).count().toInt
 		log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions +" partitions")
 
 		// Loading Target
 		val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, partitions, spatialPartition)
-		val targetCount = targetRDD.setName("TargetRDD").cache().count().toInt
+		val targetCount = targetRDD.setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK).count().toInt
 		log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions +" partitions")
 
 		val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation)

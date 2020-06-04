@@ -20,8 +20,11 @@ object SpatialReader extends TReader {
     var spatialPartitioner: SpatialPartitioner = _
     var partitionsZones: Array[MBB] = Array()
     var partitions: Int = 0
+    var consecutiveId: Boolean = true
 
     def setPartitions(p: Int): Unit = partitions = p
+    def noConsecutiveID(): Unit = consecutiveId = false
+
     def load(filepath: String, realIdField: String, geometryField: String): RDD[SpatialEntity] ={
         val extension = filepath.toString.split("\\.").last
         extension match {
@@ -60,7 +63,7 @@ object SpatialReader extends TReader {
         val newSchema = StructType(inputDF.schema.fields ++ Array(StructField("ROW_ID", LongType, nullable = false)))
 
         // Zip on RDD level
-        val rddWithId = inputDF.rdd.zipWithIndex
+        val rddWithId = if (consecutiveId) inputDF.rdd.zipWithIndex else inputDF.rdd.zipWithUniqueId()
         // Convert back to DataFrame
         val dfZippedWithId =  spark.createDataFrame(rddWithId.map{ case (row, index) => Row.fromSeq(row.toSeq ++ Array(index))}, newSchema)
 
