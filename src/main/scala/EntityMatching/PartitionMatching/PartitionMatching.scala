@@ -51,6 +51,7 @@ case class PartitionMatching(source: RDD[SpatialEntity], target: RDD[SpatialEnti
                val sourceIndex = index(sourceAr, pid)
                Iterator((pid, (sourceIndex, sourceAr)))
            }
+           .filter(_._2._2.nonEmpty)
            .setName("SourceIndex").persist(StorageLevel.MEMORY_AND_DISK)
 
        val sIndexRDD = sourceRDD.map(s => (s._1, s._2._1.asKeys))
@@ -60,18 +61,20 @@ case class PartitionMatching(source: RDD[SpatialEntity], target: RDD[SpatialEnti
                val pid = TaskContext.getPartitionId()
                Iterator((pid, targetAr))
             }
-           .rightOuterJoin(sIndexRDD)
+           .filter(_._2.nonEmpty)
+           .leftOuterJoin(sIndexRDD)
+           .filter(_._2._2.isDefined)
            .map {
                t =>
                    val pid = t._1
-                   val targetAr = t._2._1.get
-                   val sourceIndex = t._2._2
+                   val targetAr = t._2._1
+                   val sourceIndex = t._2._2.get
                    val filteredEntities =
                        targetAr
                            .map(se => (indexSpatialEntity(se, pid), se))
                            .filter(t => t._1.exists(c => sourceIndex.contains(c._1) && sourceIndex(c._1).contains(c._2)))
                            .map(_._2)
-                            .toIterator
+                           .toIterator
                    (pid, filteredEntities)
            }
 
