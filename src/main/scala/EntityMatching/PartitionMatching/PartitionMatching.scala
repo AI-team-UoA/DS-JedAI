@@ -78,13 +78,13 @@ case class PartitionMatching(source: RDD[SpatialEntity], target: RDD[SpatialEnti
                    (pid, filteredEntities)
            }
 
-       targetRDD.rightOuterJoin(sourceRDD, SpatialReader.spatialPartitioner)
-           .filter(_._2._1.isDefined)
+       sourceRDD.leftOuterJoin(targetRDD, SpatialReader.spatialPartitioner)
+           .filter(_._2._2.isDefined)
            .flatMap{
                case( pid, joined) =>
-                   val sourceAr = joined._2._2
-                   val targetIter = joined._1.get
-                   val sourceIndex = joined._2._1
+                   val sourceAr = joined._1._2
+                   val targetIter = joined._2.get
+                   val sourceIndex = joined._1._1
                    targetIter
                        .map(se => (indexSpatialEntity(se, pid), se))
                        .flatMap { case (coordsAr: Array[(Int, Int)], se: SpatialEntity) =>
