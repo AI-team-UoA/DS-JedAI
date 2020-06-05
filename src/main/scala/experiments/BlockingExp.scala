@@ -26,10 +26,10 @@ object BlockingExp {
 	def main(args: Array[String]): Unit = {
 		val startTime =  Calendar.getInstance().getTimeInMillis
 
-		Logger.getLogger("org").setLevel(Level.INFO)
-		Logger.getLogger("akka").setLevel(Level.INFO)
+		Logger.getLogger("org").setLevel(Level.ERROR)
+		Logger.getLogger("akka").setLevel(Level.ERROR)
 		val log = LogManager.getRootLogger
-		log.setLevel(Level.INFO)
+		log.setLevel(Level.ERROR)
 
 		val sparkConf = new SparkConf()
 			.setAppName("SD-JedAI")

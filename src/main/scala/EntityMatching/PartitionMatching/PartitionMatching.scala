@@ -44,21 +44,21 @@ case class PartitionMatching(source: RDD[SpatialEntity], target: RDD[SpatialEnti
 
     def apply(relation: String): RDD[(String, String)] ={
        adjustPartitionsZones()
-       val sourceI = source.mapPartitions {
+       val sourceRDD = source.mapPartitions {
            sIter =>
                val sourceAr = sIter.toArray
                val pid = TaskContext.getPartitionId()
                val sourceIndex = index(sourceAr, pid)
                Iterator((pid, (sourceIndex, sourceAr)))
            }
-           .persist(StorageLevel.MEMORY_AND_DISK)
+           .setName("SourceIndex").persist(StorageLevel.MEMORY_AND_DISK)
 
-       val sIndexRDD = sourceI.map(s => (s._1, s._2._1.asKeys))
-       val targetI = target.mapPartitions {
+       val sIndexRDD = sourceRDD.map(s => (s._1, s._2._1.asKeys))
+       val targetRDD = target.mapPartitions {
            tIter =>
-               val sourceAr = tIter.toArray
+               val targetAr = tIter.toArray
                val pid = TaskContext.getPartitionId()
-               Iterator((pid, sourceAr))
+               Iterator((pid, targetAr))
             }
            .rightOuterJoin(sIndexRDD)
            .map {
@@ -66,23 +66,24 @@ case class PartitionMatching(source: RDD[SpatialEntity], target: RDD[SpatialEnti
                    val pid = t._1
                    val targetAr = t._2._1.get
                    val sourceIndex = t._2._2
-                   val filteredEntities = targetAr
-                       .map(se => (indexSpatialEntity(se, pid), se))
-                       .filter(t => t._1.exists(c => sourceIndex.contains(c._1) && sourceIndex(c._1).contains(c._2)))
-                       .map(_._2)
+                   val filteredEntities =
+                       targetAr
+                           .map(se => (indexSpatialEntity(se, pid), se))
+                           .filter(t => t._1.exists(c => sourceIndex.contains(c._1) && sourceIndex(c._1).contains(c._2)))
+                           .map(_._2)
+                            .toIterator
                    (pid, filteredEntities)
            }
 
-       sourceI.leftOuterJoin(targetI, SpatialReader.spatialPartitioner)
-           .filter(_._2._2.isDefined)
+       targetRDD.rightOuterJoin(sourceRDD, SpatialReader.spatialPartitioner)
+           .filter(_._2._1.isDefined)
            .flatMap{
                case( pid, joined) =>
-                   val sourceAr = joined._1._2
-                   val targetAr = joined._2.get
-                   val sourceIndex = joined._1._1
-                   targetAr
+                   val sourceAr = joined._2._2
+                   val targetIter = joined._1.get
+                   val sourceIndex = joined._2._1
+                   targetIter
                        .map(se => (indexSpatialEntity(se, pid), se))
-
                        .flatMap { case (coordsAr: Array[(Int, Int)], se: SpatialEntity) =>
                            coordsAr
                                .filter(c => sourceIndex.contains(c))
@@ -93,7 +94,6 @@ case class PartitionMatching(source: RDD[SpatialEntity], target: RDD[SpatialEnti
                        }
                        .filter(c => relate(c._1.geometry, c._2.geometry, relation))
                        .map(c => (c._1.originalID, c._2.originalID))
-
            }
    }
 
