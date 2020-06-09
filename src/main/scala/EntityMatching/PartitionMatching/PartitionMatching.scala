@@ -142,7 +142,6 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
 
         val onZoneEdges = (partitionsZones(pid).minX < coords._1 + 0.5 && partitionsZones(pid).maxX > coords._1 + 0.5) ||
             (partitionsZones(pid).minY < coords._2 + 0.5 && partitionsZones(pid).maxY > coords._2 + 0.5)
-
         inZone || onZoneEdges
     }
 
