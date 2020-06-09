@@ -163,10 +163,14 @@ object PartitionMatching{
 
     def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String = Constants.NO_USE): PartitionMatching ={
        val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
-        val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
-        val targetPartitions = target.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
+        // val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
+        // val targetPartitions = target.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
+        //val joinedRDD = sourcePartitions.join(targetPartitions, SpatialReader.spatialPartitioner)
 
-        val joinedRDD = sourcePartitions.join(targetPartitions, SpatialReader.spatialPartitioner)
+        val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
+        val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
+
+        val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner).map(p => ( p._1, (p._2._1.toArray, p._2._2.toArray)))
         //joinedRDD.setName("JoinedRDD").persist(StorageLevel.MEMORY_AND_DISK)
         PartitionMatching(joinedRDD, thetaXY, weightingScheme)
     }
