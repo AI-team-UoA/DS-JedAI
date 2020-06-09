@@ -1,18 +1,19 @@
 source:
-  path: "/home/gmandi/Documents/Extreme-Earth/Entity-Resolution/Datasets/polar-uc-cm/s1_images_10K.csv"
-  realIdField: "id"
-  geometryField: "WKT"
+    path: "/home/gmandi/Documents/Extreme-Earth/Entity-Resolution/Datasets/polar-uc-cm/observations_WKT.csv"
+    realIdField: "id"
+    geometryField: "WKT"
 
 target:
-  path: "/home/gmandi/Documents/Extreme-Earth/Entity-Resolution/Datasets/polar-uc-cm/observations_WKT.csv"
-  realIdField: "id"
-  geometryField: "WKT"
+    path: "/home/gmandi/Documents/Extreme-Earth/Entity-Resolution/Datasets/polar-uc-cm/s1_images_10K.csv"
+    realIdField: "id"
+    geometryField: "WKT"
 
-relation: "contains"
+relation: "within"
 
 configurations:
   blockingAlg: "RADON"
   spatialPartition: "false"
   theta_measure: "avg"
   matchingAlg: "SPATIAL"
+  partitions: "5"
   weighting_strategy: "JS"

@@ -136,9 +136,15 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
         (for (x <- minX to maxX; y <- minY to maxY; if zoneCheck(pid, (x, y))) yield (x, y)).toArray
     }
 
-    def zoneCheck(pid: Int, coords: (Int, Int)): Boolean =
-        partitionsZones(pid).minX <= coords._1 && partitionsZones(pid).maxX >= coords._1 &&
-        partitionsZones(pid).minY <= coords._2 && partitionsZones(pid).maxY >= coords._2
+    def zoneCheck(pid: Int, coords: (Int, Int)): Boolean = {
+        val inZone: Boolean = partitionsZones(pid).minX < coords._1 && partitionsZones(pid).maxX > coords._1 &&
+            partitionsZones(pid).minY < coords._2 && partitionsZones(pid).maxY > coords._2
+
+        val onZoneEdges = (partitionsZones(pid).minX < coords._1 + 0.5 && partitionsZones(pid).maxX > coords._1 + 0.5) ||
+            (partitionsZones(pid).minY < coords._2 + 0.5 && partitionsZones(pid).maxY > coords._2 + 0.5)
+
+        inZone || onZoneEdges
+    }
 
     def relate(sourceGeom: Geometry, targetGeometry: Geometry, relation: String): Boolean ={
         relation match {
