@@ -8,10 +8,10 @@ import org.apache.spark.storage.StorageLevel
 import utils.{Constants, Utils}
 import utils.Readers.SpatialReader
 
-//case class PartitionMatching(joinedRDD: RDD[(Int, (Array[SpatialEntity],  Array[SpatialEntity]))],
-//                             thetaXY: (Double, Double), weightingScheme: String) extends PartitionMatchingTrait {
-case class PartitionMatching(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY: (Double, Double), weightingScheme: String) {
-    var partitionsZones: Array[MBB] = SpatialReader.partitionsZones
+case class PartitionMatching(joinedRDD: RDD[(Int, (Array[SpatialEntity],  Array[SpatialEntity]))],
+                             thetaXY: (Double, Double), weightingScheme: String) extends PartitionMatchingTrait {
+//case class PartitionMatching(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY: (Double, Double), weightingScheme: String) {
+//    var partitionsZones: Array[MBB] = SpatialReader.partitionsZones
 
     /**
      * First index the source and then use the index to find the comparisons with target's entities.
@@ -19,7 +19,7 @@ case class PartitionMatching(source: RDD[SpatialEntity], target: RDD[SpatialEnti
      * @param relation the examining relation
      * @return an RDD containing the matching pairs
      */
-   /* def apply(relation: String): RDD[(String, String)] ={
+    def apply(relation: String): RDD[(String, String)] ={
         adjustPartitionsZones()
         joinedRDD.flatMap { p =>
             val partitionId = p._1
@@ -40,9 +40,9 @@ case class PartitionMatching(source: RDD[SpatialEntity], target: RDD[SpatialEnti
                 .filter(c => relate(c._1.geometry, c._2.geometry, relation))
                 .map(c => (c._1.originalID, c._2.originalID))
         }
-    }*/
+    }
 
-    def apply(relation: String): RDD[(String, String)] ={
+    /*def apply(relation: String): RDD[(String, String)] ={
        adjustPartitionsZones()
        val sourceRDD = source.mapPartitions {
            sIter =>
@@ -98,9 +98,9 @@ case class PartitionMatching(source: RDD[SpatialEntity], target: RDD[SpatialEnti
                        .filter(c => relate(c._1.geometry, c._2.geometry, relation))
                        .map(c => (c._1.originalID, c._2.originalID))
            }
-   }
+   }*/
 
-
+/*
 
     // -----
     def adjustPartitionsZones(): Unit = {
@@ -153,7 +153,7 @@ case class PartitionMatching(source: RDD[SpatialEntity], target: RDD[SpatialEnti
             case Constants.WITHIN => sourceGeom.within(targetGeometry)
             case _ => false
         }
-    }
+    }*/
 }
 
 /**
@@ -161,7 +161,7 @@ case class PartitionMatching(source: RDD[SpatialEntity], target: RDD[SpatialEnti
  */
 object PartitionMatching{
 
-    /*def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String = Constants.NO_USE): PartitionMatching ={
+    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String = Constants.NO_USE): PartitionMatching ={
        val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
@@ -169,14 +169,14 @@ object PartitionMatching{
         val joinedRDD = sourcePartitions.join(targetPartitions, SpatialReader.spatialPartitioner)
         //joinedRDD.setName("JoinedRDD").persist(StorageLevel.MEMORY_AND_DISK)
         PartitionMatching(joinedRDD, thetaXY, weightingScheme)
-    }*/
+    }
 
 
-    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String = Constants.NO_USE): PartitionMatching ={
+   /* def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String = Constants.NO_USE): PartitionMatching ={
         val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
 
         PartitionMatching(source, target, thetaXY, weightingScheme)
-    }
+    }*/
 
 
 
