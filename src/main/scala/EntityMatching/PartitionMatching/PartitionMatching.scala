@@ -8,10 +8,10 @@ import org.apache.spark.storage.StorageLevel
 import utils.{Constants, Utils}
 import utils.Readers.SpatialReader
 
-case class PartitionMatching(joinedRDD: RDD[(Int, (Array[SpatialEntity],  Array[SpatialEntity]))],
-                             thetaXY: (Double, Double), weightingScheme: String) extends PartitionMatchingTrait {
+case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Iterable[SpatialEntity]))],
+                             thetaXY: (Double, Double), weightingScheme: String)  {
 //case class PartitionMatching(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY: (Double, Double), weightingScheme: String) {
-//    var partitionsZones: Array[MBB] = SpatialReader.partitionsZones
+    var partitionsZones: Array[MBB] = SpatialReader.partitionsZones
 
     /**
      * First index the source and then use the index to find the comparisons with target's entities.
@@ -23,8 +23,8 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Array[SpatialEntity],  Array[
         adjustPartitionsZones()
         joinedRDD.flatMap { p =>
             val partitionId = p._1
-            val source = p._2._1
-            val target = p._2._2
+            val source: Array[SpatialEntity] = p._2._1.toArray
+            val target: Iterator[SpatialEntity] = p._2._2.toIterator
             val sourceIndex = index(source, partitionId)
 
             target
@@ -100,7 +100,7 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Array[SpatialEntity],  Array[
            }
    }*/
 
-/*
+
 
     // -----
     def adjustPartitionsZones(): Unit = {
@@ -153,7 +153,7 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Array[SpatialEntity],  Array[
             case Constants.WITHIN => sourceGeom.within(targetGeometry)
             case _ => false
         }
-    }*/
+    }
 }
 
 /**
@@ -170,7 +170,7 @@ object PartitionMatching{
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
 
-        val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner).map(p => ( p._1, (p._2._1.toArray, p._2._2.toArray)))
+        val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
         //joinedRDD.setName("JoinedRDD").persist(StorageLevel.MEMORY_AND_DISK)
         PartitionMatching(joinedRDD, thetaXY, weightingScheme)
     }
