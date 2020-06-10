@@ -12,6 +12,13 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
                              thetaXY: (Double, Double), weightingScheme: String)  {
 //case class PartitionMatching(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY: (Double, Double), weightingScheme: String) {
     var partitionsZones: Array[MBB] = SpatialReader.partitionsZones
+    val spaceEdges: MBB = {
+        val minX = SpatialReader.partitionsZones.map(p => p.minX).min
+        val maxX = SpatialReader.partitionsZones.map(p => p.maxX).max
+        val minY = SpatialReader.partitionsZones.map(p => p.minY).min
+        val maxY = SpatialReader.partitionsZones.map(p => p.maxY).max
+        MBB(maxX, minX, maxY, minY)
+    }
 
     /**
      * First index the source and then use the index to find the comparisons with target's entities.
@@ -137,12 +144,27 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
     }
 
     def zoneCheck(pid: Int, coords: (Int, Int)): Boolean = {
-        val inZone: Boolean = partitionsZones(pid).minX < coords._1 && partitionsZones(pid).maxX > coords._1 &&
-            partitionsZones(pid).minY < coords._2 && partitionsZones(pid).maxY > coords._2
 
-        val onZoneEdges = (partitionsZones(pid).minX < coords._1 + 0.5 && partitionsZones(pid).maxX > coords._1 + 0.5) ||
-            (partitionsZones(pid).minY < coords._2 + 0.5 && partitionsZones(pid).maxY > coords._2 + 0.5)
-        inZone || onZoneEdges
+        // the block is inside its partition
+        if (partitionsZones(pid).minX < coords._1 && partitionsZones(pid).maxX > coords._1 && partitionsZones(pid).minY < coords._2 && partitionsZones(pid).maxY > coords._2)
+            true
+        // the block is on the edges of the partitions
+        else {
+            // we are in the top-right corner - no other partition can possible claiming it
+            if (spaceEdges.maxX == coords._1 && spaceEdges.maxY == coords._2)
+                true
+            // we are in the right edge of the whole space
+            else if (spaceEdges.maxX == coords._1)
+                partitionsZones(pid).minY < coords._2 + 0.5 && partitionsZones(pid).maxY > coords._2 + 0.5
+            // we are in the top edge of the whole space
+            else if (spaceEdges.maxY == coords._2)
+                partitionsZones(pid).minX < coords._1 + 0.5 && partitionsZones(pid).maxX > coords._1 + 0.5
+            // the partition does not touches the edges of space - so we just see if the examined block is in the partition
+            else {
+                (partitionsZones(pid).minX < coords._1 + 0.5 && partitionsZones(pid).maxX > coords._1 + 0.5) &&
+                    (partitionsZones(pid).minY < coords._2 + 0.5 && partitionsZones(pid).maxY > coords._2 + 0.5)
+            }
+        }
     }
 
     def relate(sourceGeom: Geometry, targetGeometry: Geometry, relation: String): Boolean ={
