@@ -11,6 +11,7 @@ object Constants {
 	val MAX = "max"
 	val MIN = "min"
 	val AVG = "avg"
+	val AVG_x2 = "avg2"
 	val RANDOM = "random"
 	val NO_USE = "none"
 

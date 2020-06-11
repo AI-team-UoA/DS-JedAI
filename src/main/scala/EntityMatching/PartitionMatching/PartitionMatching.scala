@@ -16,7 +16,6 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
      * @return an RDD containing the matching pairs
      */
     def apply(relation: String): RDD[(String, String)] ={
-        adjustPartitionsZones()
         joinedRDD.flatMap { p =>
             val partitionId = p._1
             val source: Array[SpatialEntity] = p._2._1.toArray

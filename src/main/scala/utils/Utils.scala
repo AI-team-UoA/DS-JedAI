@@ -1,13 +1,13 @@
 package utils
 
 
-import DataStructures.SpatialEntity
-import org.apache.spark.broadcast.Broadcast
-import org.apache.spark.{SparkContext, TaskContext}
+import DataStructures.{MBB, SpatialEntity}
+import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
 import org.apache.spark.sql.{Encoder, Encoders, Row, SparkSession}
+import utils.Readers.SpatialReader
 
 import scala.reflect.ClassTag
 
@@ -19,6 +19,8 @@ object Utils {
 	val spark: SparkSession = SparkSession.builder().getOrCreate()
 	var swapped = false
 	var thetaXY: (Double, Double) = _
+	var sourceCount: Long = _
+	var targetCount: Long = _
 
 	/**
 	 * Cantor Pairing function. Map two positive integers to a unique integer number.
@@ -104,13 +106,17 @@ object Utils {
 	def swappingStrategy(sourceRDD: RDD[SpatialEntity], targetRDD: RDD[SpatialEntity], relation: String,
 						 scount: Long = -1, tcount: Long = -1):	(RDD[SpatialEntity], RDD[SpatialEntity], String)= {
 
-		val sourceCount = if (scount > 0) scount else sourceRDD.count()
-		val targetCount = if (tcount > 0) tcount else targetRDD.count()
+		sourceCount = if (scount > 0) scount else sourceRDD.count()
+		targetCount = if (tcount > 0) tcount else targetRDD.count()
 		val sourceETH = getETH(sourceRDD, sourceCount)
 		val targetETH = getETH(targetRDD, targetCount)
 
 		if (targetETH < sourceETH){
 			swapped = true
+			val temp = sourceCount
+			sourceCount = targetCount
+			targetCount = temp
+
 			val newRelation =
 				relation match {
 					case Constants.WITHIN => Constants.CONTAINS
@@ -132,7 +138,7 @@ object Utils {
 		spark.createDataset(rdd.mapPartitionsWithIndex{ case (i,rows) => Iterator((i,rows.size))}).show(100)
 	}
 
-	def toCSV(rdd: RDD[SpatialEntity], path:String) : Unit={
+	def export(rdd: RDD[SpatialEntity], path:String): Unit ={
 		val schema = StructType(
 			StructField("id", IntegerType, nullable = true) ::
 			StructField("wkt", StringType, nullable = true)  :: Nil
@@ -147,34 +153,67 @@ object Utils {
 	 * initialize theta based on theta measure
 	 */
 	def initTheta(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String): (Double, Double) ={
-		val thetaMsr: RDD[(Double, Double)] = source
-			.union(target)
-			.map {
-				sp =>
-					val env = sp.geometry.getEnvelopeInternal
-					(env.getHeight, env.getWidth)
-			}
-			.setName("thetaMsr")
-			.cache()
+		thetaXY =
+			thetaMsrSTR match {
+				case Constants.MIN =>
+					// need filtering because there are cases where the geometries are perpendicular to the axes
+					// hence its width or height is equal to 0.0
+					val union = source.union(target)
+					val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).filter(_ != 0.0d).min
+					val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).filter(_ != 0.0d).min
+					(thetaX, thetaY)
+				case Constants.MAX =>
+					val union = source.union(target)
+					val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).max
+					val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).max
+					(thetaX, thetaY)
+				case Constants.AVG =>
+					val union = source.union(target)
+					val total = sourceCount + targetCount
+					val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).sum() / total
+					val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).sum() / total
+					(thetaX, thetaY)
+				case Constants.AVG_x2 =>
+					val sourceX = source.map(se => se.mbb.maxX - se.mbb.minX).sum()
+					val sourceY = source.map(se => se.mbb.maxY - se.mbb.minY).sum()
+					val thetaXs = sourceX / sourceCount
+					val thetaYs = sourceY / sourceCount
 
-		var thetaX = 1d
-		var thetaY = 1d
-		thetaMsrSTR match {
-			case Constants.MIN =>
-				// filtering because there are cases that the geometries are perpendicular to the axes
-				// and have width or height equals to 0.0
-				thetaX = thetaMsr.map(_._1).filter(_ != 0.0d).min
-				thetaY = thetaMsr.map(_._2).filter(_ != 0.0d).min
-			case Constants.MAX =>
-				thetaX = thetaMsr.map(_._1).max
-				thetaY = thetaMsr.map(_._2).max
-			case Constants.AVG =>
-				val length = thetaMsr.count
-				thetaX = thetaMsr.map(_._1).sum() / length
-				thetaY = thetaMsr.map(_._2).sum() / length
-			case _ =>
-		}
-		thetaXY = (thetaX, thetaY)
+					val targetX = target.map(se => se.mbb.maxX - se.mbb.minX).sum()
+					val targetY = target.map(se => se.mbb.maxY - se.mbb.minY).sum()
+					val thetaXt = targetX / targetCount
+					val thetaYt = targetY / targetCount
+
+					val thetaX = 0.5 * (thetaXs + thetaXt)
+					val thetaY = 0.5 * (thetaYs + thetaYt)
+					(thetaX, thetaY)
+				case _ =>
+					(1d, 1d)
+			}
 		thetaXY
+	}
+
+
+	def getZones: Array[MBB] ={
+		val partitionsZones = SpatialReader.partitionsZones
+		val (thetaX, thetaY) = thetaXY
+
+		partitionsZones.map(mbb => {
+			val maxX = math.ceil(mbb.maxX / thetaX).toInt
+			val minX = math.floor(mbb.minX / thetaX).toInt
+			val maxY = math.ceil(mbb.maxY / thetaY).toInt
+			val minY = math.floor(mbb.minY / thetaY).toInt
+
+			MBB(maxX, minX, maxY, minY)
+		})
+	}
+
+	def getSpaceEdges: MBB ={
+		val (thetaX, thetaY) = thetaXY
+		val minX = SpatialReader.partitionsZones.map(p => p.minX / thetaX).min
+		val maxX = SpatialReader.partitionsZones.map(p => p.maxX / thetaX).max
+		val minY = SpatialReader.partitionsZones.map(p => p.minY / thetaY).min
+		val maxY = SpatialReader.partitionsZones.map(p => p.maxY / thetaY).max
+		MBB(maxX, minX, maxY, minY)
 	}
 }

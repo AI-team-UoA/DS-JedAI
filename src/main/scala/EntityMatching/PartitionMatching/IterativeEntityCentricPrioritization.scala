@@ -22,7 +22,6 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
      */
     def apply(relation: String): RDD[(String, String)] = {
         val k = budget / targetSize
-        init()
         joinedRDD
             .flatMap { p =>
                 val partitionId = p._1

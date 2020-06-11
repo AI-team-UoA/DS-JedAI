@@ -64,7 +64,8 @@ object ConfigurationParser {
 
 	def checkThetaMeasure(theta_measure: String): Boolean ={
 		theta_measure == Constants.AVG || theta_measure == Constants.MAX ||
-		theta_measure == Constants.MIN || theta_measure == Constants.NO_USE
+		theta_measure == Constants.MIN || theta_measure == Constants.NO_USE ||
+			theta_measure == Constants.AVG_x2
 	}
 
 	def checkConfigurationMap(configurations: Map[String, String]): Unit = {

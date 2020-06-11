@@ -31,7 +31,6 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
      */
     def apply(relation: String, budget: Int, targetSize: Long): RDD[(String, String)] ={
         val k = budget / targetSize
-        init()
         joinedRDD
             .flatMap { p =>
                 val partitionId = p._1

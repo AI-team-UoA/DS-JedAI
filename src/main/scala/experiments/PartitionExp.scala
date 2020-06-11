@@ -64,7 +64,7 @@ object PartitionExp {
 
         // Loading Target
         val targetRDD = SpatialReader.load(conf.target.path, conf.source.realIdField, conf.source.geometryField)
-            .setName("TargetRDD")persist(StorageLevel.MEMORY_AND_DISK)
+            .setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK)
         val targetCount = targetRDD.count().toInt
         log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions +" partitions")
 
@@ -75,7 +75,7 @@ object PartitionExp {
         val matches = PartitionMatchingFactory.getMatchingAlgorithm(conf, source, target, budget, targetCount).apply(relation)
         // val theta_msr = conf.getThetaMSR
         // val matches = PartitionMatching(source, target, theta_msr).apply(relation)
-        log.info("DS-JEDAI: Matches: " + matches.distinct().count)
+        log.info("DS-JEDAI: Matches: " + matches.count)
         val matching_endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Matching Time: " + (matching_endTime - matching_startTime) / 1000.0)
 

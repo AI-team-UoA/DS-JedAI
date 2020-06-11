@@ -23,7 +23,6 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
      * @return an RDD containing the matching pairs
      */
     def apply(relation: String): RDD[(String, String)] ={
-        init()
         joinedRDD.flatMap { p =>
             val partitionId = p._1
             val source = p._2._1.toArray

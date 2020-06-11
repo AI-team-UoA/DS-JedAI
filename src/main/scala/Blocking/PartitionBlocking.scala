@@ -42,7 +42,6 @@ case class PartitionBlocking(source: RDD[SpatialEntity], target: RDD[SpatialEnti
         broadcastMap += ("acceptedBlocks" -> acceptedBlocksBD.asInstanceOf[Broadcast[Any]])
         spatialEntitiesRDD.mapPartitions { seIter =>
             val partitionZone = partitionsZones(TaskContext.getPartitionId())
-            val thetaMsr = broadcastMap("theta").value.asInstanceOf[(Double, Double)]
             val acceptedBlocks = acceptedBlocksBD.value
             val p = seIter.toArray.map(se => (indexSpatialEntity(se, acceptedBlocks), se)) // WARNING: wrong no matches
                 .map(b => (b._1.filter( coords => partitionZone.minX <= coords._1 && partitionZone.maxX >= coords._1 &&
