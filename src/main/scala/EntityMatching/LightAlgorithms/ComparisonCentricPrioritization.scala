@@ -3,7 +3,7 @@ package EntityMatching.LightAlgorithms
 import DataStructures.SpatialEntity
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import utils.Constants
+import utils.{Constants, Utils}
 
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
@@ -63,42 +63,7 @@ object ComparisonCentricPrioritization {
      * @return LightRADON instance
      */
     def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaMsrSTR: String = Constants.NO_USE, weightingStrategy: String = Constants.CBS): ComparisonCentricPrioritization = {
-        val thetaXY = initTheta(source, target, thetaMsrSTR)
+        val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
         ComparisonCentricPrioritization(source, target.sortBy(_.id).collect().to[ArrayBuffer], thetaXY, weightingStrategy)
-    }
-
-    /**
-     * initialize theta based on theta measure
-     */
-    def initTheta(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaMsrSTR: String): (Double, Double) = {
-        val thetaMsr: RDD[(Double, Double)] = source
-            .union(target)
-            .map {
-                sp =>
-                    val env = sp.geometry.getEnvelopeInternal
-                    (env.getHeight, env.getWidth)
-            }
-            .setName("thetaMsr")
-            .cache()
-
-        var thetaX = 1d
-        var thetaY = 1d
-        thetaMsrSTR match {
-            // WARNING: small or big values of theta may affect negatively the indexing procedure
-            case Constants.MIN =>
-                // filtering because there are cases that the geometries are perpendicular to the axes
-                // and have width or height equals to 0.0
-                thetaX = thetaMsr.map(_._1).filter(_ != 0.0d).min
-                thetaY = thetaMsr.map(_._2).filter(_ != 0.0d).min
-            case Constants.MAX =>
-                thetaX = thetaMsr.map(_._1).max
-                thetaY = thetaMsr.map(_._2).max
-            case Constants.AVG =>
-                val length = thetaMsr.count
-                thetaX = thetaMsr.map(_._1).sum() / length
-                thetaY = thetaMsr.map(_._2).sum() / length
-            case _ =>
-        }
-        (thetaX, thetaY)
     }
 }
