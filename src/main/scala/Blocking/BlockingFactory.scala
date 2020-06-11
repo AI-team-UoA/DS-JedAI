@@ -2,7 +2,6 @@ package Blocking
 
 import DataStructures.SpatialEntity
 import org.apache.spark.rdd.RDD
-import utils.Readers.SpatialReader
 import utils.{Configuration, Constants}
 
 /**
@@ -14,9 +13,7 @@ object BlockingFactory {
 		val theta_msr = conf.getThetaMSR
 
 		if (spatialPartitioned) {
-			val blocking =  PartitionBlocking(source, target, theta_msr)
-			blocking.setPartitionsZones(SpatialReader.partitionsZones)
-			return blocking
+			return PartitionBlocking(source, target, theta_msr)
 		}
 		val algorithm = conf.getBlockingAlgorithm
 		algorithm match {

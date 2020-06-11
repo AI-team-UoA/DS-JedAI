@@ -23,31 +23,31 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
                 .zipWithIndex
                 .map { case (e1, e1ID) =>
                     val candidates = mutable.HashSet[Int]()
-                    val coords = indexSpatialEntity(e1)
+                    val coords = e1.index(thetaXY, targetBlocksMapBD.value.contains)
                     val weightedComparisons = coords
-                        .filter(targetBlocksMapBD.value.contains)
                         .flatMap { c =>
                             val targetEntities = targetBlocksMapBD.value(c).filter(e2 => !candidates.contains(e2))
                             candidates ++= targetEntities
 
                             targetEntities.map { e2ID =>
-                                val e2Blocks = indexSpatialEntity(targetBD.value(e2ID - idStart))
+                                val e2 = targetBD.value(e2ID - idStart)
+                                val e2Blocks = e2.index(thetaXY)
                                 val w = getWeight(totalBlocks, coords, e2Blocks, weightingStrategy)
                                 (w, e2ID)
                             }
                         }
                     val weights = weightedComparisons.map(_._1)
-                    val e1Weight = weights.sum / weights.size
+                    val e1Weight = weights.sum / weights.length
                     ((e1ID, e1Weight), weightedComparisons)
                 }
                 .sortBy(_._1._2)(Ordering.Double.reverse)
-                .flatMap { case ((e1ID, w), weightedComparisons) =>
+                .flatMap { case ((e1ID, _), weightedComparisons) =>
                     val e1 = sourceAr(e1ID)
                     weightedComparisons
                         .sortBy(_._1)(Ordering.Double.reverse)
                         .map(p => targetBD.value(p._2 - idStart))
                         .filter(e2 => e1.mbb.testMBB(e2.mbb, relation))
-                        .filter(e2 => relate(e1.geometry, e2.geometry, relation))
+                        .filter(e2 => e1.relate(e2, relation))
                         .map(e2 => (e1.originalID, e2.originalID))
                 }
                 .toIterator
@@ -68,21 +68,21 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
                 .zipWithIndex
                 .map { case (e1, e1ID) =>
                     val candidates = mutable.HashSet[Int]()
-                    val coords = indexSpatialEntity(e1)
+                    val coords = e1.index(thetaXY, targetBlocksMapBD.value.contains)
                     val weightedComparisons = coords
-                        .filter(targetBlocksMapBD.value.contains)
                         .flatMap { c =>
                             val targetEntities = targetBlocksMapBD.value(c).filter(e2 => !candidates.contains(e2))
                             candidates ++= targetEntities
 
                             targetEntities.map { e2ID =>
-                                val e2Blocks = indexSpatialEntity(targetBD.value(e2ID - idStart))
+                                val e2 = targetBD.value(e2ID - idStart)
+                                val e2Blocks = e2.index(thetaXY)
                                 val w = getWeight(totalBlocks, coords, e2Blocks, weightingStrategy)
                                 (w, e2ID)
                             }
                         }
                     val weights = weightedComparisons.map(_._1)
-                    val e1Weight = weights.sum / weights.size
+                    val e1Weight = weights.sum / weights.length
                     ((e1ID, e1Weight), weightedComparisons)
                 }
                 .sortBy(_._1._2)(Ordering.Double.reverse)
@@ -100,7 +100,7 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
                         converged = false
                         val (e1, e2) = (c._1, c._2.next())
                         if (e1.mbb.testMBB(e2.mbb, relation))
-                            if (relate(e1.geometry, e2.geometry, relation))
+                            if (e1.relate(e2, relation))
                                 matches.append((e1.originalID, e2.originalID))
                     }
                 }

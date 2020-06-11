@@ -38,7 +38,7 @@ case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEnt
        val collectedBD = sc.broadcast(target)
 
        source
-           .map(se => (se, indexSpatialEntity(se)))
+           .map(se => (se, se.index(thetaXY)))
            .flatMap { case (se, blocksArray) =>
                val compared = mutable.HashSet[Int]()
                val blocksMap = blocksMapBD.value
@@ -50,7 +50,7 @@ case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEnt
                        entitiesIDs
                            .map(id => collectedBD.value(id - idStart))
                            .filter(tse => se.mbb.testMBB(tse.mbb, relation))
-                           .filter(tse => relate(se.geometry, tse.geometry, relation))
+                           .filter(tse => se.relate(tse, relation))
                            .map(tse => (se.originalID, tse.originalID))
                    }
            }

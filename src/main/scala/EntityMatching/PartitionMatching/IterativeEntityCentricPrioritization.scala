@@ -30,7 +30,7 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
                 val sourceIndex = index(source, partitionId)
                 val sourceSize = source.length
                 val targetsCoords = target.zipWithIndex.map { case (e2, i) =>
-                    val coords = indexSpatialEntity(e2, partitionId).filter(c => sourceIndex.contains(c))
+                    val coords = e2.index(thetaXY, (b:(Int, Int)) => zoneCheck(partitionId)(b) && sourceIndex.contains(b))
                     (i, coords)
                 }
 
@@ -78,7 +78,7 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
                         if (comparisonIter.hasNext) {
                             converge = false
                             val (e1, e2) = comparisonIter.next()
-                            if (relate(e1.geometry, e2.geometry, relation))
+                            if (e1.relate(e2, relation))
                                 matches = matches :+ (e1.originalID, e2.originalID)
                         }
                     }

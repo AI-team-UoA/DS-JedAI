@@ -30,7 +30,7 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
             val sourceIndex = index(source, partitionId)
 
             target
-                .map(e2 => (indexSpatialEntity(e2, partitionId), e2))
+                .map(e2 => (e2.index(thetaXY, zoneCheck(partitionId)), e2))
                 .flatMap { case (coordsAr: Array[(Int, Int)], e2: SpatialEntity) =>
                     val sIndices = coordsAr
                         .filter(c => sourceIndex.contains(c))
@@ -47,7 +47,7 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
         }
         .sortByKey(ascending = false)
         .map(_._2)
-        .filter(c => relate(c._1.geometry, c._2.geometry, relation))
+        .filter(c => c._1.relate(c._2, relation))
         .map(c => (c._1.originalID, c._2.originalID))
     }
 }

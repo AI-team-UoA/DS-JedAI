@@ -118,7 +118,7 @@ case class BlockCentricPrioritization(blocks: RDD[Block], d: (Int, Int), totalBl
             .map(c => (getWeights(c.entity1.id, c.entity2.id), c))
             .sortByKey(ascending = false)
             .map(_._2)
-            .filter(c => relate(c.entity1.geometry, c.entity2.geometry, relation))
+            .filter(c => c.entity1.relate(c.entity2, relation))
             .map(c => (c.entity1.originalID, c.entity2.originalID))
     }
 

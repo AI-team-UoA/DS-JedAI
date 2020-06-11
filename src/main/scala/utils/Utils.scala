@@ -2,6 +2,7 @@ package utils
 
 
 import DataStructures.{MBB, SpatialEntity}
+import com.vividsolutions.jts.geom.Geometry
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
@@ -215,5 +216,12 @@ object Utils {
 		val minY = SpatialReader.partitionsZones.map(p => p.minY / thetaY).min
 		val maxY = SpatialReader.partitionsZones.map(p => p.maxY / thetaY).max
 		MBB(maxX, minX, maxY, minY)
+	}
+
+	def normalizeWeight(weight: Double, geom1: Geometry, geom2: Geometry): Double ={
+		val area1 = geom1.getArea
+		val area2 = geom2.getArea
+		if (area1 == 0 || area2 == 0 ) weight
+		else weight/(geom1.getArea * geom2.getArea)
 	}
 }

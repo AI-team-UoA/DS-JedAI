@@ -39,7 +39,7 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
                 val sourceIndex = index(source, partitionId)
                 val sourceSize = source.length
                 val targetsCoords = target.zipWithIndex.map { case (e2, i) =>
-                    val coords = indexSpatialEntity(e2, partitionId).filter(c => sourceIndex.contains(c))
+                    val coords = e2.index(thetaXY, (b:(Int, Int)) => zoneCheck(partitionId)(b) && sourceIndex.contains(b))
                     (i, coords)
                 }
 
@@ -76,7 +76,7 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
             // sort the comparisons based on their mean weight
             .sortByKey(ascending = false)
             .flatMap(_._2)
-            .filter(c => relate(c._1.geometry, c._2.geometry, relation))
+            .filter(c => c._1.relate(c._2, relation))
             .map(c => (c._1.originalID, c._2.originalID))
     }
 

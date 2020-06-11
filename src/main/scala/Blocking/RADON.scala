@@ -34,7 +34,10 @@ case class RADON(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY
 		broadcastMap += ("acceptedBlocks" -> acceptedBlocksBD.asInstanceOf[Broadcast[Any]])
 		spatialEntitiesRDD.mapPartitions { seIter =>
 			val acceptedBlocks = acceptedBlocksBD.value
-			seIter.map(se => (indexSpatialEntity(se, acceptedBlocks), se))
+			if (acceptedBlocks.nonEmpty)
+				seIter.map(se => (se.index(thetaXY, acceptedBlocks.contains), se))
+			else
+				seIter.map(se => (se.index(thetaXY), se))
 		}
 		.flatMap(b => b._1.map(id => (id, ArrayBuffer[SpatialEntity](b._2) ))).reduceByKey(_ ++ _ )
 	}

@@ -11,6 +11,7 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.math.log10
 
 trait LightMatchingTrait extends MatchingTrait {
+
     val source: RDD[SpatialEntity]
     val target: ArrayBuffer[SpatialEntity]
     val thetaXY: (Double, Double)
@@ -28,22 +29,6 @@ trait LightMatchingTrait extends MatchingTrait {
         matchTargetData(relation, idStart, blocksMap)
     }
 
-        /**
-     * find the blocks of a Spatial Entity
-     * @param se input SpatialEntity
-     * @return and array of Block coordinates
-     */
-    def indexSpatialEntity(se: SpatialEntity): ArrayBuffer[(Int, Int)] ={
-        val (thetaX, thetaY) = thetaXY
-        // TODO: crossing meridian
-        val maxX = math.ceil(se.mbb.maxX / thetaX).toInt
-        val minX = math.floor(se.mbb.minX / thetaX).toInt
-        val maxY = math.ceil(se.mbb.maxY / thetaY).toInt
-        val minY = math.floor(se.mbb.minY / thetaY).toInt
-
-        (for (x <- minX to maxX; y <- minY to maxY) yield (x, y)).to[ArrayBuffer]
-    }
-
     /**
      * Index the collected dataset
      *
@@ -54,7 +39,7 @@ trait LightMatchingTrait extends MatchingTrait {
         var blocksMap = mutable.HashMap[(Int, Int), ListBuffer[Int]]()
         for (se <- target) {
             val seID = se.id
-            val blocksIter = indexSpatialEntity(se)
+            val blocksIter = se.index(thetaXY)
             blocksIter.foreach {
                 blockCoords =>
                     if (blocksMap.contains(blockCoords))
@@ -68,16 +53,16 @@ trait LightMatchingTrait extends MatchingTrait {
 
 
 
-    def getWeight(totalBlocks: Int, e1Blocks: ArrayBuffer[(Int, Int)], e2Blocks: ArrayBuffer[(Int, Int)], weightingStrategy: String = Constants.CBS): Double ={
-        val commonBlocks = e1Blocks.intersect(e2Blocks).size
+    def getWeight(totalBlocks: Int, e1Blocks: Array[(Int, Int)], e2Blocks: Array[(Int, Int)], weightingStrategy: String = Constants.CBS): Double ={
+        val commonBlocks = e1Blocks.intersect(e2Blocks).length
         weightingStrategy match {
             case Constants.ECBS =>
-                commonBlocks * log10(totalBlocks / e1Blocks.size) * log10(totalBlocks / e2Blocks.size)
+                commonBlocks * log10(totalBlocks / e1Blocks.length) * log10(totalBlocks / e2Blocks.length)
             case Constants.JS =>
-                commonBlocks / (e1Blocks.size + e2Blocks.size - commonBlocks)
+                commonBlocks / (e1Blocks.length + e2Blocks.length - commonBlocks)
             case Constants.PEARSON_X2 =>
-                val v1: Array[Long] = Array[Long](commonBlocks, e2Blocks.size - commonBlocks)
-                val v2: Array[Long] = Array[Long](e1Blocks.size - commonBlocks, totalBlocks - (v1(0) + v1(1) +(e1Blocks.size - commonBlocks)) )
+                val v1: Array[Long] = Array[Long](commonBlocks, e2Blocks.length - commonBlocks)
+                val v2: Array[Long] = Array[Long](e1Blocks.length - commonBlocks, totalBlocks - (v1(0) + v1(1) +(e1Blocks.length - commonBlocks)) )
 
                 val chiTest = new ChiSquareTest()
                 chiTest.chiSquare(Array(v1, v2))

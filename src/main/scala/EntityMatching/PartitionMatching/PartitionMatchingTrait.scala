@@ -35,7 +35,7 @@ trait PartitionMatchingTrait extends MatchingTrait {
      * @param b coordinates of block
      * @return true if the coords are inside the zone
      */
-    def zoneCheck(pid: Int, b: (Int, Int)): Boolean = {
+    def zoneCheck(pid: Int)(b: (Int, Int)): Boolean = {
 
         // the block is inside its partition
         if (partitionsZones(pid).minX < b._1 && partitionsZones(pid).maxX > b._1 && partitionsZones(pid).minY < b._2 && partitionsZones(pid).maxY > b._2)
@@ -60,24 +60,6 @@ trait PartitionMatchingTrait extends MatchingTrait {
     }
 
     /**
-     * index a spatial entity. Only indexes inside the partition zones will be returned
-     *
-     * @param se  spatial entity
-     * @param pid partition's id to get partition's zone
-     * @return array of coordinates
-     */
-    def indexSpatialEntity(se: SpatialEntity, pid: Int): Array[(Int, Int)] = {
-        val (thetaX, thetaY) = thetaXY
-
-        val maxX = math.ceil(se.mbb.maxX / thetaX).toInt
-        val minX = math.floor(se.mbb.minX / thetaX).toInt
-        val maxY = math.ceil(se.mbb.maxY / thetaY).toInt
-        val minY = math.floor(se.mbb.minY / thetaY).toInt
-
-        (for (x <- minX to maxX; y <- minY to maxY; if zoneCheck(pid, (x, y))) yield (x, y)).toArray
-    }
-
-    /**
      * index a list of spatial entities
      *
      * @param entities list of spatial entities
@@ -87,7 +69,7 @@ trait PartitionMatchingTrait extends MatchingTrait {
     def index(entities: Array[SpatialEntity], pid: Int): SpatialIndex = {
         val spatialIndex = new SpatialIndex()
         entities.zipWithIndex.foreach { case (se, index) =>
-            val indices: Array[(Int, Int)] = indexSpatialEntity(se, pid)
+            val indices: Array[(Int, Int)] = se.index(thetaXY, zoneCheck(pid))
             indices.foreach(i => spatialIndex.insert(i, index))
         }
         spatialIndex

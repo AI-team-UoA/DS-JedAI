@@ -18,7 +18,7 @@ case class BlockMatching(blocks:RDD[Block]) extends BlockMatchingTrait {
 	 */
 	def apply(relation: String): RDD[(String, String)] ={
 		blocks.flatMap(b => b.getFilteredComparisons(relation))
-			.filter(c => relate(c.entity1.geometry, c.entity2.geometry, relation))
+			.filter(c => c.entity1.relate(c.entity2, relation))
 			.map(c => (c.entity1.originalID, c.entity2.originalID))
 	}
 

@@ -25,7 +25,7 @@ case class ComparisonCentricPrioritization(source: RDD[SpatialEntity], target: A
                 .zipWithIndex
                 .flatMap { case (e1, e1ID) =>
                     val candidates = mutable.HashSet[Int]()
-                    val coords = indexSpatialEntity(e1)
+                    val coords = e1.index(thetaXY)
                     coords
                         .filter(targetBlocksMapBD.value.contains)
                         .flatMap { c =>
@@ -33,7 +33,8 @@ case class ComparisonCentricPrioritization(source: RDD[SpatialEntity], target: A
                             candidates ++= targetEntities
 
                             targetEntities.map { e2ID =>
-                                val e2Blocks = indexSpatialEntity(targetBD.value(e2ID - idStart))
+                                val e2 = targetBD.value(e2ID - idStart)
+                                val e2Blocks = e2.index(thetaXY)
                                 val w = getWeight(totalBlocks, coords, e2Blocks, weightingStrategy)
                                 (w, (e1ID, e2ID))
                             }
@@ -42,14 +43,13 @@ case class ComparisonCentricPrioritization(source: RDD[SpatialEntity], target: A
                 .sortBy(_._1)(Ordering.Double.reverse)
                 .map(p => (sourceAr(p._2._1), targetBD.value(p._2._2 - idStart)))
                 .filter(c => c._1.mbb.testMBB(c._2.mbb, relation))
-                .filter(c => relate(c._1.geometry, c._2.geometry, relation))
+                .filter(c => c._1.relate(c._2, relation))
                 .map(c => (c._1.originalID, c._2.originalID))
                 .toIterator
         }
     }
 
 }
-
 
 
 
