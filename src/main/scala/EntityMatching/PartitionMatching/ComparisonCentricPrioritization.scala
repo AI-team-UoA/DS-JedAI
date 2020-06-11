@@ -4,12 +4,11 @@ package EntityMatching.PartitionMatching
 import DataStructures.SpatialEntity
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.storage.StorageLevel
 import utils.{Constants, Utils}
 import utils.Readers.SpatialReader
 
 
-case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Array[SpatialEntity], Array[SpatialEntity]))],
+case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
                                            thetaXY: (Double, Double), weightingScheme: String) extends PartitionMatchingTrait {
 
 
@@ -27,8 +26,8 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Array[SpatialEn
         init()
         joinedRDD.flatMap { p =>
             val partitionId = p._1
-            val source = p._2._1
-            val target = p._2._2
+            val source = p._2._1.toArray
+            val target = p._2._2.toIterator
             val sourceIndex = index(source, partitionId)
 
             target
@@ -54,15 +53,19 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Array[SpatialEn
     }
 }
 
+
+/**
+ * auxiliary constructor
+ */
 object ComparisonCentricPrioritization {
 
-    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String): ComparisonCentricPrioritization ={
+    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String,
+              weightingScheme: String = Constants.NO_USE): ComparisonCentricPrioritization ={
         val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
-        val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
-        val targetPartitions = target.map(se => (TaskContext.getPartitionId(), Array(se))).reduceByKey(SpatialReader.spatialPartitioner, _ ++ _)
+        val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
+        val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
 
-        val joinedRDD = sourcePartitions.join(targetPartitions, SpatialReader.spatialPartitioner)
-        joinedRDD.setName("JoinedRDD").persist(StorageLevel.MEMORY_AND_DISK)
+        val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
         ComparisonCentricPrioritization(joinedRDD, thetaXY, weightingScheme)
     }
 

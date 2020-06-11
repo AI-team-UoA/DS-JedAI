@@ -1,7 +1,7 @@
 package EntityMatching.PartitionMatching
 
 import DataStructures.SpatialEntity
-import org.apache.log4j.{Level, LogManager, Logger}
+import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import utils.{Configuration, Constants}
 
@@ -29,8 +29,7 @@ object PartitionMatchingFactory {
                 IterativeEntityCentricPrioritization(source, target, theta_msr, weightingStrategy, budget, targetCount)
             case _ =>
                 log.info("Matching Algorithm: " + Constants.SPATIAL)
-                null
-               // PartitionMatching(source, target, theta_msr)
+                PartitionMatching(source, target, theta_msr)
         }
     }
 }

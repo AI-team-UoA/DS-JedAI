@@ -110,7 +110,7 @@ object ConfigurationParser {
 						}
 					case Constants.CONF_MATCHING_ALG =>
 						if (! (value == Constants.BLOCK_CENTRIC || value == Constants.COMPARISON_CENTRIC || value == Constants.ΕΝΤΙΤΥ_CENTRIC
-							|| value == Constants.SPATIAL)) {
+							|| value == Constants.SPATIAL || value == Constants.ITERATIVE_ΕΝΤΙΤΥ_CENTRIC)) {
 							log.error("DS-JEDAI: Prioritization Algorithm '" + value + "' is not supported")
 							System.exit(1)
 						}
