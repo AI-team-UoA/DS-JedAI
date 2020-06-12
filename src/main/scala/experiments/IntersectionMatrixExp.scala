@@ -2,18 +2,17 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.PartitionMatching.{PartitionMatching, PartitionMatchingFactory}
+import EntityMatching.PartitionMatching.PartitionMatching
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import utils.{ConfigurationParser, Utils}
 import utils.Readers.SpatialReader
+import utils.{ConfigurationParser, Utils}
 
-object PartitionExp {
-
+object IntersectionMatrixExp {
     def main(args: Array[String]): Unit = {
         val startTime = Calendar.getInstance().getTimeInMillis
         Logger.getLogger("org").setLevel(Level.ERROR)
@@ -60,27 +59,34 @@ object PartitionExp {
         val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
             .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
         val sourceCount = sourceRDD.count().toInt
-        log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions +" partitions")
+        log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
 
         // Loading Target
         val targetRDD = SpatialReader.load(conf.target.path, conf.source.realIdField, conf.source.geometryField)
             .setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK)
         val targetCount = targetRDD.count().toInt
-        log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions +" partitions")
+        log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
 
-        val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation, sourceCount, targetCount)
+        val (source, target, _) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation, sourceCount, targetCount)
 
-        val budget = 30000
         val matching_startTime = Calendar.getInstance().getTimeInMillis
-        val matches = PartitionMatchingFactory.getMatchingAlgorithm(conf, source, target, budget, targetCount).apply(relation)
-        // val theta_msr = conf.getThetaMSR
-        // val matches = PartitionMatching(source, target, theta_msr).apply(relation)
-        log.info("DS-JEDAI: Matches: " + matches.count)
+        val imRDD = PartitionMatching(source, target, conf.getThetaMSR).getDE9IM
+            .setName("IntersectionMatrixRDD").persist(StorageLevel.MEMORY_AND_DISK)
+
+        log.info("CONTAINS: " + imRDD.filter(_.isContains).count())
+        log.info("COVERED BY: " + imRDD.filter(_.isCoveredBy).count())
+        log.info("COVERS: " + imRDD.filter(_.isCovers).count())
+        log.info("CROSSES: " + imRDD.filter(_.isCrosses).count())
+        log.info("EQUALS: " + imRDD.filter(_.isEquals).count())
+        log.info("INTERSECTS: " + imRDD.filter(_.isIntersects).count())
+        log.info("OVERLAPS: " + imRDD.filter(_.isOverlaps).count())
+        log.info("TOUCHES: " + imRDD.filter(_.isTouches).count())
+        log.info("WITHIN: " + imRDD.filter(_.isWithin).count())
+
         val matching_endTime = Calendar.getInstance().getTimeInMillis
-        log.info("DS-JEDAI: Matching Time: " + (matching_endTime - matching_startTime) / 1000.0)
+        log.info("DS-JEDAI: DE-9IM Time: " + (matching_endTime - matching_startTime) / 1000.0)
 
         val endTime = Calendar.getInstance()
         log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime) / 1000.0)
     }
-
 }

@@ -1,6 +1,6 @@
 package DataStructures
 
-import com.vividsolutions.jts.geom.Geometry
+import com.vividsolutions.jts.geom.{Geometry, IntersectionMatrix}
 import com.vividsolutions.jts.io.WKTReader
 import utils.Constants
 
@@ -48,6 +48,9 @@ case class SpatialEntity(id: Int, originalID: String = "", geometry: Geometry,  
 
         (for (x <- minX to maxX; y <- minY to maxY; if filter((x, y))) yield (x, y)).toArray
     }
+
+    def getIntersectionMatrix(t: SpatialEntity): IntersectionMatrix =
+        geometry.relate(t.geometry)
 
 }
 

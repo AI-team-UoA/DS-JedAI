@@ -1,6 +1,7 @@
 package EntityMatching.PartitionMatching
 
-import DataStructures.SpatialEntity
+import DataStructures.{IM, SpatialEntity}
+import com.vividsolutions.jts.geom.IntersectionMatrix
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import utils.{Constants, Utils}
@@ -34,6 +35,27 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
                 }
                 .filter(c => c._1.relate(c._2, relation))
                 .map(c => (c._1.originalID, c._2.originalID))
+        }
+    }
+
+    def getDE9IM: RDD[IM] ={
+        joinedRDD.flatMap { p =>
+            val partitionId = p._1
+            val source: Array[SpatialEntity] = p._2._1.toArray
+            val target: Iterator[SpatialEntity] = p._2._2.toIterator
+            val sourceIndex = index(source, partitionId)
+            val filteringFunction = (b:(Int, Int)) => zoneCheck(partitionId)(b) && sourceIndex.contains(b)
+
+            target
+                .map(se => (se.index(thetaXY, filteringFunction) , se))
+                .flatMap { case (coordsAr: Array[(Int, Int)], se: SpatialEntity) =>
+                    coordsAr
+                        .flatMap(c => sourceIndex.get(c).map(j => (source(j), se, c)))
+                }
+                .filter { case (e1: SpatialEntity, e2: SpatialEntity, b: (Int, Int)) =>
+                    e1.mbb.testMBB(e2.mbb, Constants.INTERSECTS) && e1.mbb.referencePointFiltering(e2.mbb, b, thetaXY)
+                }
+                .map(c => IM(c._1, c._2))
         }
     }
 }
