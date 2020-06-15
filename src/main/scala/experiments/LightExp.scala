@@ -8,7 +8,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import utils.Readers.Reader
-import utils.{ConfigurationParser, Constants}
+import utils.ConfigurationParser
 
 
 /**
@@ -63,16 +63,16 @@ object LightExp {
         val conf = ConfigurationParser.parse(conf_path)
         val partitions: Int = conf.getPartitions
 
-        val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField)
+        val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, conf)
         val sourceCount = sourceRDD.setName("SourceRDD").cache().count()
         log.info("DS-JEDAI: Number of ptofiles of Source: " + sourceCount)
 
         // Loading Target
-        val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField)
+        val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, conf)
         val targetCount = targetRDD.setName("TargetRDD").cache().count()
         log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
-        val matches = LightMatchingFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).apply(0, conf.relation)
+        val matches = LightMatchingFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).apply(0, conf.getRelation)
 
         log.info("DS-JEDAI: Matches: " + matches.count)
 

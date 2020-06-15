@@ -9,6 +9,9 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
 import org.apache.spark.sql.{Encoder, Encoders, Row, SparkSession}
+import utils.Constants.{Relation, ThetaOption}
+import utils.Constants.Relation.Relation
+import utils.Constants.ThetaOption.ThetaOption
 import utils.Readers.SpatialReader
 
 import scala.reflect.ClassTag
@@ -105,8 +108,8 @@ object Utils {
 	 * @param relation relation
 	 * @return the swapped values
 	 */
-	def swappingStrategy(sourceRDD: RDD[SpatialEntity], targetRDD: RDD[SpatialEntity], relation: String,
-						 scount: Long = -1, tcount: Long = -1):	(RDD[SpatialEntity], RDD[SpatialEntity], String)= {
+	def swappingStrategy(sourceRDD: RDD[SpatialEntity], targetRDD: RDD[SpatialEntity], relation: Relation,
+						 scount: Long = -1, tcount: Long = -1):	(RDD[SpatialEntity], RDD[SpatialEntity], Relation)= {
 
 		sourceCount = if (scount > 0) scount else sourceRDD.count()
 		targetCount = if (tcount > 0) tcount else targetRDD.count()
@@ -119,12 +122,12 @@ object Utils {
 			sourceCount = targetCount
 			targetCount = temp
 
-			val newRelation =
+			val newRelation: Relation =
 				relation match {
-					case Constants.WITHIN => Constants.CONTAINS
-					case Constants.CONTAINS => Constants.WITHIN
-					case Constants.COVERS => Constants.COVEREDBY
-					case Constants.COVEREDBY => Constants.COVERS;
+					case Relation.WITHIN => Relation.CONTAINS
+					case Relation.CONTAINS => Relation.WITHIN
+					case Relation.COVERS => Relation.COVEREDBY
+					case Relation.COVEREDBY => Relation.COVERS;
 					case _ => relation
 				}
 			(targetRDD, sourceRDD, newRelation)
@@ -154,28 +157,28 @@ object Utils {
 	/**
 	 * initialize theta based on theta measure
 	 */
-	def initTheta(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String): (Double, Double) ={
+	def initTheta(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption): (Double, Double) ={
 		thetaXY =
-			thetaMsrSTR match {
-				case Constants.MIN =>
+			thetaOption match {
+				case ThetaOption.MIN =>
 					// need filtering because there are cases where the geometries are perpendicular to the axes
 					// hence its width or height is equal to 0.0
 					val union = source.union(target)
 					val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).filter(_ != 0.0d).min
 					val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).filter(_ != 0.0d).min
 					(thetaX, thetaY)
-				case Constants.MAX =>
+				case ThetaOption.MAX =>
 					val union = source.union(target)
 					val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).max
 					val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).max
 					(thetaX, thetaY)
-				case Constants.AVG =>
+				case ThetaOption.AVG =>
 					val union = source.union(target)
 					val total = sourceCount + targetCount
 					val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).sum() / total
 					val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).sum() / total
 					(thetaX, thetaY)
-				case Constants.AVG_x2 =>
+				case ThetaOption.AVG_x2 =>
 					val sourceX = source.map(se => se.mbb.maxX - se.mbb.minX).sum()
 					val sourceY = source.map(se => se.mbb.maxY - se.mbb.minY).sum()
 					val thetaXs = sourceX / sourceCount

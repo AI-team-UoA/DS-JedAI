@@ -9,7 +9,8 @@ import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import utils.{ConfigurationParser, Constants, Utils}
+import utils.Constants.MatchingAlgorithm
+import utils.{ConfigurationParser, Utils}
 import utils.Readers.SpatialReader
 
 object PartitionExp {
@@ -57,6 +58,7 @@ object PartitionExp {
         // Loading Source
         SpatialReader.setPartitions(partitions)
         SpatialReader.noConsecutiveID()
+        SpatialReader.setGridType(conf.getGridType)
         val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
             .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
         val sourceCount = sourceRDD.count().toInt
@@ -68,12 +70,12 @@ object PartitionExp {
         val targetCount = targetRDD.count().toInt
         log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions +" partitions")
 
-        val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation, sourceCount, targetCount)
+        val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.getRelation, sourceCount, targetCount)
 
         val budget = conf.getBudget
         val matching_startTime = Calendar.getInstance().getTimeInMillis
         val matcher = PartitionMatchingFactory.getMatchingAlgorithm(conf, source, target)
-        if (conf.getMatchingAlgorithm == Constants.SPATIAL) {
+        if (conf.getMatchingAlgorithm == MatchingAlgorithm.SPATIAL) {
             val matches = matcher.apply(relation)
             log.info("DS-JEDAI: Matches: " + matches.count)
         }

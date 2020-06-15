@@ -3,6 +3,8 @@ package DataStructures
 import com.vividsolutions.jts.geom.{Geometry, IntersectionMatrix}
 import com.vividsolutions.jts.io.WKTReader
 import utils.Constants
+import utils.Constants.Relation
+import utils.Constants.Relation.Relation
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
@@ -15,18 +17,18 @@ case class SpatialEntity(id: Int, originalID: String = "", geometry: Geometry,  
      * @param relation the selected relation
      * @return whether the relation holds
      */
-    def relate(target: SpatialEntity, relation: String): Boolean ={
+    def relate(target: SpatialEntity, relation: Relation): Boolean ={
         relation match {
-            case Constants.CONTAINS => geometry.contains(target.geometry)
-            case Constants.INTERSECTS => geometry.intersects(target.geometry)
-            case Constants.CROSSES => geometry.crosses(target.geometry)
-            case Constants.COVERS => geometry.covers(target.geometry)
-            case Constants.COVEREDBY => geometry.coveredBy(target.geometry)
-            case Constants.OVERLAPS => geometry.overlaps(target.geometry)
-            case Constants.TOUCHES => geometry.touches(target.geometry)
-            case Constants.DISJOINT => geometry.disjoint(target.geometry)
-            case Constants.EQUALS => geometry.equals(target.geometry)
-            case Constants.WITHIN => geometry.within(target.geometry)
+            case Relation.CONTAINS => geometry.contains(target.geometry)
+            case Relation.INTERSECTS => geometry.intersects(target.geometry)
+            case Relation.CROSSES => geometry.crosses(target.geometry)
+            case Relation.COVERS => geometry.covers(target.geometry)
+            case Relation.COVEREDBY => geometry.coveredBy(target.geometry)
+            case Relation.OVERLAPS => geometry.overlaps(target.geometry)
+            case Relation.TOUCHES => geometry.touches(target.geometry)
+            case Relation.DISJOINT => geometry.disjoint(target.geometry)
+            case Relation.EQUALS => geometry.equals(target.geometry)
+            case Relation.WITHIN => geometry.within(target.geometry)
             case _ => false
         }
     }

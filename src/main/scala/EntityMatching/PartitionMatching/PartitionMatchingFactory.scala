@@ -3,6 +3,7 @@ package EntityMatching.PartitionMatching
 import DataStructures.SpatialEntity
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.rdd.RDD
+import utils.Constants.MatchingAlgorithm
 import utils.{Configuration, Constants, Utils}
 
 object PartitionMatchingFactory {
@@ -13,20 +14,20 @@ object PartitionMatchingFactory {
     def getMatchingAlgorithm(conf: Configuration, source: RDD[SpatialEntity], target: RDD[SpatialEntity]): PartitionMatchingTrait ={
 
         val algorithm = conf.getMatchingAlgorithm
-        val weightingStrategy = conf.getWeightingScheme
-        val theta_msr = conf.getThetaMSR
+        val ws = conf.getWeightingScheme
+        val theta_msr = conf.getTheta
         algorithm match {
-            case Constants.COMPARISON_CENTRIC =>
-                log.info("Matching Algorithm: " + Constants.COMPARISON_CENTRIC)
-                ComparisonCentricPrioritization(source, target, theta_msr, weightingStrategy)
-            case Constants.ΕΝΤΙΤΥ_CENTRIC =>
-                log.info("Matching Algorithm: " + Constants.ΕΝΤΙΤΥ_CENTRIC)
-                EntityCentricPrioritization(source, target, theta_msr, weightingStrategy)
-            case Constants.ITERATIVE_ΕΝΤΙΤΥ_CENTRIC =>
-                log.info("Matching Algorithm: " + Constants.ITERATIVE_ΕΝΤΙΤΥ_CENTRIC)
-                IterativeEntityCentricPrioritization(source, target, theta_msr, weightingStrategy)
+            case MatchingAlgorithm.COMPARISON_CENTRIC =>
+                log.info("Matching Algorithm: " + MatchingAlgorithm.COMPARISON_CENTRIC)
+                ComparisonCentricPrioritization(source, target, theta_msr, ws)
+            case MatchingAlgorithm.ΕΝΤΙΤΥ_CENTRIC =>
+                log.info("Matching Algorithm: " + MatchingAlgorithm.ΕΝΤΙΤΥ_CENTRIC)
+                EntityCentricPrioritization(source, target, theta_msr, ws)
+            case MatchingAlgorithm.ITERATIVE_ΕΝΤΙΤΥ_CENTRIC =>
+                log.info("Matching Algorithm: " + MatchingAlgorithm.ITERATIVE_ΕΝΤΙΤΥ_CENTRIC)
+                IterativeEntityCentricPrioritization(source, target, theta_msr, ws)
             case _ =>
-                log.info("Matching Algorithm: " + Constants.SPATIAL)
+                log.info("Matching Algorithm: " + MatchingAlgorithm.SPATIAL)
                 PartitionMatching(source, target, theta_msr)
         }
     }

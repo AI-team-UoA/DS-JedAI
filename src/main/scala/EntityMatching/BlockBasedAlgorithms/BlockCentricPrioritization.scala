@@ -5,7 +5,9 @@ import breeze.linalg.{DenseVector, SparseVector}
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-import utils.Constants
+import utils.Constants.Relation.Relation
+import utils.Constants.WeightStrategy
+import utils.Constants.WeightStrategy.WeightStrategy
 
 
 /**
@@ -13,7 +15,7 @@ import utils.Constants
  */
 
 case class BlockCentricPrioritization(blocks: RDD[Block], d: (Int, Int), totalBlocks: Long,
-                                      weightingScheme: String) extends BlockMatchingTrait  {
+                                      ws: WeightStrategy) extends BlockMatchingTrait  {
 
 
     var commonBlocksSMBD: Broadcast[Array[SparseVector[Int]]] = _
@@ -93,13 +95,13 @@ case class BlockCentricPrioritization(blocks: RDD[Block], d: (Int, Int), totalBl
      */
     def init(): Unit ={
         val sc: SparkContext = SparkContext.getOrCreate()
-        weightingScheme match {
-            case Constants.ARCS =>
+        ws match {
+            case WeightStrategy.ARCS =>
                 setARCSWeights(sc)
-            case Constants.ECBS | Constants.JS =>
+            case WeightStrategy.ECBS | WeightStrategy.JS =>
                 setCommonBlocks(sc)
                 setEntitiesBlocks(sc)
-            case Constants.CBS =>
+            case WeightStrategy.CBS =>
                setCommonBlocks(sc)
         }
     }
@@ -111,7 +113,7 @@ case class BlockCentricPrioritization(blocks: RDD[Block], d: (Int, Int), totalBl
      *
      * @return an RDD containing the IDs of the matches
      */
-    def apply(relation: String): RDD[(String, String)] ={
+    def apply(relation: Relation): RDD[(String, String)] ={
         init()
         // TODO normalize weights
         blocks.flatMap(b => b.getFilteredComparisons(relation))
@@ -131,20 +133,20 @@ case class BlockCentricPrioritization(blocks: RDD[Block], d: (Int, Int), totalBl
      */
     def getWeights(e1: Int, e2: Int): Double ={
 
-        weightingScheme match {
-            case Constants.ARCS =>
+        ws match {
+            case WeightStrategy.ARCS =>
                 arcsWeightsBD.value(e1)(e2)
-            case Constants.ECBS =>
+            case WeightStrategy.ECBS =>
                 val e1Blocks = entitiesBlocksBD.value._1(e1)
                 val e2Blocks = entitiesBlocksBD.value._2(e2)
                 val cb = commonBlocksSMBD.value(e1)(e2)
                 cb * math.log10(totalBlocks / e1Blocks) * math.log10(totalBlocks/e2Blocks)
-            case Constants.JS =>
+            case WeightStrategy.JS =>
                 val e1Blocks = entitiesBlocksBD.value._1(e1)
                 val e2Blocks = entitiesBlocksBD.value._2(e2)
                 val cb = commonBlocksSMBD.value(e1)(e2)
                 cb / (e1Blocks + e2Blocks - cb)
-            case Constants.CBS | _ =>
+            case WeightStrategy.CBS | _ =>
                 commonBlocksSMBD.value(e1)(e2)
         }
     }
@@ -154,13 +156,13 @@ case class BlockCentricPrioritization(blocks: RDD[Block], d: (Int, Int), totalBl
 object BlockCentricPrioritization {
 
     // auxiliary constructors
-    def apply(blocks: RDD[Block], d: (Int, Int), weightingScheme : String): BlockCentricPrioritization ={
-        BlockCentricPrioritization(blocks, d, blocks.count(), weightingScheme)
+    def apply(blocks: RDD[Block], d: (Int, Int), ws : WeightStrategy): BlockCentricPrioritization ={
+        BlockCentricPrioritization(blocks, d, blocks.count(), ws)
     }
 
-    def apply(blocks: RDD[Block], weightingScheme : String): BlockCentricPrioritization ={
+    def apply(blocks: RDD[Block], ws : WeightStrategy): BlockCentricPrioritization ={
         val d1 = blocks.map(b => b.getSourceIDs.toSet).reduce(_ ++ _).size
         val d2 = blocks.map(b => b.getTargetIDs.toSet).reduce(_ ++ _).size
-        BlockCentricPrioritization(blocks, (d1, d2), blocks.count(), weightingScheme)
+        BlockCentricPrioritization(blocks, (d1, d2), blocks.count(), ws)
     }
 }

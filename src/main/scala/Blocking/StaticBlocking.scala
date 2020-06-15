@@ -4,6 +4,7 @@ import DataStructures.SpatialEntity
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
+import utils.Constants.ThetaOption.ThetaOption
 import utils.{Constants, Utils}
 
 import scala.collection.mutable.ArrayBuffer
@@ -45,8 +46,8 @@ case class StaticBlocking (source: RDD[SpatialEntity], target: RDD[SpatialEntity
 }
 
 object StaticBlocking{
-	def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaMsrSTR: String, blockingParameter: Double, distance: Double): StaticBlocking={
-		val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
+	def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaOption: ThetaOption, blockingParameter: Double, distance: Double): StaticBlocking={
+		val thetaXY = Utils.initTheta(source, target, thetaOption)
 		StaticBlocking(source, target, thetaXY, blockingParameter, distance)
 	}
 }

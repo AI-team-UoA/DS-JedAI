@@ -1,7 +1,7 @@
 package utils.Readers
 
 import DataStructures.{MBB, SpatialEntity}
-import com.vividsolutions.jts.geom.Geometry
+import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.{SparkConf, SparkContext}
@@ -13,6 +13,7 @@ import org.datasyslab.geospark.spatialRDD.SpatialRDD
 import org.datasyslab.geosparksql.utils.{Adapter, GeoSparkSQLRegistrator}
 import org.apache.spark.sql.types.{LongType, StructField, StructType}
 import org.datasyslab.geospark.spatialPartitioning.quadtree.QuadRectangle
+import utils.Constants
 
 
 object SpatialReader extends TReader {
@@ -21,8 +22,17 @@ object SpatialReader extends TReader {
     var partitionsZones: Array[MBB] = Array()
     var partitions: Int = 0
     var consecutiveId: Boolean = true
+    var gridType: GridType = _
 
     def setPartitions(p: Int): Unit = partitions = p
+    def setGridType(gt: Constants.GridType.GridType): Unit = {
+        gt match {
+            case Constants.GridType.KDBTREE =>
+                gridType = GridType.KDBTREE
+            case Constants.GridType.QUADTREE =>
+                gridType = GridType.QUADTREE
+        }
+    }
     def noConsecutiveID(): Unit = consecutiveId = false
 
     def load(filepath: String, realIdField: String, geometryField: String): RDD[SpatialEntity] ={
@@ -77,10 +87,17 @@ object SpatialReader extends TReader {
 
         srdd.analyze()
         if (spatialPartitioner == null) {
-            if (partitions > 0) srdd.spatialPartitioning(GridType.QUADTREE, partitions) else srdd.spatialPartitioning(GridType.QUADTREE)
+            if (partitions > 0) srdd.spatialPartitioning(gridType, partitions) else srdd.spatialPartitioning(gridType)
             spatialPartitioner = srdd.getPartitioner
-            val zones = srdd.partitionTree.getLeafZones
-            partitionsZones = zones.toArray(Array.ofDim[QuadRectangle](zones.size())).map(qr => MBB(qr.getEnvelope))
+            partitionsZones =
+            if (gridType == GridType.QUADTREE) {
+                val zones = srdd.partitionTree.getLeafZones
+                zones.toArray(Array.ofDim[QuadRectangle](zones.size())).map(qr => MBB(qr.getEnvelope))
+            } else{
+                val gridList = srdd.getPartitioner.getGrids
+                val gridArray = gridList.toArray(Array.ofDim[Envelope](gridList.size))
+                gridArray.map(e => MBB(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY))
+            }
         }
         else
             srdd.spatialPartitioning(spatialPartitioner)

@@ -3,16 +3,19 @@ package utils.Readers
 import DataStructures.SpatialEntity
 import org.apache.log4j.LogManager
 import org.apache.spark.rdd.RDD
+import utils.Configuration
 
 object Reader {
 
     private val log = LogManager.getRootLogger
 
     // TODO: Make header configurable -- probably will need changes in the fields' names
-    def read(filepath: String, realID_field: String, geometryField: String, partitions: Int = 0, spatialPartition: Boolean = false): RDD[SpatialEntity] ={
+    def read(filepath: String, realID_field: String, geometryField: String, conf: Configuration): RDD[SpatialEntity] ={
         val extension = filepath.toString.split("\\.").last
-        if (spatialPartition){
+        val partitions = conf.getPartitions
+        if (conf.getSpatialPartitioning){
             SpatialReader.setPartitions(partitions)
+            SpatialReader.setGridType(conf.getGridType)
             extension match{
                 case "csv" =>
                     SpatialReader.loadCSV(filepath, realID_field, geometryField, header = true)

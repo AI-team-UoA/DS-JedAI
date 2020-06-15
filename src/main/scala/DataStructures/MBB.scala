@@ -2,6 +2,9 @@ package DataStructures
 
 import com.vividsolutions.jts.geom.{Coordinate, Envelope, Geometry, GeometryFactory}
 import utils.Constants
+import utils.Constants.Relation
+import utils.Constants.Relation.Relation
+
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
@@ -45,17 +48,17 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param relation requested relation
      * @return whether the relation is true
      */
-    def testMBB(mbb:MBB, relation: String): Boolean ={
+    def testMBB(mbb:MBB, relation: Relation): Boolean ={
         relation match {
-            case Constants.CONTAINS | Constants.COVERS =>
+            case Relation.CONTAINS | Relation.COVERS =>
                 contains(mbb)
-            case Constants.WITHIN | Constants.COVEREDBY =>
+            case Relation.WITHIN | Relation.COVEREDBY =>
                 within(mbb)
-            case Constants.INTERSECTS | Constants.CROSSES | Constants.OVERLAPS =>
+            case Relation.INTERSECTS | Relation.CROSSES | Relation.OVERLAPS =>
                 intersects(mbb)
-            case Constants.TOUCHES => touches(mbb)
-            case Constants.DISJOINT => disjoint(mbb)
-            case Constants.EQUALS => equals(mbb)
+            case Relation.TOUCHES => touches(mbb)
+            case Relation.DISJOINT => disjoint(mbb)
+            case Relation.EQUALS => equals(mbb)
             case _ => false
         }
     }

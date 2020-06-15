@@ -67,10 +67,10 @@ object IntersectionMatrixExp {
         val targetCount = targetRDD.count().toInt
         log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
 
-        val (source, target, _) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation, sourceCount, targetCount)
+        val (source, target, _) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.getRelation, sourceCount, targetCount)
 
         val matching_startTime = Calendar.getInstance().getTimeInMillis
-        val imRDD = PartitionMatching(source, target, conf.getThetaMSR).getDE9IM
+        val imRDD = PartitionMatching(source, target, conf.getTheta).getDE9IM
             .setName("IntersectionMatrixRDD").persist(StorageLevel.MEMORY_AND_DISK)
 
         log.info("CONTAINS: " + imRDD.filter(_.isContains).count())

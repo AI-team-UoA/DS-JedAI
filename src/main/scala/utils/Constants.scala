@@ -8,13 +8,6 @@ object Constants {
 	val DT_SOURCE = "source"
 	val DT_TARGET = "target"
 
-	val MAX = "max"
-	val MIN = "min"
-	val AVG = "avg"
-	val AVG_x2 = "avg2"
-	val RANDOM = "random"
-	val NO_USE = "none"
-
 	val MAX_LAT: Double = 90.0
 	val MIN_LAT: Double = -90.0
 	val MAX_LONG: Double = 180.0
@@ -31,54 +24,100 @@ object Constants {
 	/**
 	 * Relations
 	 */
-	val EQUALS = "equals"
-	val DISJOINT = "disjoint"
-	val INTERSECTS = "intersects"
-	val TOUCHES = "touches"
-	val CROSSES = "crosses"
-	val WITHIN = "within"
-	val CONTAINS = "contains"
-	val OVERLAPS = "overlaps"
-	val COVERS = "covers"
-	val COVEREDBY = "coveredby"
+	object Relation extends Enumeration {
+		type Relation = Value
+		val EQUALS: Relation.Value = Value("equals")
+		val DISJOINT: Relation.Value = Value("disjoint")
+		val INTERSECTS: Relation.Value = Value("intersects")
+		val TOUCHES: Relation.Value = Value("touches")
+		val CROSSES: Relation.Value = Value("crosses")
+		val WITHIN: Relation.Value = Value("within")
+		val CONTAINS: Relation.Value = Value("contains")
+		val OVERLAPS: Relation.Value = Value("overlaps")
+		val COVERS: Relation.Value = Value("covers")
+		val COVEREDBY: Relation.Value = Value("coveredby")
 
-	/**
-	 * Blocking Algorithms
-	 */
-	val RADON = "RADON"
-	val STATIC_BLOCKING = "STATIC_BLOCKING"
-	val LIGHT_RADON = "LIGHT_RADON"
+		def exists(s: String): Boolean = values.exists(_.toString == s)
+	}
 
-	/**
-	 * YAML Configurations arguments
-	 */
-	val CONF_BLOCK_ALG = "blockingAlg"
-	val CONF_PARTITIONS = "partitions"
-	val CONF_SPATIAL_PARTITION = "spatialPartition"
-	val CONF_THETA_MEASURE = "theta_measure"
-	val CONF_STATIC_BLOCKING_DISTANCE = "static_blocking_distance"
-	val CONF_SPATIAL_BLOCKING_FACTOR = "spatial_blocking_factor"
-	val CONF_MATCHING_ALG = "matchingAlg"
-	val CONF_WEIGHTING_STRG = "weighting_strategy"
-	val CONF_BUDGET = "budget"
+	object ThetaOption extends Enumeration{
+		type ThetaOption = Value
+		val MAX: Constants.ThetaOption.Value = Value("max")
+		val MIN: Constants.ThetaOption.Value = Value("min")
+		val AVG: Constants.ThetaOption.Value = Value("avg")
+		val AVG_x2: Constants.ThetaOption.Value = Value("avg2")
+		val NO_USE: Constants.ThetaOption.Value = Value("none")
 
-	/**
-	 * Matching Algorithms
-	 */
-	val SPATIAL = "SPATIAL"
-	val BLOCK_CENTRIC = "BLOCK_CENTRIC"
-	val COMPARISON_CENTRIC = "COMPARISON_CENTRIC"
-	val ΕΝΤΙΤΥ_CENTRIC = "ΕΝΤΙΤΥ_CENTRIC"
-	val ITERATIVE_ΕΝΤΙΤΥ_CENTRIC = "ITERATIVE_ΕΝΤΙΤΥ_CENTRIC"
+		def exists(s: String): Boolean = values.exists(_.toString == s)
+	}
 
 	/**
 	 * Weighting Strategies
 	 */
-	val ARCS = "ARCS"
-	val CBS = "CBS"
-	val ECBS = "ECBS"
-	val JS = "JS"
-	val EJS = "EJS"
-	val PEARSON_X2 = "PEARSON_X2"
+	object WeightStrategy extends Enumeration {
+		type WeightStrategy = Value
+		val ARCS: Constants.WeightStrategy.Value = Value("ARCS")
+		val CBS: Constants.WeightStrategy.Value = Value("CBS")
+		val ECBS: Constants.WeightStrategy.Value = Value("ECBS")
+		val JS: Constants.WeightStrategy.Value = Value("JS")
+		val EJS: Constants.WeightStrategy.Value = Value("EJS")
+		val PEARSON_X2: Constants.WeightStrategy.Value = Value("PEARSON_X2")
+
+		def exists(s: String): Boolean = values.exists(_.toString == s)
+	}
+
+	/**
+	 * YAML Configurations arguments
+	 */
+	object YamlConfiguration extends Enumeration {
+		type YamlConfiguration = String
+		val CONF_BLOCK_ALG = "blockingAlg"
+		val CONF_PARTITIONS = "partitions"
+		val CONF_SPATIAL_PARTITION = "spatialPartition"
+		val CONF_THETA_MEASURE = "theta_measure"
+		val CONF_STATIC_BLOCKING_DISTANCE = "static_blocking_distance"
+		val CONF_SPATIAL_BLOCKING_FACTOR = "spatial_blocking_factor"
+		val CONF_MATCHING_ALG = "matchingAlg"
+		val CONF_WEIGHTING_STRG = "weighting_strategy"
+		val CONF_BUDGET = "budget"
+		val CONF_GRIDTYPE = "gridType"
+	}
+
+	object GridType extends Enumeration{
+		type GridType = Value
+		val KDBTREE: Constants.GridType.Value = Value("KDBTREE")
+		val QUADTREE: Constants.GridType.Value = Value("QUADTREE")
+
+		def exists(s: String): Boolean = values.exists(_.toString == s)
+	}
+
+
+	/**
+	 * Blocking Algorithms
+	 */
+	object BlockingAlgorithm extends Enumeration {
+		type BlockingAlgorithm = Value
+		val RADON: BlockingAlgorithm.Value = Value("RADON")
+		val STATIC_BLOCKING: BlockingAlgorithm.Value = Value("STATIC_BLOCKING")
+		val LIGHT_RADON: BlockingAlgorithm.Value = Value("LIGHT_RADON")
+
+		def exists(s: String): Boolean = values.exists(_.toString == s)
+	}
+
+	/**
+	 * Matching Algorithms
+	 */
+	object MatchingAlgorithm extends Enumeration {
+		type MatchingAlgorithm = Value
+		val SPATIAL: Constants.MatchingAlgorithm.Value = Value("SPATIAL")
+		val BLOCK_CENTRIC: Constants.MatchingAlgorithm.Value = Value("BLOCK_CENTRIC")
+		val COMPARISON_CENTRIC: Constants.MatchingAlgorithm.Value = Value("COMPARISON_CENTRIC")
+		val ΕΝΤΙΤΥ_CENTRIC: Constants.MatchingAlgorithm.Value = Value("ΕΝΤΙΤΥ_CENTRIC")
+		val ITERATIVE_ΕΝΤΙΤΥ_CENTRIC: Constants.MatchingAlgorithm.Value = Value("ITERATIVE_ΕΝΤΙΤΥ_CENTRIC")
+
+		def exists(s: String): Boolean = values.exists(_.toString == s)
+	}
+
+
 
 }

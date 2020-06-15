@@ -3,14 +3,18 @@ package EntityMatching.LightAlgorithms
 import DataStructures.SpatialEntity
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import utils.{Constants, Utils}
+import utils.Constants.Relation.Relation
+import utils.Constants.{ThetaOption, WeightStrategy}
+import utils.Constants.ThetaOption.ThetaOption
+import utils.Constants.WeightStrategy.WeightStrategy
+import utils.Utils
 
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
-case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double), weightingStrategy: String) extends LightMatchingTrait {
+case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double), ws: WeightStrategy) extends LightMatchingTrait {
 
-    def matchTargetData(relation: String, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)] = {
+    def matchTargetData(relation: Relation, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)] = {
 
         val sc = SparkContext.getOrCreate()
         val targetBlocksMapBD = sc.broadcast(targetBlocksMap)
@@ -32,7 +36,7 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
                             targetEntities.map { e2ID =>
                                 val e2 = targetBD.value(e2ID - idStart)
                                 val e2Blocks = e2.index(thetaXY)
-                                val w = getWeight(totalBlocks, coords, e2Blocks, weightingStrategy)
+                                val w = getWeight(totalBlocks, coords, e2Blocks, ws)
                                 (w, e2ID)
                             }
                         }
@@ -55,7 +59,7 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
     }
 
 
-    def iterativeExecution(relation: String, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)] = {
+    def iterativeExecution(relation: Relation, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)] = {
 
         val sc = SparkContext.getOrCreate()
         val targetBlocksMapBD = sc.broadcast(targetBlocksMap)
@@ -77,7 +81,7 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
                             targetEntities.map { e2ID =>
                                 val e2 = targetBD.value(e2ID - idStart)
                                 val e2Blocks = e2.index(thetaXY)
-                                val w = getWeight(totalBlocks, coords, e2Blocks, weightingStrategy)
+                                val w = getWeight(totalBlocks, coords, e2Blocks, ws)
                                 (w, e2ID)
                             }
                         }
@@ -117,11 +121,11 @@ object EntityCentricPrioritization {
      *
      * @param source      source RDD
      * @param target      target RDD which will be collected
-     * @param thetaMsrSTR theta measure
+     * @param thetaOption theta measure
      * @return LightRADON instance
      */
-    def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaMsrSTR: String = Constants.NO_USE, weightingStrategy: String = Constants.CBS): EntityCentricPrioritization = {
-        val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
-        EntityCentricPrioritization(source, target.sortBy(_.id).collect().to[ArrayBuffer], thetaXY, weightingStrategy)
+    def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaOption: ThetaOption = ThetaOption.NO_USE, ws: WeightStrategy = WeightStrategy.CBS): EntityCentricPrioritization = {
+        val thetaXY = Utils.initTheta(source, target, thetaOption)
+        EntityCentricPrioritization(source, target.sortBy(_.id).collect().to[ArrayBuffer], thetaXY, ws)
     }
 }

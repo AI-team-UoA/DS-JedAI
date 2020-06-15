@@ -4,16 +4,19 @@ package EntityMatching.PartitionMatching
 import DataStructures.SpatialEntity
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
+import utils.Constants.Relation.Relation
+import utils.Constants.ThetaOption.ThetaOption
+import utils.Constants.WeightStrategy.WeightStrategy
 import utils.{Constants, Utils}
 import utils.Readers.SpatialReader
 
 
 case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
-                                           thetaXY: (Double, Double), weightingScheme: String) extends PartitionMatchingTrait {
+                                           thetaXY: (Double, Double), ws: WeightStrategy) extends PartitionMatchingTrait {
 
 
 
-    def apply(relation: String): RDD[(String, String)] = {
+    def apply(relation: Relation): RDD[(String, String)] = {
         val comparisons = takeBudget(relation, Utils.targetCount*Utils.sourceCount)
         comparisons.filter(_._2).map(_._1)
     }
@@ -25,7 +28,7 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
      * @param budget the no comparisons will be implemented
      * @return the number of matches the relation holds
      */
-    override def applyWithBudget(relation: String, budget: Int): Long = {
+    override def applyWithBudget(relation: Relation, budget: Int): Long = {
         val comparisons = takeBudget(relation, Utils.targetCount*Utils.sourceCount)
         comparisons.take(budget).count(_._2)
     }
@@ -40,7 +43,7 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
      * @param budget the number of comparisons to implement
      * @return  an RDD of pair of IDs and boolean that indicate if the relation holds
      */
-    def takeBudget(relation: String, budget: Long): RDD[((String, String), Boolean)] ={
+    def takeBudget(relation: Relation, budget: Long): RDD[((String, String), Boolean)] ={
         joinedRDD.flatMap { p =>
             val partitionId = p._1
             val source = p._2._1.toArray
@@ -75,14 +78,14 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
  */
 object ComparisonCentricPrioritization {
 
-    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String,
-              weightingScheme: String = Constants.NO_USE): ComparisonCentricPrioritization ={
-        val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
+    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption,
+              ws: WeightStrategy): ComparisonCentricPrioritization ={
+        val thetaXY = Utils.initTheta(source, target, thetaOption)
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
 
         val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
-        ComparisonCentricPrioritization(joinedRDD, thetaXY, weightingScheme)
+        ComparisonCentricPrioritization(joinedRDD, thetaXY, ws)
     }
 
 }

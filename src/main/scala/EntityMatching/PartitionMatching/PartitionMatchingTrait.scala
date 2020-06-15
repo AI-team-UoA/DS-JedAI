@@ -3,7 +3,10 @@ package EntityMatching.PartitionMatching
 import DataStructures.{MBB, SpatialEntity, SpatialIndex}
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
-import utils.{Constants, Utils}
+import utils.Constants.Relation.Relation
+import utils.Constants.WeightStrategy
+import utils.Constants.WeightStrategy.WeightStrategy
+import utils.Utils
 
 trait PartitionMatchingTrait {
 
@@ -11,7 +14,7 @@ trait PartitionMatchingTrait {
 
     val joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))]
     val thetaXY: (Double, Double)
-    val weightingScheme: String
+    val ws: WeightStrategy
 
     val partitionsZones: Array[MBB] = Utils.getZones
     val spaceEdges: MBB = Utils.getSpaceEdges
@@ -83,18 +86,18 @@ trait PartitionMatchingTrait {
      * @return weight
      */
     def getWeight(frequency: Int, e1: SpatialEntity, e2: SpatialEntity): Double = {
-        weightingScheme match {
-            case Constants.ECBS =>
+        ws match {
+            case WeightStrategy.ECBS =>
                 val e1Blocks = (e1.mbb.maxX - e1.mbb.minX + 1) * (e1.mbb.maxY - e1.mbb.minY + 1)
                 val e2Blocks = (e2.mbb.maxX - e2.mbb.minX + 1) * (e2.mbb.maxY - e2.mbb.minY + 1)
                 frequency * math.log10(totalBlocks / e1Blocks) * math.log10(totalBlocks / e2Blocks)
 
-            case Constants.JS =>
+            case WeightStrategy.JS =>
                 val e1Blocks = (e1.mbb.maxX - e1.mbb.minX + 1) * (e1.mbb.maxY - e1.mbb.minY + 1)
                 val e2Blocks = (e2.mbb.maxX - e2.mbb.minX + 1) * (e2.mbb.maxY - e2.mbb.minY + 1)
                 frequency / (e1Blocks + e2Blocks - frequency)
 
-            case Constants.PEARSON_X2 =>
+            case WeightStrategy.PEARSON_X2 =>
                 val e1Blocks = (e1.mbb.maxX - e1.mbb.minX + 1) * (e1.mbb.maxY - e1.mbb.minY + 1)
                 val e2Blocks = (e2.mbb.maxX - e2.mbb.minX + 1) * (e2.mbb.maxY - e2.mbb.minY + 1)
 
@@ -104,14 +107,14 @@ trait PartitionMatchingTrait {
                 val chiTest = new ChiSquareTest()
                 chiTest.chiSquare(Array(v1, v2))
 
-            case Constants.CBS | _ =>
+            case WeightStrategy.CBS | _ =>
                 frequency.toDouble
         }
     }
 
-    def apply(relation: String): RDD[(String, String)]
+    def apply(relation: Relation): RDD[(String, String)]
 
-    def applyWithBudget(relation: String, budget: Int): Long = {
+    def applyWithBudget(relation: Relation, budget: Int): Long = {
         val comparisons = apply(relation)
         comparisons.take(budget).length
     }

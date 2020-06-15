@@ -3,7 +3,10 @@ package EntityMatching.LightAlgorithms
 import DataStructures.SpatialEntity
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import utils.{Constants, Utils}
+import utils.Constants.Relation.Relation
+import utils.Constants.ThetaOption
+import utils.Constants.ThetaOption.ThetaOption
+import utils.Utils
 
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
@@ -32,7 +35,7 @@ case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEnt
      * @param blocksMap HashMap of targets blocks
      * @return an RDD of matches
      */
-   def matchTargetData(relation: String, idStart: Int, blocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)] = {
+   def matchTargetData(relation: Relation, idStart: Int, blocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)] = {
        val sc = SparkContext.getOrCreate()
        val blocksMapBD = sc.broadcast(blocksMap)
        val collectedBD = sc.broadcast(target)
@@ -65,11 +68,11 @@ object LightRADON {
      *
      * @param source source RDD
      * @param target target RDD which will be collected
-     * @param thetaMsrSTR theta measure
+     * @param thetaOption theta measure
      * @return LightRADON instance
      */
-    def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaMsrSTR: String = Constants.NO_USE): LightRADON ={
-        val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
+    def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaOption: ThetaOption = ThetaOption.NO_USE): LightRADON ={
+        val thetaXY = Utils.initTheta(source, target, thetaOption)
         LightRADON(source, target.sortBy(_.id).collect().to[ArrayBuffer], thetaXY)
     }
 

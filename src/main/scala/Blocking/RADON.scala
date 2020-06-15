@@ -4,6 +4,7 @@ import DataStructures.{Block, SpatialEntity}
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
+import utils.Constants.ThetaOption.ThetaOption
 import utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
@@ -52,8 +53,8 @@ case class RADON(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY
 }
 
 object RADON{
-	def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaMsrSTR: String): RADON={
-		val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
+	def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaOption: ThetaOption): RADON={
+		val thetaXY = Utils.initTheta(source, target, thetaOption)
 		RADON(source, target, thetaXY)
 	}
 }

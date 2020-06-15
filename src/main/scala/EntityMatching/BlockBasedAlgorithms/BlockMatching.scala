@@ -4,6 +4,8 @@ import DataStructures.{Block, SpatialEntity}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Encoder, Encoders, SparkSession}
 import org.datasyslab.geosparksql.utils.GeoSparkSQLRegistrator
+import utils.Constants.Relation.Relation
+
 import scala.reflect.ClassTag
 
 /**
@@ -16,7 +18,7 @@ case class BlockMatching(blocks:RDD[Block]) extends BlockMatchingTrait {
 	 * Perform the only the necessary comparisons
 	 * @return the original ids of the matches
 	 */
-	def apply(relation: String): RDD[(String, String)] ={
+	def apply(relation: Relation): RDD[(String, String)] ={
 		blocks.flatMap(b => b.getFilteredComparisons(relation))
 			.filter(c => c.entity1.relate(c.entity2, relation))
 			.map(c => (c.entity1.originalID, c.entity2.originalID))

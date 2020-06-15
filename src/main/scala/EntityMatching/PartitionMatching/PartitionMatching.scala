@@ -3,11 +3,15 @@ package EntityMatching.PartitionMatching
 import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
+import utils.Constants.{Relation, WeightStrategy}
+import utils.Constants.Relation.Relation
+import utils.Constants.ThetaOption.ThetaOption
+import utils.Constants.WeightStrategy.WeightStrategy
 import utils.{Constants, Utils}
 import utils.Readers.SpatialReader
 
 case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Iterable[SpatialEntity]))],
-                             thetaXY: (Double, Double), weightingScheme: String)  extends  PartitionMatchingTrait {
+                             thetaXY: (Double, Double), ws: WeightStrategy)  extends  PartitionMatchingTrait {
 
     /**
      * First index the source and then use the index to find the comparisons with target's entities.
@@ -15,7 +19,7 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
      * @param relation the examining relation
      * @return an RDD containing the matching pairs
      */
-    def apply(relation: String): RDD[(String, String)] ={
+    def apply(relation: Relation): RDD[(String, String)] ={
         joinedRDD.filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty )
         .flatMap { p =>
             val partitionId = p._1
@@ -53,7 +57,7 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
                         .flatMap(c => sourceIndex.get(c).map(j => (source(j), se, c)))
                 }
                 .filter { case (e1: SpatialEntity, e2: SpatialEntity, b: (Int, Int)) =>
-                    e1.mbb.testMBB(e2.mbb, Constants.INTERSECTS) && e1.mbb.referencePointFiltering(e2.mbb, b, thetaXY)
+                    e1.mbb.testMBB(e2.mbb, Relation.INTERSECTS) && e1.mbb.referencePointFiltering(e2.mbb, b, thetaXY)
                 }
                 .map(c => IM(c._1, c._2))
         }
@@ -65,15 +69,14 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
  */
 object PartitionMatching{
 
-    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String,
-              weightingScheme: String = Constants.NO_USE): PartitionMatching ={
-       val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
+    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption): PartitionMatching ={
+       val thetaXY = Utils.initTheta(source, target, thetaOption)
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
 
         val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
 
         Utils.printPartition(joinedRDD)
-        PartitionMatching(joinedRDD, thetaXY, weightingScheme)
+        PartitionMatching(joinedRDD, thetaXY, null)
     }
 }

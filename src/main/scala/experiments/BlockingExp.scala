@@ -9,8 +9,9 @@ import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SparkSession
+import utils.Constants.Relation
 import utils.Readers.Reader
-import utils.{ConfigurationParser, Constants, Utils}
+import utils.{ConfigurationParser, Utils}
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
@@ -65,19 +66,19 @@ object BlockingExp {
 		val spatialPartition: Boolean = conf.getSpatialPartitioning
 
 		// Loading Source
-		val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, partitions, spatialPartition)
+		val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, conf)
 		val sourceCount = sourceRDD.setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK).count().toInt
 		log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions +" partitions")
 
 		// Loading Target
-		val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, partitions, spatialPartition)
+		val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, conf)
 		val targetCount = targetRDD.setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK).count().toInt
 		log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions +" partitions")
 
-		val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation)
+		val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.getRelation)
 		val dimensions = if (Utils.swapped ) (targetCount, sourceCount) else (sourceCount, targetCount)
 
-		if (conf.relation == Constants.DISJOINT) {
+		if (relation == Relation.DISJOINT) {
 			val matching_startTime = Calendar.getInstance().getTimeInMillis
 			val matcher = BlockMatching(null)
 			val matches = matcher.disjointMatches(source, target).setName("Matches").persist(StorageLevel.MEMORY_AND_DISK)

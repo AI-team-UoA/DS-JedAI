@@ -4,6 +4,7 @@ import DataStructures.{Block, MBB, SpatialEntity}
 import org.apache.spark.{SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
+import utils.Constants.ThetaOption.ThetaOption
 import utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
@@ -106,8 +107,8 @@ case class PartitionBlocking(source: RDD[SpatialEntity], target: RDD[SpatialEnti
 }
 
 object PartitionBlocking {
-    def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaMsrSTR: String): PartitionBlocking={
-        val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
+    def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaOption: ThetaOption): PartitionBlocking={
+        val thetaXY = Utils.initTheta(source, target, thetaOption)
         PartitionBlocking(source, target, thetaXY)
     }
 }
