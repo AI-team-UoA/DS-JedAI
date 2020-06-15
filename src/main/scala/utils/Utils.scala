@@ -3,6 +3,7 @@ package utils
 
 import DataStructures.{MBB, SpatialEntity}
 import com.vividsolutions.jts.geom.Geometry
+import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
@@ -22,7 +23,7 @@ object Utils {
 	var thetaXY: (Double, Double) = _
 	var sourceCount: Long = _
 	var targetCount: Long = _
-
+	val log: Logger = LogManager.getRootLogger
 	/**
 	 * Cantor Pairing function. Map two positive integers to a unique integer number.
 	 *
@@ -224,4 +225,15 @@ object Utils {
 		if (area1 == 0 || area2 == 0 ) weight
 		else weight/(geom1.getArea * geom2.getArea)
 	}
+
+
+	def printPartition(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Iterable[SpatialEntity]))]): Unit ={
+		val c = joinedRDD.map(p => (p._1, (p._2._1.size, p._2._2.size))).sortByKey().collect()
+		log.info("Printing Partitions")
+		log.info("----------------------------------------------------------------------------")
+		c.foreach(p => log.info(p._1 + " ->  (" + p._2._1 + ", " + p._2._2 +  ")" ))
+		log.info("----------------------------------------------------------------------------")
+
+	}
+
 }

@@ -16,7 +16,8 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
      * @return an RDD containing the matching pairs
      */
     def apply(relation: String): RDD[(String, String)] ={
-        joinedRDD.flatMap { p =>
+        joinedRDD.filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty )
+        .flatMap { p =>
             val partitionId = p._1
             val source: Array[SpatialEntity] = p._2._1.toArray
             val target: Iterator[SpatialEntity] = p._2._2.toIterator
@@ -71,6 +72,8 @@ object PartitionMatching{
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
 
         val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
+
+        Utils.printPartition(joinedRDD)
         PartitionMatching(joinedRDD, thetaXY, weightingScheme)
     }
 }
