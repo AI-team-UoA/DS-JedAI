@@ -3,17 +3,15 @@ package EntityMatching.PartitionMatching
 import DataStructures.SpatialEntity
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.rdd.RDD
-import utils.{Configuration, Constants}
+import utils.{Configuration, Constants, Utils}
 
 object PartitionMatchingFactory {
 
 
     val log: Logger = LogManager.getRootLogger
 
-    def getMatchingAlgorithm(conf: Configuration, source: RDD[SpatialEntity], target: RDD[SpatialEntity], budget: Int,
-                             tcount: Long = -1): PartitionMatchingTrait ={
+    def getMatchingAlgorithm(conf: Configuration, source: RDD[SpatialEntity], target: RDD[SpatialEntity]): PartitionMatchingTrait ={
 
-        val targetCount = if (tcount == -1) target.count() else tcount
         val algorithm = conf.getMatchingAlgorithm
         val weightingStrategy = conf.getWeightingScheme
         val theta_msr = conf.getThetaMSR
@@ -23,10 +21,10 @@ object PartitionMatchingFactory {
                 ComparisonCentricPrioritization(source, target, theta_msr, weightingStrategy)
             case Constants.ΕΝΤΙΤΥ_CENTRIC =>
                 log.info("Matching Algorithm: " + Constants.ΕΝΤΙΤΥ_CENTRIC)
-                EntityCentricPrioritization(source, target, theta_msr, weightingStrategy, budget, targetCount)
+                EntityCentricPrioritization(source, target, theta_msr, weightingStrategy)
             case Constants.ITERATIVE_ΕΝΤΙΤΥ_CENTRIC =>
                 log.info("Matching Algorithm: " + Constants.ITERATIVE_ΕΝΤΙΤΥ_CENTRIC)
-                IterativeEntityCentricPrioritization(source, target, theta_msr, weightingStrategy, budget, targetCount)
+                IterativeEntityCentricPrioritization(source, target, theta_msr, weightingStrategy)
             case _ =>
                 log.info("Matching Algorithm: " + Constants.SPATIAL)
                 PartitionMatching(source, target, theta_msr)

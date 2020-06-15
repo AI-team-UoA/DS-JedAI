@@ -9,7 +9,25 @@ import utils.Readers.SpatialReader
 import scala.collection.mutable
 
 case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
-                                           thetaXY: (Double, Double), weightingScheme: String, budget: Int, targetSize: Long) extends PartitionMatchingTrait {
+                                           thetaXY: (Double, Double), weightingScheme: String, targetCount: Long) extends PartitionMatchingTrait {
+
+
+    def apply(relation: String): RDD[(String, String)] = {
+        val comparisons = takeBudget(relation, Utils.targetCount*Utils.sourceCount)
+        comparisons.filter(_._2).map(_._1)
+    }
+
+    /**
+     * Get the first budget comparisons, and finds the marches in them.
+     *
+     * @param relation examined relation
+     * @param budget the no comparisons will be implemented
+     * @return the number of matches the relation holds
+     */
+    override def applyWithBudget(relation: String, budget: Int): Long = {
+        val comparisons = takeBudget(relation, Utils.targetCount*Utils.sourceCount)
+        comparisons.take(budget).count(_._2)
+    }
 
     /**
      * Similar to the ComparisonCentric, but instead of executing all the comparisons of target,
@@ -18,10 +36,11 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
      * and sorts based on that.
      *
      * @param relation the examining relation
-     * @return an RDD containing the matching pairs
+     * @param budget the number of comparisons to implement
+     * @return  an RDD of pair of IDs and boolean that indicate if the relation holds
      */
-    def apply(relation: String): RDD[(String, String)] = {
-        val k = budget / targetSize
+    def takeBudget(relation: String, budget:Long): RDD[((String, String), Boolean)] = {
+        val k = budget / targetCount
         joinedRDD
             .flatMap { p =>
                 val partitionId = p._1
@@ -45,8 +64,7 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
                     val pq = mutable.PriorityQueue[(Double, Int)]()(Ordering.by[(Double, Int), Double](_._1).reverse)
                     for (k <- sIndicesList.indices) {
                         val c = coords(k)
-                        val sIndices = sIndicesList(k).filter(i => source(i).mbb.testMBB(e2.mbb, relation) &&
-                            source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY))
+                        val sIndices = sIndicesList(k).filter(i => source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY))
                         for (i <- sIndices) {
                             val e1 = source(i)
                             val f = frequency(i)
@@ -69,7 +87,7 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
             .map(_._2)
             .mapPartitions { comparisonsIter =>
                 val comparisonsArIter = comparisonsIter.toArray
-                var matches: List[(String, String)] = List()
+                var pairs: List[((String, String), Boolean)] = List()
 
                 var converge: Boolean = false
                 while (!converge) {
@@ -78,12 +96,12 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
                         if (comparisonIter.hasNext) {
                             converge = false
                             val (e1, e2) = comparisonIter.next()
-                            if (e1.relate(e2, relation))
-                                matches = matches :+ (e1.originalID, e2.originalID)
+                            val isMatch = e1.mbb.testMBB(e2.mbb, relation) && e1.relate(e2, relation)
+                            pairs = pairs :+ ((e1.originalID, e2.originalID), isMatch) //WARNING: very expensive could lead to OOM
                         }
                     }
                 }
-                matches.toIterator
+                pairs.toIterator
             }
     }
 }
@@ -91,13 +109,14 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
 object IterativeEntityCentricPrioritization{
 
     def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String,
-              weightingScheme: String = Constants.NO_USE, budget: Int, tcount: Long): IterativeEntityCentricPrioritization ={
+              weightingScheme: String = Constants.NO_USE): IterativeEntityCentricPrioritization ={
         val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
 
+        val targetCount = Utils.targetCount
         val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
-        IterativeEntityCentricPrioritization(joinedRDD, thetaXY, weightingScheme, budget, tcount)
+        IterativeEntityCentricPrioritization(joinedRDD, thetaXY, weightingScheme, targetCount)
     }
 
 }

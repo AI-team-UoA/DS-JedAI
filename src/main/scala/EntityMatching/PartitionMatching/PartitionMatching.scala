@@ -1,7 +1,6 @@
 package EntityMatching.PartitionMatching
 
 import DataStructures.{IM, SpatialEntity}
-import com.vividsolutions.jts.geom.IntersectionMatrix
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import utils.{Constants, Utils}

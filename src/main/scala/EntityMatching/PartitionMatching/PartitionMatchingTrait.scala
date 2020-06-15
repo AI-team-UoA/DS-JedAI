@@ -1,12 +1,11 @@
 package EntityMatching.PartitionMatching
 
 import DataStructures.{MBB, SpatialEntity, SpatialIndex}
-import EntityMatching.MatchingTrait
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
 import utils.{Constants, Utils}
 
-trait PartitionMatchingTrait extends MatchingTrait {
+trait PartitionMatchingTrait {
 
     val orderByWeight: Ordering[(Double, (SpatialEntity, SpatialEntity))] = Ordering.by[(Double, (SpatialEntity, SpatialEntity)), Double](_._1).reverse
 
@@ -111,6 +110,11 @@ trait PartitionMatchingTrait extends MatchingTrait {
     }
 
     def apply(relation: String): RDD[(String, String)]
+
+    def applyWithBudget(relation: String, budget: Int): Long = {
+        val comparisons = apply(relation)
+        comparisons.take(budget).length
+    }
 }
 
 

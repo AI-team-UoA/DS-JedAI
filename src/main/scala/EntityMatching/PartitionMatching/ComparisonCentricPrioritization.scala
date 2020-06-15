@@ -12,17 +12,35 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
                                            thetaXY: (Double, Double), weightingScheme: String) extends PartitionMatchingTrait {
 
 
+
+    def apply(relation: String): RDD[(String, String)] = {
+        val comparisons = takeBudget(relation, Utils.targetCount*Utils.sourceCount)
+        comparisons.filter(_._2).map(_._1)
+    }
+
+    /**
+     * Get the first budget comparisons, and finds the marches in them.
+     *
+     * @param relation examined relation
+     * @param budget the no comparisons will be implemented
+     * @return the number of matches the relation holds
+     */
+    override def applyWithBudget(relation: String, budget: Int): Long = {
+        val comparisons = takeBudget(relation, Utils.targetCount*Utils.sourceCount)
+        comparisons.take(budget).count(_._2)
+    }
+
     /**
      * First index source and then for each entity of target, find its comparisons from source's index.
-     * Weight the comparisons based the weighting scheme and then perform them in a ascending way.
+     * Weight the comparisons based the weighting scheme and then implement them in a ascending way.
      *
-     * For the weighting, for each entity of target we construct a matrix that contains the frequencies
-     * of each entity of source - i.e. the no of common blocks
+     * The target is most of the matches will be  in the first comparisons.
      *
      * @param relation the examining relation
-     * @return an RDD containing the matching pairs
+     * @param budget the number of comparisons to implement
+     * @return  an RDD of pair of IDs and boolean that indicate if the relation holds
      */
-    def apply(relation: String): RDD[(String, String)] ={
+    def takeBudget(relation: String, budget: Long): RDD[((String, String), Boolean)] ={
         joinedRDD.flatMap { p =>
             val partitionId = p._1
             val source = p._2._1.toArray
@@ -40,15 +58,14 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
 
                     sIndices.flatMap { case (c, indices) =>
                         indices.map(i => (source(i), frequency(i)))
-                            .filter { case (e1, _) => e1.mbb.testMBB(e2.mbb, relation) && e1.mbb.referencePointFiltering(e2.mbb, c, thetaXY) }
+                            .filter { case (e1, _) => e1.mbb.referencePointFiltering(e2.mbb, c, thetaXY) }
                             .map { case (e1, f) => (getWeight(f, e1, e2), (e1, e2)) }
                     }
                 }
         }
         .sortByKey(ascending = false)
         .map(_._2)
-        .filter(c => c._1.relate(c._2, relation))
-        .map(c => (c._1.originalID, c._2.originalID))
+        .map(c => ((c._1.originalID, c._2.originalID), c._1.mbb.testMBB(c._2.mbb, relation) && c._1.relate(c._2, relation)))
     }
 }
 

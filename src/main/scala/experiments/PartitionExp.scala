@@ -9,7 +9,7 @@ import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import utils.{ConfigurationParser, Utils}
+import utils.{ConfigurationParser, Constants, Utils}
 import utils.Readers.SpatialReader
 
 object PartitionExp {
@@ -70,12 +70,18 @@ object PartitionExp {
 
         val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.relation, sourceCount, targetCount)
 
-        val budget = 30000
+        val budget = conf.getBudget
         val matching_startTime = Calendar.getInstance().getTimeInMillis
-        val matches = PartitionMatchingFactory.getMatchingAlgorithm(conf, source, target, budget, targetCount).apply(relation)
-        // val theta_msr = conf.getThetaMSR
-        // val matches = PartitionMatching(source, target, theta_msr).apply(relation)
-        log.info("DS-JEDAI: Matches: " + matches.count)
+        val matcher = PartitionMatchingFactory.getMatchingAlgorithm(conf, source, target)
+        if (conf.getMatchingAlgorithm == Constants.SPATIAL) {
+            val matches = matcher.apply(relation)
+            log.info("DS-JEDAI: Matches: " + matches.count)
+        }
+        else{
+            log.info("DS-JEDAI: With budget " + budget + " found: " +  matcher.applyWithBudget(relation, budget) )
+        }
+
+
         val matching_endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Matching Time: " + (matching_endTime - matching_startTime) / 1000.0)
 

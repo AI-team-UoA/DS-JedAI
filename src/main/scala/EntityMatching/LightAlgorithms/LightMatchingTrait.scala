@@ -1,7 +1,6 @@
 package EntityMatching.LightAlgorithms
 
 import DataStructures.SpatialEntity
-import EntityMatching.MatchingTrait
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
 import utils.Constants
@@ -10,7 +9,7 @@ import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.math.log10
 
-trait LightMatchingTrait extends MatchingTrait {
+trait LightMatchingTrait {
 
     val source: RDD[SpatialEntity]
     val target: ArrayBuffer[SpatialEntity]

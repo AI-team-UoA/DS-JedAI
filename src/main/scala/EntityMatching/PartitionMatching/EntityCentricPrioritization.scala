@@ -9,28 +9,38 @@ import utils.Readers.SpatialReader
 import scala.collection.mutable
 
 case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
-                                       thetaXY: (Double, Double), weightingScheme: String,  budget: Int, targetSize: Long) extends PartitionMatchingTrait{
+                                       thetaXY: (Double, Double), weightingScheme: String, targetCount: Long)
+    extends PartitionMatchingTrait{
 
 
     def apply(relation: String): RDD[(String, String)] = {
-        val tSize = joinedRDD.flatMap(_._2._2).count()
-        apply(relation, 10000, tSize)
+        val comparisons = takeBudget(relation, Utils.targetCount*Utils.sourceCount)
+        comparisons.filter(_._2).map(_._1)
+    }
+
+    /**
+     * Get the first budget comparisons, and finds the marches in them.
+     *
+     * @param relation examined relation
+     * @param budget the no comparisons will be implemented
+     * @return the number of matches the relation holds
+     */
+    override def applyWithBudget(relation: String, budget: Int): Long = {
+        val comparisons = takeBudget(relation, Utils.targetCount*Utils.sourceCount)
+        comparisons.take(budget).count(_._2)
     }
 
 
     /**
      * Similar to the ComparisonCentric, but instead of executing all the comparisons of target,
-     * it just select the top-k which k is based on the input budget.
-     * Then gives a weight to the entities of the target, based on the weights of their comparisons,
-     * and sorts based on that.
-     *
+     * it select the top-k, where k is based on the input budget.
+     *      *
      * @param relation the examining relation
-     * @param budget the total comparisons we want to implement
-     * @param targetSize no entities in target
-     * @return an RDD containing the matching pairs
+     * @param budget the number of comparisons to implement
+     * @return  an RDD of pair of IDs and boolean that indicate if the relation holds
      */
-    def apply(relation: String, budget: Int, targetSize: Long): RDD[(String, String)] ={
-        val k = budget / targetSize
+    def takeBudget(relation: String, budget: Long): RDD[((String, String), Boolean)] ={
+        val k = budget / targetCount
         joinedRDD
             .flatMap { p =>
                 val partitionId = p._1
@@ -54,8 +64,7 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
                     val pq = mutable.PriorityQueue[(Double, Int)]()(Ordering.by[(Double, Int), Double](_._1).reverse)
                     for (k <- sIndicesList.indices) {
                         val c = coords(k)
-                        val sIndices = sIndicesList(k).filter(i => source(i).mbb.testMBB(e2.mbb, relation) &&
-                            source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY))
+                        val sIndices = sIndicesList(k).filter(i => source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY))
                         for (i <- sIndices) {
                             val e1 = source(i)
                             val f = frequency(i)
@@ -76,8 +85,7 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
             // sort the comparisons based on their mean weight
             .sortByKey(ascending = false)
             .flatMap(_._2)
-            .filter(c => c._1.relate(c._2, relation))
-            .map(c => (c._1.originalID, c._2.originalID))
+            .map(c => ((c._1.originalID, c._2.originalID), c._1.mbb.testMBB(c._2.mbb, relation) && c._1.relate(c._2, relation)))
     }
 
 
@@ -86,14 +94,16 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
 object EntityCentricPrioritization{
 
 
-    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String,
-              weightingScheme: String = Constants.NO_USE, budget: Int, tcount: Long): EntityCentricPrioritization ={
+    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaMsrSTR: String, weightingScheme: String = Constants.CBS)
+    : EntityCentricPrioritization ={
+
         val thetaXY = Utils.initTheta(source, target, thetaMsrSTR)
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
 
+        val targetCount = Utils.targetCount
         val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
-        EntityCentricPrioritization(joinedRDD, thetaXY, weightingScheme, budget, tcount)
+        EntityCentricPrioritization(joinedRDD, thetaXY, weightingScheme, targetCount)
     }
 
 }
