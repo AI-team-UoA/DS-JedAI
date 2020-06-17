@@ -231,7 +231,7 @@ object Utils {
 		val c = joinedRDD.map(p => (p._1, (p._2._1.size, p._2._2.size))).sortByKey().collect()
 		log.info("Printing Partitions")
 		log.info("----------------------------------------------------------------------------")
-		c.foreach(p => log.info(p._1 + " ->  (" + p._2._1 + ", " + p._2._2 +  ")" ))
+		c.foreach(p => log.info(p._1 + " ->  (" + p._2._1 + ", " + p._2._2 +  ") - " + getZones(p._1).toString ))
 		log.info("----------------------------------------------------------------------------")
 
 	}

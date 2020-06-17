@@ -39,6 +39,11 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
 
         val rf: (Double, Double) = (math.max(minX1, minX2), math.min(maxY1, maxY2))
         rf._1 >= b._1 && rf._1 < b._1+1 && rf._2 >= b._2 & rf._2 < b._2+1
+
+         // val rf: (Double, Double) = (math.max(minX1, minX2) + .5, math.min(maxY1, maxY2) + .5)
+        // val p2 = rf._1 == b._1+1 || rf._2 == b._2+1
+        // (p1 || p2) && (!p1 || !p2) // XOR
+        // rf._1 >= b._1 && rf._1 < b._1+1 && rf._2 >= b._2 & rf._2 < b._2+1
     }
 
     /**
@@ -73,6 +78,9 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
         val gf: GeometryFactory = new GeometryFactory()
         gf.createPolygon(coordsAr)
     }
+
+    override def toString: String =
+        "(" + minX.toString  + ", " + maxX.toString +"), ("+ minY.toString  + ", " + maxY.toString +")"
 
     /**
      * check if mbb crosses meridian
