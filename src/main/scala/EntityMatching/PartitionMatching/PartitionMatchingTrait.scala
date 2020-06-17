@@ -19,13 +19,13 @@ trait PartitionMatchingTrait {
     val partitionsZones: Array[MBB] = Utils.getZones
     val spaceEdges: MBB = Utils.getSpaceEdges
 
-    val totalBlocks: Double = {
+    val totalBlocks: Double = if (ws == WeightStrategy.ECBS || ws == WeightStrategy.PEARSON_X2){
         val globalMinX = joinedRDD.flatMap(p => p._2._1.map(_.mbb.minX)).min()
         val globalMaxX = joinedRDD.flatMap(p => p._2._1.map(_.mbb.maxX)).max()
         val globalMinY = joinedRDD.flatMap(p => p._2._1.map(_.mbb.minY)).min()
         val globalMaxY = joinedRDD.flatMap(p => p._2._1.map(_.mbb.maxY)).max()
         (globalMaxX - globalMinX + 1) * (globalMaxY - globalMinY + 1)
-    }
+    } else -1
 
     /**
      * Check if the block is inside the zone of the partition.

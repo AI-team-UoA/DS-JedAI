@@ -139,9 +139,6 @@ object Utils {
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
 	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
 	implicit def tuple[String, Int](implicit e1: Encoder[String], e2: Encoder[Int]): Encoder[(String,Int)] = Encoders.tuple[String,Int](e1, e2)
-	def printPartitions(rdd: RDD[Any]): Unit ={
-		spark.createDataset(rdd.mapPartitionsWithIndex{ case (i,rows) => Iterator((i,rows.size))}).show(100)
-	}
 
 	def export(rdd: RDD[SpatialEntity], path:String): Unit ={
 		val schema = StructType(
