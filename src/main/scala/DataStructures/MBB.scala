@@ -38,7 +38,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
         val maxY2 = mbb.maxY / thetaY
 
         val rf: (Double, Double) = (math.max(minX1, minX2), math.min(maxY1, maxY2))
-        rf._1 >= b._1 && rf._1 <= b._1+thetaX && rf._2 >= b._2 & rf._2 <= b._2+thetaY
+        rf._1 >= b._1 && rf._1 < b._1+1 && rf._2 >= b._2 & rf._2 < b._2+1
     }
 
     /**
