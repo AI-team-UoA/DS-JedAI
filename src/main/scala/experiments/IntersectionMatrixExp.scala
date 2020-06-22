@@ -112,75 +112,76 @@ object IntersectionMatrixExp {
             val budget = conf.getBudget
             val ws = conf.getWeightingScheme
             val theta = conf.getTheta
-            val IMs = ComparisonCentricPrioritization(source, target, theta, ws).getDE9IM.take(budget)
+            val IMsIter = ComparisonCentricPrioritization(source, target, theta, ws).getDE9IM.take(budget).toIterator
             var detectedLinks = 0
             var interlinkedGeometries = 0
-            for (i <- IMs.indices){
-                val im = IMs(i)
-                var relate = false
 
-                if (i % 10000 == 0)
-                    log.info("DS-JEDAI: Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks)
+            var i:Int = 0
+            IMsIter
+                .foreach(im => {
 
-                if(im.isContains){
-                    relate = true
-                    detectedLinks += 1
-                    containsArray = containsArray :+ im.idPair
-                }
+                    var relate = false
+                    if (i % 10000 == 0)
+                        log.info("DS-JEDAI: Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks)
 
-                if(im.isCoveredBy){
-                    relate = true
-                    detectedLinks += 1
-                    coveredByArray = coveredByArray :+ im.idPair
-                }
+                    if (im.isContains) {
+                        relate = true
+                        detectedLinks += 1
+                        containsArray = containsArray :+ im.idPair
+                    }
 
-                if(im.isCovers){
-                    relate = true
-                    detectedLinks += 1
-                    coversArray = coversArray :+ im.idPair
-                }
+                    if (im.isCoveredBy) {
+                        relate = true
+                        detectedLinks += 1
+                        coveredByArray = coveredByArray :+ im.idPair
+                    }
 
-                if(im.isCrosses){
-                    relate = true
-                    detectedLinks += 1
-                    crossesArray = crossesArray :+ im.idPair
-                }
+                    if (im.isCovers) {
+                        relate = true
+                        detectedLinks += 1
+                        coversArray = coversArray :+ im.idPair
+                    }
 
-                if(im.isEquals){
-                    relate = true
-                    detectedLinks += 1
-                    equalsArray = equalsArray :+ im.idPair
-                }
+                    if (im.isCrosses) {
+                        relate = true
+                        detectedLinks += 1
+                        crossesArray = crossesArray :+ im.idPair
+                    }
 
-                if(im.isIntersects){
-                    relate = true
-                    detectedLinks += 1
-                    intersectsArray = intersectsArray :+ im.idPair
-                }
+                    if (im.isEquals) {
+                        relate = true
+                        detectedLinks += 1
+                        equalsArray = equalsArray :+ im.idPair
+                    }
 
-                if(im.isOverlaps){
-                    relate = true
-                    detectedLinks += 1
-                    overlapsArray = overlapsArray :+ im.idPair
-                }
+                    if (im.isIntersects) {
+                        relate = true
+                        detectedLinks += 1
+                        intersectsArray = intersectsArray :+ im.idPair
+                    }
 
-                if(im.isTouches){
-                    relate = true
-                    detectedLinks += 1
-                    touchesArray = touchesArray :+ im.idPair
-                }
+                    if (im.isOverlaps) {
+                        relate = true
+                        detectedLinks += 1
+                        overlapsArray = overlapsArray :+ im.idPair
+                    }
 
-                if(im.isWithin){
-                    relate = true
-                    detectedLinks += 1
-                    withinArray = withinArray :+ im.idPair
-                }
+                    if (im.isTouches) {
+                        relate = true
+                        detectedLinks += 1
+                        touchesArray = touchesArray :+ im.idPair
+                    }
 
-                if(relate)
-                    interlinkedGeometries += 1
+                    if (im.isWithin) {
+                        relate = true
+                        detectedLinks += 1
+                        withinArray = withinArray :+ im.idPair
+                    }
 
-            }
-
+                    if (relate)
+                        interlinkedGeometries += 1
+                    i += 1
+                })
             log.info("\n")
             log.info("DS-JEDAI: CONTAINS: " + containsArray.length)
             log.info("DS-JEDAI: COVERED BY: " + coveredByArray.length)
