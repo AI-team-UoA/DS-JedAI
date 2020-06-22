@@ -2,13 +2,14 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.PartitionMatching.PartitionMatching
+import EntityMatching.PartitionMatching.{ComparisonCentricPrioritization, PartitionMatching}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
+import utils.Constants.MatchingAlgorithm
 import utils.Readers.SpatialReader
 import utils.{ConfigurationParser, Utils}
 
@@ -56,6 +57,7 @@ object IntersectionMatrixExp {
         // Loading Source
         SpatialReader.setPartitions(partitions)
         SpatialReader.noConsecutiveID()
+        SpatialReader.setGridType(conf.getGridType)
         val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
             .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
         val sourceCount = sourceRDD.count().toInt
@@ -70,18 +72,127 @@ object IntersectionMatrixExp {
         val (source, target, _) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.getRelation, sourceCount, targetCount)
 
         val matching_startTime = Calendar.getInstance().getTimeInMillis
-        val imRDD = PartitionMatching(source, target, conf.getTheta).getDE9IM
-            .setName("IntersectionMatrixRDD").persist(StorageLevel.MEMORY_AND_DISK)
 
-        log.info("CONTAINS: " + imRDD.filter(_.isContains).count())
-        log.info("COVERED BY: " + imRDD.filter(_.isCoveredBy).count())
-        log.info("COVERS: " + imRDD.filter(_.isCovers).count())
-        log.info("CROSSES: " + imRDD.filter(_.isCrosses).count())
-        log.info("EQUALS: " + imRDD.filter(_.isEquals).count())
-        log.info("INTERSECTS: " + imRDD.filter(_.isIntersects).count())
-        log.info("OVERLAPS: " + imRDD.filter(_.isOverlaps).count())
-        log.info("TOUCHES: " + imRDD.filter(_.isTouches).count())
-        log.info("WITHIN: " + imRDD.filter(_.isWithin).count())
+        var containsArray = Array[(String, String)]()
+        var coveredByArray = Array[(String, String)]()
+        var coversArray = Array[(String, String)]()
+        var crossesArray = Array[(String, String)]()
+        var equalsArray = Array[(String, String)]()
+        var intersectsArray = Array[(String, String)]()
+        var overlapsArray = Array[(String, String)]()
+        var touchesArray = Array[(String, String)]()
+        var withinArray = Array[(String, String)]()
+
+        val ma = conf.getMatchingAlgorithm
+        if (ma == MatchingAlgorithm.SPATIAL) {
+            val imRDD = PartitionMatching(source, target, conf.getTheta).getDE9IM
+                .setName("IntersectionMatrixRDD").persist(StorageLevel.MEMORY_AND_DISK)
+
+            /*containsArray = imRDD.filter(_.isContains).map(im => im.idPair).collect()
+            coveredByArray = imRDD.filter(_.isCoveredBy).map(im => im.idPair).collect()
+            coversArray = imRDD.filter(_.isCovers).map(im => im.idPair).collect()
+            crossesArray = imRDD.filter(_.isCrosses).map(im => im.idPair).collect()
+            equalsArray = imRDD.filter(_.isEquals).map(im => im.idPair).collect()
+            intersectsArray = imRDD.filter(_.isIntersects).map(im => im.idPair).collect()
+            overlapsArray = imRDD.filter(_.isOverlaps).map(im => im.idPair).collect()
+            touchesArray = imRDD.filter(_.isTouches).map(im => im.idPair).collect()
+            withinArray = imRDD.filter(_.isWithin).map(im => im.idPair).collect()*/
+
+            log.info("DS-JEDAI: CONTAINS: " + imRDD.filter(_.isContains).count())
+            log.info("DS-JEDAI: COVERED BY: " + imRDD.filter(_.isCoveredBy).count())
+            log.info("DS-JEDAI: COVERS: " + imRDD.filter(_.isCovers).count())
+            log.info("DS-JEDAI: CROSSES: " + imRDD.filter(_.isCrosses).count())
+            log.info("DS-JEDAI: EQUALS: " + imRDD.filter(_.isEquals).count())
+            log.info("DS-JEDAI: INTERSECTS: " + imRDD.filter(_.isIntersects).count())
+            log.info("DS-JEDAI: OVERLAPS: " + imRDD.filter(_.isOverlaps).count())
+            log.info("DS-JEDAI: TOUCHES: " + imRDD.filter(_.isTouches).count())
+            log.info("DS-JEDAI: WITHIN: " + imRDD.filter(_.isWithin).count())
+        }
+        else{
+            val budget = conf.getBudget
+            val ws = conf.getWeightingScheme
+            val theta = conf.getTheta
+            val IMs = ComparisonCentricPrioritization(source, target, theta, ws).getDE9IM.take(budget)
+            var detectedLinks = 0
+            var interlinkedGeometries = 0
+            for (i <- IMs.indices){
+                val im = IMs(i)
+                var relate = false
+
+                if (i % 10000 == 0)
+                    log.info("DS-JEDAI: Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks)
+
+                if(im.isContains){
+                    relate = true
+                    detectedLinks += 1
+                    containsArray = containsArray :+ im.idPair
+                }
+
+                if(im.isCoveredBy){
+                    relate = true
+                    detectedLinks += 1
+                    coveredByArray = coveredByArray :+ im.idPair
+                }
+
+                if(im.isCovers){
+                    relate = true
+                    detectedLinks += 1
+                    coversArray = coversArray :+ im.idPair
+                }
+
+                if(im.isCrosses){
+                    relate = true
+                    detectedLinks += 1
+                    crossesArray = crossesArray :+ im.idPair
+                }
+
+                if(im.isEquals){
+                    relate = true
+                    detectedLinks += 1
+                    equalsArray = equalsArray :+ im.idPair
+                }
+
+                if(im.isIntersects){
+                    relate = true
+                    detectedLinks += 1
+                    intersectsArray = intersectsArray :+ im.idPair
+                }
+
+                if(im.isOverlaps){
+                    relate = true
+                    detectedLinks += 1
+                    overlapsArray = overlapsArray :+ im.idPair
+                }
+
+                if(im.isTouches){
+                    relate = true
+                    detectedLinks += 1
+                    touchesArray = touchesArray :+ im.idPair
+                }
+
+                if(im.isWithin){
+                    relate = true
+                    detectedLinks += 1
+                    withinArray = withinArray :+ im.idPair
+                }
+
+                if(relate)
+                    interlinkedGeometries += 1
+
+            }
+
+            log.info("\n")
+            log.info("DS-JEDAI: CONTAINS: " + containsArray.length)
+            log.info("DS-JEDAI: COVERED BY: " + coveredByArray.length)
+            log.info("DS-JEDAI: COVERS: " + coversArray.length)
+            log.info("DS-JEDAI: CROSSES: " + crossesArray.length)
+            log.info("DS-JEDAI: EQUALS: " + equalsArray.length)
+            log.info("DS-JEDAI: INTERSECTS: " + intersectsArray.length)
+            log.info("DS-JEDAI: OVERLAPS: " + overlapsArray.length)
+            log.info("DS-JEDAI: TOUCHES: " + touchesArray.length)
+            log.info("DS-JEDAI: WITHIN: " + withinArray.length + "\n")
+
+        }
 
         val matching_endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: DE-9IM Time: " + (matching_endTime - matching_startTime) / 1000.0)

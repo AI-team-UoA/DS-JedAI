@@ -1,13 +1,13 @@
 package EntityMatching.PartitionMatching
 
 
-import DataStructures.SpatialEntity
+import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Constants.WeightStrategy.WeightStrategy
-import utils.{Constants, Utils}
+import utils.Utils
 import utils.Readers.SpatialReader
 
 
@@ -70,7 +70,41 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
         .map(_._2)
         .map(c => ((c._1.originalID, c._2.originalID), c._1.mbb.testMBB(c._2.mbb, relation) && c._1.relate(c._2, relation)))
     }
+
+
+
+    def getDE9IM: RDD[IM] ={
+        joinedRDD.flatMap { p =>
+            val partitionId = p._1
+            val source = p._2._1.toArray
+            val target = p._2._2.toIterator
+            val sourceIndex = index(source, partitionId)
+
+            target
+                .map(e2 => (e2.index(thetaXY, zoneCheck(partitionId)), e2))
+                .flatMap { case (coordsAr: Array[(Int, Int)], e2: SpatialEntity) =>
+                    val sIndices = coordsAr
+                        .filter(c => sourceIndex.contains(c))
+                        .map(c => (c, sourceIndex.get(c)))
+                    val frequency = Array.fill(source.length)(0)
+                    sIndices.flatMap(_._2).foreach(i => frequency(i) += 1)
+
+                    sIndices.flatMap { case (c, indices) =>
+                        indices.map(i => (source(i), frequency(i)))
+                            .filter { case (e1, _) => e1.mbb.referencePointFiltering(e2.mbb, c, thetaXY) }
+                            .map { case (e1, f) => (getWeight(f, e1, e2), (e1, e2)) }
+                    }
+                }
+        }
+        .sortByKey(ascending = false)
+        .map(_._2)
+        .map(c => IM(c._1, c._2))
+    }
+
 }
+
+
+
 
 
 /**

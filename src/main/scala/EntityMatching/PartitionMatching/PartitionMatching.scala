@@ -3,11 +3,11 @@ package EntityMatching.PartitionMatching
 import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
-import utils.Constants.{Relation, WeightStrategy}
+import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Constants.WeightStrategy.WeightStrategy
-import utils.{Constants, Utils}
+import utils.Utils
 import utils.Readers.SpatialReader
 
 case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Iterable[SpatialEntity]))],
