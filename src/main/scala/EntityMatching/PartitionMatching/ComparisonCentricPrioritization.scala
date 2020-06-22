@@ -86,6 +86,8 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
                     val sIndices = coordsAr
                         .filter(c => sourceIndex.contains(c))
                         .map(c => (c, sourceIndex.get(c)))
+
+                    val fsz = sIndices.flatMap(_._2).groupBy(identity).mapValues(_.length).size
                     val frequency = Array.fill(source.length)(0)
                     sIndices.flatMap(_._2).foreach(i => frequency(i) += 1)
 
