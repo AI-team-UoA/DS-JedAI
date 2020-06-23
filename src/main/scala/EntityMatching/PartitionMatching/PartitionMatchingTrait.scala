@@ -46,17 +46,17 @@ trait PartitionMatchingTrait {
         else {
             // we are in the top-right corner - no other partition can possible claiming it
             if (spaceEdges.maxX == b._1 && spaceEdges.maxY == b._2)
-                true
+               math.ceil(partitionsZones(pid).maxX) == spaceEdges.maxX &&  math.ceil(partitionsZones(pid).maxY) == spaceEdges.maxY
             // we are in the right edge of the whole space
             else if (spaceEdges.maxX == b._1)
-                partitionsZones(pid).minY < b._2 + 0.5 && partitionsZones(pid).maxY > b._2 + 0.5
+                partitionsZones(pid).minY < b._2 && partitionsZones(pid).maxY > b._2
             // we are in the top edge of the whole space
             else if (spaceEdges.maxY == b._2)
-                partitionsZones(pid).minX < b._1 + 0.5 && partitionsZones(pid).maxX > b._1 + 0.5
+                partitionsZones(pid).minX < b._1 && partitionsZones(pid).maxX > b._1
             // the partition does not touches the edges of space - so we just see if the examined block is in the partition
             else {
-                (partitionsZones(pid).minX < b._1 + 0.5 && partitionsZones(pid).maxX > b._1 + 0.5) &&
-                    (partitionsZones(pid).minY < b._2 + 0.5 && partitionsZones(pid).maxY > b._2 + 0.5)
+                (partitionsZones(pid).minX-1 < b._1 && partitionsZones(pid).maxX+1 > b._1) &&
+                    (partitionsZones(pid).minY-1 < b._2 && partitionsZones(pid).maxY+1 > b._2)
             }
         }
     }

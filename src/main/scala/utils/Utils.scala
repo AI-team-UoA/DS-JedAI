@@ -202,10 +202,10 @@ object Utils {
 		val (thetaX, thetaY) = thetaXY
 
 		partitionsZones.map(mbb => {
-			val maxX = math.ceil(mbb.maxX / thetaX).toInt
-			val minX = math.floor(mbb.minX / thetaX).toInt
-			val maxY = math.ceil(mbb.maxY / thetaY).toInt
-			val minY = math.floor(mbb.minY / thetaY).toInt
+			val maxX = mbb.maxX / thetaX
+			val minX = mbb.minX / thetaX
+			val maxY = mbb.maxY / thetaY
+			val minY = mbb.minY / thetaY
 
 			MBB(maxX, minX, maxY, minY)
 		})
