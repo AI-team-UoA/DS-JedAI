@@ -76,7 +76,7 @@ object PartitionMatching{
 
         val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
 
-        Utils.printPartition(joinedRDD)
+        //Utils.printPartition(joinedRDD)
         PartitionMatching(joinedRDD, thetaXY, null)
     }
 }
