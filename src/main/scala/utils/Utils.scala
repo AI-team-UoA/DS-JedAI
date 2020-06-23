@@ -202,10 +202,10 @@ object Utils {
 		val (thetaX, thetaY) = thetaXY
 
 		partitionsZones.map(mbb => {
-			val maxX = math.ceil(mbb.maxX / thetaX).toInt
-			val minX = math.floor(mbb.minX / thetaX).toInt
-			val maxY = math.ceil(mbb.maxY / thetaY).toInt
-			val minY = math.floor(mbb.minY / thetaY).toInt
+			val maxX = (mbb.maxX / thetaX)
+			val minX = (mbb.minX / thetaX)
+			val maxY = (mbb.maxY / thetaY)
+			val minY = (mbb.minY / thetaY)
 
 			MBB(maxX, minX, maxY, minY)
 		})
@@ -217,7 +217,7 @@ object Utils {
 		val maxX = SpatialReader.partitionsZones.map(p => p.maxX / thetaX).max
 		val minY = SpatialReader.partitionsZones.map(p => p.minY / thetaY).min
 		val maxY = SpatialReader.partitionsZones.map(p => p.maxY / thetaY).max
-		MBB(math.ceil(maxX).toInt, math.floor(minX).toInt, math.ceil(maxY).toInt, math.floor(minY).toInt)
+		MBB((maxX), (minX), (maxY), (minY))
 	}
 
 	def normalizeWeight(weight: Double, geom1: Geometry, geom2: Geometry): Double ={
