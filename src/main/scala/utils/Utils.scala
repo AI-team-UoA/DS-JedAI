@@ -1,7 +1,7 @@
 package utils
 
 
-import DataStructures.{MBB, SpatialEntity}
+import DataStructures.{IM, MBB, SpatialEntity}
 import com.vividsolutions.jts.geom.Geometry
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.TaskContext
@@ -14,6 +14,7 @@ import utils.Constants.Relation.Relation
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Readers.SpatialReader
 
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 /**
@@ -216,7 +217,7 @@ object Utils {
 		val maxX = SpatialReader.partitionsZones.map(p => p.maxX / thetaX).max
 		val minY = SpatialReader.partitionsZones.map(p => p.minY / thetaY).min
 		val maxY = SpatialReader.partitionsZones.map(p => p.maxY / thetaY).max
-		MBB(maxX, minX, maxY, minY)
+		MBB(math.ceil(maxX).toInt, math.floor(minX).toInt, math.ceil(maxY).toInt, math.floor(minY).toInt)
 	}
 
 	def normalizeWeight(weight: Double, geom1: Geometry, geom2: Geometry): Double ={
@@ -231,9 +232,14 @@ object Utils {
 		val c = joinedRDD.map(p => (p._1, (p._2._1.size, p._2._2.size))).sortByKey().collect()
 		log.info("Printing Partitions")
 		log.info("----------------------------------------------------------------------------")
-		c.foreach(p => log.info(p._1 + " ->  (" + p._2._1 + ", " + p._2._2 +  ") - " + getZones(p._1).toString ))
+		var pSet = mutable.HashSet[String]()
+		c.foreach(p => {
+			val zoneStr = getZones(p._1).toString
+			pSet += zoneStr
+			log.info(p._1 + " ->  (" + p._2._1 + ", " + p._2._2 +  ") - " + zoneStr)
+		})
 		log.info("----------------------------------------------------------------------------")
-
+		log.info("Unique blocks: " + pSet.size)
 	}
 
 }
