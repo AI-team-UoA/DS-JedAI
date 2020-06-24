@@ -3,6 +3,7 @@ package utils
 import net.jcazevedo.moultingyaml.DefaultYamlProtocol
 import net.jcazevedo.moultingyaml._
 import org.apache.log4j.{LogManager, Logger}
+import org.apache.spark.SparkContext
 import utils.Constants.MatchingAlgorithm.MatchingAlgorithm
 import utils.Constants.BlockingAlgorithm.BlockingAlgorithm
 import utils.Constants.GridType.GridType
@@ -138,8 +139,7 @@ object ConfigurationParser {
 	}
 
 	def parse(conf_path:String): Configuration ={
-		val bufferedConf = Source.fromFile(conf_path)
-		val yaml_str = bufferedConf.getLines().mkString("\n")
+		val yaml_str = SparkContext.getOrCreate().textFile(conf_path).collect().mkString("\n")
 		val conf = yaml_str.parseYaml.convertTo[Configuration]
 		checkConfigurations(conf)
 
