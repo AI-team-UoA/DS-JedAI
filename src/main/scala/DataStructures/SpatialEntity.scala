@@ -2,7 +2,6 @@ package DataStructures
 
 import com.vividsolutions.jts.geom.{Geometry, IntersectionMatrix}
 import com.vividsolutions.jts.io.WKTReader
-import utils.Constants
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 

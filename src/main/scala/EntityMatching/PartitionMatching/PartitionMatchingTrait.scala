@@ -55,8 +55,8 @@ trait PartitionMatchingTrait {
                 partitionsZones(pid).minX < b._1 && partitionsZones(pid).maxX > b._1
             // the partition does not touches the edges of space - so we just see if the examined block is in the partition
             else {
-                (partitionsZones(pid).minX-1 < b._1 && partitionsZones(pid).maxX+1 > b._1) &&
-                    (partitionsZones(pid).minY-1 < b._2 && partitionsZones(pid).maxY+1 > b._2)
+                (partitionsZones(pid).minX < b._1+0.5 && partitionsZones(pid).maxX > b._1+0.5) &&
+                    (partitionsZones(pid).minY < b._2+0.5 && partitionsZones(pid).maxY > b._2+0.5)
             }
         }
     }
