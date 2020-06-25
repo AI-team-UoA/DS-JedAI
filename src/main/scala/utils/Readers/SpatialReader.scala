@@ -65,6 +65,7 @@ object SpatialReader extends TReader {
 
         val inputDF = spark.read.format("csv")
             .option("delimiter", delimiter)
+            .option("quote", "\"")
             .option("header", header)
             .load(filepath)
             .filter(r =>  ! r.getAs(geometryField).asInstanceOf[String].contains("EMPTY"))
