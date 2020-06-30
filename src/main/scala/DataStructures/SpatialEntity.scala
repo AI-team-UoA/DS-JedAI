@@ -42,6 +42,8 @@ case class SpatialEntity(id: Int, originalID: String = "", geometry: Geometry,  
     def index(thetaXY: (Double, Double), filter: ((Int, Int)) => Boolean = (_:(Int,Int)) => true): Array[(Int, Int)] = {
         val (thetaX, thetaY) = thetaXY
 
+        if (mbb.minX == 0 && mbb.maxX == 0 && mbb.minY == 0 && mbb.maxY == 0)
+            Array((0,0))
         val maxX = math.ceil(mbb.maxX / thetaX).toInt
         val minX = math.floor(mbb.minX / thetaX).toInt
         val maxY = math.ceil(mbb.maxY / thetaY).toInt

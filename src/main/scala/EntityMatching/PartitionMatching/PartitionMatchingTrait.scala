@@ -39,24 +39,25 @@ trait PartitionMatchingTrait {
      */
     def zoneCheck(pid: Int)(b: (Int, Int)): Boolean = {
 
+
         // the block is inside its partition
         if (partitionsZones(pid).minX < b._1 && partitionsZones(pid).maxX > b._1 && partitionsZones(pid).minY < b._2 && partitionsZones(pid).maxY > b._2)
             true
         // the block is on the edges of the partitions
         else {
             // we are in the top-right corner - no other partition can possible claiming it
-            if (spaceEdges.maxX == b._1 && spaceEdges.maxY == b._2)
-               math.ceil(partitionsZones(pid).maxX) == spaceEdges.maxX &&  math.ceil(partitionsZones(pid).maxY) == spaceEdges.maxY
+             if (spaceEdges.maxX == b._1 && spaceEdges.maxY == b._2)
+               true
             // we are in the right edge of the whole space
             else if (spaceEdges.maxX == b._1)
-                partitionsZones(pid).minY < b._2 && partitionsZones(pid).maxY > b._2
+                partitionsZones(pid).minY < b._2+0.001 && partitionsZones(pid).maxY > b._2+0.001
             // we are in the top edge of the whole space
             else if (spaceEdges.maxY == b._2)
-                partitionsZones(pid).minX < b._1 && partitionsZones(pid).maxX > b._1
+                partitionsZones(pid).minX < b._1+0.001 && partitionsZones(pid).maxX > b._1+0.001
             // the partition does not touches the edges of space - so we just see if the examined block is in the partition
             else {
-                (partitionsZones(pid).minX < b._1+0.5 && partitionsZones(pid).maxX > b._1+0.5) &&
-                    (partitionsZones(pid).minY < b._2+0.5 && partitionsZones(pid).maxY > b._2+0.5)
+                (partitionsZones(pid).minX < b._1+0.01 && partitionsZones(pid).maxX > b._1+0.01) &&
+                    (partitionsZones(pid).minY < b._2+0.001 && partitionsZones(pid).maxY > b._2+0.001)
             }
         }
     }

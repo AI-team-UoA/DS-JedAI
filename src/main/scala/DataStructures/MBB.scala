@@ -37,13 +37,8 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
         val maxY1 = maxY / thetaY
         val maxY2 = mbb.maxY / thetaY
 
-        val rf: (Double, Double) = (math.max(minX1, minX2), math.min(maxY1, maxY2))
-        rf._1 >= b._1 && rf._1 < b._1+1 && rf._2 >= b._2 & rf._2 < b._2+1
-
-         // val rf: (Double, Double) = (math.max(minX1, minX2) + .5, math.min(maxY1, maxY2) + .5)
-        // val p2 = rf._1 == b._1+1 || rf._2 == b._2+1
-        // (p1 || p2) && (!p1 || !p2) // XOR
-        // rf._1 >= b._1 && rf._1 < b._1+1 && rf._2 >= b._2 & rf._2 < b._2+1
+        val rf: (Int, Int) =(math.max(minX1, minX2).toInt, math.min(maxY1, maxY2).toInt)
+        rf._1 == b._1 && rf._2 == b._2
     }
 
     /**
@@ -164,6 +159,16 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
         ! (contains(mbb) || intersects(mbb))
     }
 
+    def adjust(thetaXY: (Double, Double)) : MBB ={
+        val (thetaX, thetaY) = thetaXY
+
+        val maxX = this.maxX / thetaX
+        val minX = this.minX / thetaX
+        val maxY = this.maxY / thetaY
+        val minY = this.minY / thetaY
+
+        MBB(maxX, minX, maxY, minY)
+    }
 }
 
 object  MBB {
