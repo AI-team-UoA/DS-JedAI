@@ -49,22 +49,21 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
             val source = p._2._1.toArray
             val target = p._2._2.toIterator
             val sourceIndex = index(source, partitionId)
+            val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
 
-            target
-                .map(e2 => (e2.index(thetaXY, zoneCheck(partitionId)), e2))
-                .flatMap { case (coordsAr: Array[(Int, Int)], e2: SpatialEntity) =>
-                    val sIndices = coordsAr
-                        .filter(c => sourceIndex.contains(c))
-                        .map(c => (c, sourceIndex.get(c)))
-                    val frequency = Array.fill(source.length)(0)
-                    sIndices.flatMap(_._2).foreach(i => frequency(i) += 1)
+            target.flatMap { targetSE =>
+                val sIndices = targetSE
+                    .index(thetaXY, filteringFunction)
+                    .map(c => (c, sourceIndex.get(c)))
+                val frequency = Array.fill(source.length)(0)
+                sIndices.flatMap(_._2).foreach(i => frequency(i) += 1)
 
-                    sIndices.flatMap { case (c, indices) =>
-                        indices.map(i => (source(i), frequency(i)))
-                            .filter { case (e1, _) => e1.mbb.referencePointFiltering(e2.mbb, c, thetaXY) }
-                            .map { case (e1, f) => (getWeight(f, e1, e2), (e1, e2)) }
-                    }
+                sIndices.flatMap { case (c, indices) =>
+                    indices.map(i => (source(i), frequency(i)))
+                        .filter { case (e1, _) => e1.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY) }
+                        .map { case (e1, f) => (getWeight(f, e1, targetSE), (e1, targetSE)) }
                 }
+            }
         }
         .sortByKey(ascending = false)
         .map(_._2)
@@ -79,23 +78,21 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
             val source = p._2._1.toArray
             val target = p._2._2.toIterator
             val sourceIndex = index(source, partitionId)
+            val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
 
-            target
-                .map(e2 => (e2.index(thetaXY, zoneCheck(partitionId)), e2))
-                .flatMap { case (coordsAr: Array[(Int, Int)], e2: SpatialEntity) =>
-                    val sIndices = coordsAr
-                        .filter(c => sourceIndex.contains(c))
-                        .map(c => (c, sourceIndex.get(c)))
+            target.flatMap { targetSE =>
+                val sIndices = targetSE
+                    .index(thetaXY, filteringFunction)
+                    .map(c => (c, sourceIndex.get(c)))
+                val frequency = Array.fill(source.length)(0)
+                sIndices.flatMap(_._2).foreach(i => frequency(i) += 1)
 
-                    val frequencies = Array.fill(source.length)(0)
-                    sIndices.flatMap(_._2).foreach(i => frequencies(i) += 1)
-
-                    sIndices.flatMap { case (c, indices) =>
-                        indices.map(i => (source(i), frequencies(i)))
-                            .filter { case (e1, _) => e1.mbb.referencePointFiltering(e2.mbb, c, thetaXY) }
-                            .map { case (e1, f) => (getWeight(f, e1, e2), (e1, e2)) }
-                    }
+                sIndices.flatMap { case (c, indices) =>
+                    indices.map(i => (source(i), frequency(i)))
+                        .filter { case (e1, _) => e1.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY) }
+                        .map { case (e1, f) => (getWeight(f, e1, targetSE), (e1, targetSE)) }
                 }
+            }
         }
         .map{case (w, c) => (w, IM(c._1, c._2))}
         .sortByKey(ascending = false)

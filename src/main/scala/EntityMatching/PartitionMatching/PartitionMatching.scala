@@ -48,16 +48,14 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
             val sourceIndex = index(source, partitionId)
             val filteringFunction = (b:(Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
 
-            target
-                .map(se => (se.index(thetaXY, filteringFunction) , se))
-                .flatMap { case (coordsAr: Array[(Int, Int)], se: SpatialEntity) =>
-                    coordsAr
-                        .flatMap(c => sourceIndex.get(c).map(j => (source(j), se, c)))
-                }
-                .filter { case (e1: SpatialEntity, e2: SpatialEntity, b: (Int, Int)) =>
-                    e1.mbb.testMBB(e2.mbb, Relation.INTERSECTS) && e1.mbb.referencePointFiltering(e2.mbb, b, thetaXY)
-                }
-                .map(c => IM(c._1, c._2))
+            target.flatMap { targetSE =>
+                targetSE
+                    .index(thetaXY, filteringFunction)
+                    .flatMap(c => sourceIndex.get(c).map(j => (c, source(j))))
+                    .filter { case (c, se) => se.mbb.testMBB(targetSE.mbb, Relation.INTERSECTS) && se.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY) }
+                    .map(_._2)
+                    .map(se => IM(se, targetSE))
+            }
         }
     }
 }
