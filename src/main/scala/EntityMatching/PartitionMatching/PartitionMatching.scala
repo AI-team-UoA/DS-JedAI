@@ -26,19 +26,17 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
             val source: Array[SpatialEntity] = p._2._1.toArray
             val target: Iterator[SpatialEntity] = p._2._2.toIterator
             val sourceIndex = index(source, partitionId)
-            val filteringFunction = (b:(Int, Int)) => zoneCheck(partitionId)(b) && sourceIndex.contains(b)
+            val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
 
-            target
-                .map(se => (se.index(thetaXY, filteringFunction) , se))
-                .flatMap { case (coordsAr: Array[(Int, Int)], se: SpatialEntity) =>
-                    coordsAr
-                        .flatMap(c => sourceIndex.get(c).map(j => (source(j), se, c)))
-                }
-                .filter { case (e1: SpatialEntity, e2: SpatialEntity, b: (Int, Int)) =>
-                    e1.mbb.testMBB(e2.mbb, relation) && e1.mbb.referencePointFiltering(e2.mbb, b, thetaXY)
-                }
-                .filter(c => c._1.relate(c._2, relation))
-                .map(c => (c._1.originalID, c._2.originalID))
+            target.flatMap{ targetSE =>
+                targetSE
+                    .index(thetaXY, filteringFunction)
+                    .flatMap(c => sourceIndex.get(c).map(j => (c, source(j))))
+                    .filter{case(c, se) => se.mbb.testMBB(targetSE.mbb, relation)  && se.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY)}
+                    .map(_._2)
+                    .filter(se => se.relate(targetSE, relation))
+                    .map(se => (se.originalID, targetSE.originalID))
+            }
         }
     }
 
@@ -48,7 +46,7 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
             val source: Array[SpatialEntity] = p._2._1.toArray
             val target: Iterator[SpatialEntity] = p._2._2.toIterator
             val sourceIndex = index(source, partitionId)
-            val filteringFunction = (b:(Int, Int)) => zoneCheck(partitionId)(b) && sourceIndex.contains(b)
+            val filteringFunction = (b:(Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
 
             target
                 .map(se => (se.index(thetaXY, filteringFunction) , se))
@@ -70,7 +68,7 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
 object PartitionMatching{
 
     def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption): PartitionMatching ={
-       val thetaXY = Utils.initTheta(source, target, thetaOption)
+        val thetaXY = Utils.initTheta(source, target, thetaOption)
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
 
