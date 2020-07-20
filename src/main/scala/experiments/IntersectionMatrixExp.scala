@@ -88,16 +88,6 @@ object IntersectionMatrixExp {
             val imRDD = PartitionMatching(source, target, conf.getTheta).getDE9IM
                 .setName("IntersectionMatrixRDD").persist(StorageLevel.MEMORY_AND_DISK)
 
-            /*containsArray = imRDD.filter(_.isContains).map(im => im.idPair).collect()
-            coveredByArray = imRDD.filter(_.isCoveredBy).map(im => im.idPair).collect()
-            coversArray = imRDD.filter(_.isCovers).map(im => im.idPair).collect()
-            crossesArray = imRDD.filter(_.isCrosses).map(im => im.idPair).collect()
-            equalsArray = imRDD.filter(_.isEquals).map(im => im.idPair).collect()
-            intersectsArray = imRDD.filter(_.isIntersects).map(im => im.idPair).collect()
-            overlapsArray = imRDD.filter(_.isOverlaps).map(im => im.idPair).collect()
-            touchesArray = imRDD.filter(_.isTouches).map(im => im.idPair).collect()
-            withinArray = imRDD.filter(_.isWithin).map(im => im.idPair).collect()*/
-
             log.info("DS-JEDAI: CONTAINS: " + imRDD.filter(_.isContains).count())
             log.info("DS-JEDAI: COVERED BY: " + imRDD.filter(_.isCoveredBy).count())
             log.info("DS-JEDAI: COVERS: " + imRDD.filter(_.isCovers).count())
@@ -119,10 +109,9 @@ object IntersectionMatrixExp {
             var i:Int = 0
             IMsIter
                 .foreach(im => {
-
                     var relate = false
                     if (i % 10000 == 0)
-                        log.info("DS-JEDAI: Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks)
+                        log.info("DS-JEDAI: Iteration: " + i +" Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks )
 
                     if (im.isContains) {
                         relate = true

@@ -39,7 +39,6 @@ trait PartitionMatchingTrait {
      */
     def zoneCheck(pid: Int)(b: (Int, Int)): Boolean = {
 
-
         // the block is inside its partition
         if (partitionsZones(pid).minX < b._1 && partitionsZones(pid).maxX > b._1 && partitionsZones(pid).minY < b._2 && partitionsZones(pid).maxY > b._2)
             true

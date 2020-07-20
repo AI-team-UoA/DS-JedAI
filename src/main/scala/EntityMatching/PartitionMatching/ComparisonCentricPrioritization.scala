@@ -1,14 +1,20 @@
 package EntityMatching.PartitionMatching
 
 
+import java.util
+
 import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
+import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
 import utils.Readers.SpatialReader
+
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 
 case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
@@ -44,60 +50,64 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
      * @return  an RDD of pair of IDs and boolean that indicate if the relation holds
      */
     def takeBudget(relation: Relation, budget: Long): RDD[((String, String), Boolean)] ={
-        joinedRDD.flatMap { p =>
-            val partitionId = p._1
-            val source = p._2._1.toArray
-            val target = p._2._2.toIterator
-            val sourceIndex = index(source, partitionId)
-            val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
+        joinedRDD
+            .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
+            .flatMap { p =>
+                val partitionId = p._1
+                val source = p._2._1.toArray
+                val target = p._2._2.toIterator
+                val sourceIndex = index(source, partitionId)
+                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
 
-            target.flatMap { targetSE =>
-                val sIndices = targetSE
-                    .index(thetaXY, filteringFunction)
-                    .map(c => (c, sourceIndex.get(c)))
-                val frequency = Array.fill(source.length)(0)
-                sIndices.flatMap(_._2).foreach(i => frequency(i) += 1)
+                target.map(targetSE => (targetSE, targetSE.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))))
+                    .filter(_._2.length > 0)
+                    .flatMap { case(targetSE: SpatialEntity, sIndices:  Array[((Int, Int), ArrayBuffer[Int])]) =>
 
-                sIndices.flatMap { case (c, indices) =>
-                    indices.map(i => (source(i), frequency(i)))
-                        .filter { case (e1, _) => e1.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY) }
-                        .map { case (e1, f) => (getWeight(f, e1, targetSE), (e1, targetSE)) }
+                    val frequency = Array.fill(source.length)(0)
+                    sIndices.flatMap(_._2).foreach(i => frequency(i) += 1)
+
+                    sIndices.flatMap { case (c, indices) =>
+                        indices.map(i => (source(i), frequency(i)))
+                            .filter { case (e1, _) => e1.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY) }
+                            .map { case (e1, f) => (getWeight(f, e1, targetSE), (e1, targetSE)) }
+                    }
                 }
             }
-        }
-        .sortByKey(ascending = false)
-        .map(_._2)
-        .map(c => ((c._1.originalID, c._2.originalID), c._1.mbb.testMBB(c._2.mbb, relation) && c._1.relate(c._2, relation)))
+            .sortByKey(ascending = false)
+            .map(_._2)
+            .map(c => ((c._1.originalID, c._2.originalID), c._1.mbb.testMBB(c._2.mbb, relation) && c._1.relate(c._2, relation)))
     }
 
 
 
     def getDE9IM: RDD[IM] ={
-        joinedRDD.flatMap { p =>
-            val partitionId = p._1
-            val source = p._2._1.toArray
-            val target = p._2._2.toIterator
-            val sourceIndex = index(source, partitionId)
-            val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
+        joinedRDD
+            .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
+            .flatMap { p =>
+                val partitionId = p._1
+                val source = p._2._1.toArray
+                val target = p._2._2.toIterator
+                val sourceIndex = index(source, partitionId)
+                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
+                val frequencies = new Array[Int](source.length)
 
-            target.flatMap { targetSE =>
-                val sIndices = targetSE
-                    .index(thetaXY, filteringFunction)
-                    .map(c => (c, sourceIndex.get(c)))
-                val frequency = Array.fill(source.length)(0)
-                sIndices.flatMap(_._2).foreach(i => frequency(i) += 1)
+                target
+                    .map(targetSE => (targetSE, targetSE.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))))
+                    .filter(_._2.length > 0)
+                    .flatMap { case(targetSE: SpatialEntity, sIndices:  Array[((Int, Int), ArrayBuffer[Int])]) =>
 
-                sIndices.flatMap { case (c, indices) =>
-                    indices.map(i => (source(i), frequency(i)))
-                        .filter { case (e1, _) => e1.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY) }
-                        .map { case (e1, f) => (getWeight(f, e1, targetSE), (e1, targetSE)) }
-                }
+                        util.Arrays.fill(frequencies, 0)
+                        sIndices.flatMap(_._2).foreach(i => frequencies(i) += 1)
+                        sIndices.flatMap { case (c, indices) =>
+                            indices.map(i => (source(i), frequencies(i)))
+                                .filter { case (e1, _) => e1.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY) && e1.mbb.testMBB(targetSE.mbb, Relation.INTERSECTS )}
+                                .map { case (e1, f) => (getWeight(f, e1, targetSE), (e1, targetSE)) }
+                        }
+                    }
             }
-        }
-        .map{case (w, c) => (w, IM(c._1, c._2))}
-        .sortByKey(ascending = false)
-        .map(_._2)
-
+            .map{case (w, c) => (w, IM(c._1, c._2))}
+            .sortByKey(ascending = false)
+            .map(_._2)
     }
 
 }
