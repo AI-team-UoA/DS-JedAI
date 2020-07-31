@@ -1,36 +1,22 @@
 package EntityMatching.PartitionMatching
 
-import DataStructures.SpatialEntity
+import java.util
+
+import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Constants.WeightStrategy.WeightStrategy
-import utils.Utils
+import utils.{Constants, Utils}
 import utils.Readers.SpatialReader
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
-                                           thetaXY: (Double, Double), ws: WeightStrategy, targetCount: Long) extends PartitionMatchingTrait {
+                                           thetaXY: (Double, Double), ws: WeightStrategy, targetCount: Long, budget: Long) extends ProgressiveTrait {
 
-
-    def apply(relation: Relation): RDD[(String, String)] = {
-        val comparisons = takeBudget(relation, Utils.targetCount*Utils.sourceCount)
-        comparisons.filter(_._2).map(_._1)
-    }
-
-    /**
-     * Get the first budget comparisons, and finds the marches in them.
-     *
-     * @param relation examined relation
-     * @param budget the no comparisons will be implemented
-     * @return the number of matches the relation holds
-     */
-    override def applyWithBudget(relation: Relation, budget: Int): Long = {
-        val comparisons = takeBudget(relation, Utils.targetCount*Utils.sourceCount)
-        comparisons.take(budget).count(_._2)
-    }
 
     /**
      * Similar to the ComparisonCentric, but instead of executing all the comparisons of target,
@@ -39,87 +25,149 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
      * and sorts based on that.
      *
      * @param relation the examining relation
-     * @param budget the number of comparisons to implement
      * @return  an RDD of pair of IDs and boolean that indicate if the relation holds
      */
-    def takeBudget(relation: Relation, budget:Long): RDD[((String, String), Boolean)] = {
+    def getComparisons(relation: Relation): RDD[((String, String), Boolean)] = {
+        // WARNING: we take K from each target, what if a se has fewer than K candidates?
         val k = budget / targetCount
         joinedRDD
+            .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
                 val partitionId = p._1
                 val source: Array[SpatialEntity] = p._2._1.toArray
-                val target: Array[SpatialEntity] = p._2._2.toArray
+                val target: Iterator[SpatialEntity] = p._2._2.toIterator
                 val sourceIndex = index(source, partitionId)
                 val sourceSize = source.length
-                val targetsCoords = target.zipWithIndex.map { case (e2, i) =>
-                    val coords = e2.index(thetaXY, (b:(Int, Int)) => zoneCheck(partitionId)(b) && sourceIndex.contains(b))
-                    (i, coords)
-                }
+                val frequencies = new Array[Int](sourceSize)
+                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
+                val pq = mutable.PriorityQueue[(Double, Int)]()(Ordering.by[(Double, Int), Double](_._1).reverse)
 
-                val comparisons = for ((j, coords) <- targetsCoords.filter(_._2.nonEmpty)) yield {
-                    val e2: SpatialEntity = target(j)
+                target
+                    .map {e2 =>
+                        val sIndices:Array[((Int, Int), ArrayBuffer[Int])] = e2.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))
+                        util.Arrays.fill(frequencies, 0)
+                        sIndices.flatMap(_._2)foreach(i => frequencies(i) += 1)
 
-                    val sIndicesList = coords.map(c => sourceIndex.get(c))
-                    val frequency = Array.fill(sourceSize)(0)
-                    sIndicesList.flatten.foreach(i => frequency(i) += 1)
+                        var wSum = 0d
+                        sIndices
+                            .flatMap{ case (c, indices) => indices.filter(i => source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY))}
+                            .foreach { i =>
+                                val e1 = source(i)
+                                val f = frequencies(i)
+                                val w = getWeight(f, e1, e2)
+                                wSum += w
+                                pq.enqueue((w, i))
+                            }
+                        val weight = if (pq.nonEmpty) wSum / pq.length else -1d
+                        val sz = if (k < pq.length) k.toInt else pq.length
 
-                    var wSum = 0d
-                    val pq = mutable.PriorityQueue[(Double, Int)]()(Ordering.by[(Double, Int), Double](_._1).reverse)
-                    for (k <- sIndicesList.indices) {
-                        val c = coords(k)
-                        val sIndices = sIndicesList(k).filter(i => source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY))
-                        for (i <- sIndices) {
-                            val e1 = source(i)
-                            val f = frequency(i)
-                            val w = getWeight(f, e1, e2)
-                            wSum += w
-                            pq.enqueue((w, i))
-                        }
+                        val weightedComparisons = for (_ <- 0 until sz) yield pq.dequeue()
+                        pq.clear()
+                        val topComparisons = weightedComparisons.map(_._2).map(i => (source(i), e2))
+                        (weight, topComparisons.toIterator)
                     }
-                    val weight = if (pq.nonEmpty) wSum / pq.length else -1d
-                    val sz = if (k < pq.length) k.toInt else pq.length
-                    val weightedComparisons = for (_ <- 0 until sz) yield pq.dequeue()
-                    val topComparisons = weightedComparisons.map(_._2).map(i => (source(i), e2))
-                    (weight, topComparisons.toIterator)
-                }
-                comparisons.filter(_._1 >= 0d)
+                    .filter(_._1 >= 0d)
             }
-
             // sort the comparisons based on their mean weight
             .sortByKey(ascending = false)
-            .map(_._2)
-            .mapPartitions { comparisonsIter =>
-                val comparisonsArIter = comparisonsIter.toArray
+            .map(p => p._2)
+            .mapPartitions { comparisonsIter: Iterator[Iterator[(SpatialEntity, SpatialEntity)]] =>
                 var pairs: List[((String, String), Boolean)] = List()
 
                 var converge: Boolean = false
                 while (!converge) {
                     converge = true
-                    for (comparisonIter <- comparisonsArIter) {
+                    for (comparisonIter <- comparisonsIter) {
                         if (comparisonIter.hasNext) {
                             converge = false
                             val (e1, e2) = comparisonIter.next()
                             val isMatch = e1.mbb.testMBB(e2.mbb, relation) && e1.relate(e2, relation)
-                            pairs = pairs :+ ((e1.originalID, e2.originalID), isMatch) //WARNING: very expensive could lead to OOM
+                            pairs = pairs :+ ((e1.originalID, e2.originalID), isMatch)
                         }
                     }
                 }
                 pairs.toIterator
             }
     }
+
+    def getDE9IM: RDD[IM] = {
+
+        val k = budget / targetCount
+        joinedRDD
+            .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
+            .flatMap { p =>
+                val partitionId = p._1
+                val source: Array[SpatialEntity] = p._2._1.toArray
+                val target: Iterator[SpatialEntity] = p._2._2.toIterator
+                val sourceIndex = index(source, partitionId)
+                val sourceSize = source.length
+                val frequencies = new Array[Int](sourceSize)
+                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
+                val pq = mutable.PriorityQueue[(Double, Int)]()(Ordering.by[(Double, Int), Double](_._1).reverse)
+
+                target
+                    .map {e2 =>
+                        val sIndices:Array[((Int, Int), ArrayBuffer[Int])] = e2.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))
+                        util.Arrays.fill(frequencies, 0)
+                        sIndices.flatMap(_._2)foreach(i => frequencies(i) += 1)
+
+                        var wSum = 0d
+                        sIndices
+                            .flatMap{ case (c, indices) => indices.filter(i => source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY))}
+                            .foreach { i =>
+                                val e1 = source(i)
+                                val f = frequencies(i)
+                                val w = getWeight(f, e1, e2)
+                                wSum += w
+                                pq.enqueue((w, i))
+                            }
+                        val weight = if (pq.nonEmpty) wSum / pq.length else -1d
+                        val sz = if (k < pq.length) k.toInt else pq.length
+
+                        val weightedComparisons = for (_ <- 0 until sz) yield pq.dequeue()
+                        pq.clear()
+                        val topIM = weightedComparisons
+                            .map(_._2)
+                            .filter(i => source(i).mbb.testMBB(e2.mbb, Constants.Relation.INTERSECTS))
+                            .map(i => IM(source(i), e2))
+                        (weight, topIM.toIterator)
+                    }
+                    .filter(_._1 >= 0d)
+            }
+            // sort the comparisons based on their mean weight
+            .sortByKey(ascending = false)
+            .map(p => p._2)
+            .mapPartitions { imIterIter: Iterator[Iterator[IM]] =>
+                var pairs: List[IM] = List()
+
+                var converge: Boolean = false
+                while (!converge) {
+                    converge = true
+                    for (imIter <- imIterIter) {
+                        if (imIter.hasNext) {
+                            converge = false
+                            val im = imIter.next()
+                            pairs = pairs :+ im
+                        }
+                    }
+                }
+                pairs.toIterator
+            }
+    }
+
 }
 
 object IterativeEntityCentricPrioritization{
 
     def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption,
-              ws: WeightStrategy): IterativeEntityCentricPrioritization ={
+              ws: WeightStrategy, budget: Long): IterativeEntityCentricPrioritization ={
         val thetaXY = Utils.initTheta(source, target, thetaOption)
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
 
         val targetCount = Utils.targetCount
         val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
-        IterativeEntityCentricPrioritization(joinedRDD, thetaXY, ws, targetCount)
+        IterativeEntityCentricPrioritization(joinedRDD, thetaXY, ws, targetCount, budget)
     }
 
 }
