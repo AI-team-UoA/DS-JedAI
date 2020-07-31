@@ -12,8 +12,11 @@ target:
 relation: "contains"
 
 configurations:
+  partitions: "5"
   blockingAlg: "RADON"
   spatialPartition: "false"
   theta_measure: "avg2"
-  matchingAlg: "SPATIAL"
-  weighting_strategy: "JS"
+  matchingAlg: "ΕΝΤΙΤΥ_CENTRIC"
+  weighting_strategy: "CBS"
+  budget: "1000000"
+  gridType: "KDBTREE"

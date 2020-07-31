@@ -1,15 +1,15 @@
 name := "DS-JedAI"
 version := "0.1"
 scalaVersion := "2.11.12"
-val sparkVersion = "2.4.5"
+val sparkVersion = "2.4.3"
 
 
 
 libraryDependencies ++= Seq(
-	"net.sansa-stack" %% "sansa-rdf-spark" % "0.7.1",
+	// α"net.sansa-stack" %% "sansa-rdf-spark" % "0.7.1",
 	"org.apache.spark" %%  "spark-core" % sparkVersion % Provided,
 	"org.apache.spark" %%  "spark-sql" % sparkVersion  % Provided,
-	"org.apache.spark" %% "spark-mllib" % sparkVersion % Provided,
+	//"org.apache.spark" %% "spark-mllib" % sparkVersion % Provided,
 	"org.scalanlp" %% "breeze" % "1.0"
 )
 

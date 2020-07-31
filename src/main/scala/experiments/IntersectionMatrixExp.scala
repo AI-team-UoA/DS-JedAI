@@ -102,7 +102,7 @@ object IntersectionMatrixExp {
             val budget = conf.getBudget
             val ws = conf.getWeightingScheme
             val theta = conf.getTheta
-            val IMsIter = ComparisonCentricPrioritization(source, target, theta, ws).getDE9IM.take(budget).toIterator
+            val IMsIter = ComparisonCentricPrioritization(source, target, theta, ws, budget).getDE9IMBudget
             var detectedLinks = 0
             var interlinkedGeometries = 0
 
@@ -171,6 +171,7 @@ object IntersectionMatrixExp {
                         interlinkedGeometries += 1
                     i += 1
                 })
+            log.info("DS-JEDAI: Iteration: " + i +" Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks )
             log.info("\n")
             log.info("DS-JEDAI: CONTAINS: " + containsArray.length)
             log.info("DS-JEDAI: COVERED BY: " + coveredByArray.length)

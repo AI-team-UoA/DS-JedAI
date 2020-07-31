@@ -16,13 +16,14 @@ object PartitionMatchingFactory {
         val algorithm = conf.getMatchingAlgorithm
         val ws = conf.getWeightingScheme
         val theta_msr = conf.getTheta
+        val budget = conf.getBudget
         algorithm match {
             case MatchingAlgorithm.COMPARISON_CENTRIC =>
                 log.info("Matching Algorithm: " + MatchingAlgorithm.COMPARISON_CENTRIC)
-                ComparisonCentricPrioritization(source, target, theta_msr, ws)
+                ComparisonCentricPrioritization(source, target, theta_msr, ws, budget)
             case MatchingAlgorithm.ΕΝΤΙΤΥ_CENTRIC =>
                 log.info("Matching Algorithm: " + MatchingAlgorithm.ΕΝΤΙΤΥ_CENTRIC)
-                EntityCentricPrioritization(source, target, theta_msr, ws)
+                EntityCentricPrioritization(source, target, theta_msr, ws, budget)
             case MatchingAlgorithm.ITERATIVE_ΕΝΤΙΤΥ_CENTRIC =>
                 log.info("Matching Algorithm: " + MatchingAlgorithm.ITERATIVE_ΕΝΤΙΤΥ_CENTRIC)
                 IterativeEntityCentricPrioritization(source, target, theta_msr, ws)

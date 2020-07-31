@@ -1,6 +1,6 @@
 package EntityMatching.PartitionMatching
 
-import DataStructures.{MBB, SpatialEntity, SpatialIndex}
+import DataStructures.{IM, MBB, SpatialEntity, SpatialIndex}
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
@@ -114,10 +114,7 @@ trait PartitionMatchingTrait {
 
     def apply(relation: Relation): RDD[(String, String)]
 
-    def applyWithBudget(relation: Relation, budget: Int): Long = {
-        val comparisons = apply(relation)
-        comparisons.take(budget).length
-    }
+    def getDE9IM: RDD[IM]
 }
 
 
