@@ -1,9 +1,8 @@
 package EntityMatching.LightAlgorithms
 
-import DataStructures.SpatialEntity
+import DataStructures.{IM, SpatialEntity}
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
-import utils.Constants
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightStrategy
 import utils.Constants.WeightStrategy.WeightStrategy
@@ -19,6 +18,8 @@ trait LightMatchingTrait {
     val thetaXY: (Double, Double)
 
     def matchTargetData(relation: Relation, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)]
+
+    def getDE9IM(idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[IM]
 
     /**
      * start LightRADON algorithm

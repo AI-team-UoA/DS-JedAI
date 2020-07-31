@@ -1,12 +1,12 @@
 package EntityMatching.LightAlgorithms
 
-import DataStructures.SpatialEntity
+import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
 import utils.Constants.ThetaOption
 import utils.Constants.ThetaOption.ThetaOption
-import utils.Utils
+import utils.{Constants, Utils}
 
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
@@ -32,12 +32,12 @@ case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEnt
      *
      * @param relation the examined relation
      * @param idStart target ids starting value
-     * @param blocksMap HashMap of targets blocks
+     * @param targetBlocksMap HashMap of targets blocks
      * @return an RDD of matches
      */
-   def matchTargetData(relation: Relation, idStart: Int, blocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)] = {
+   def matchTargetData(relation: Relation, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)] = {
        val sc = SparkContext.getOrCreate()
-       val blocksMapBD = sc.broadcast(blocksMap)
+       val blocksMapBD = sc.broadcast(targetBlocksMap)
        val collectedBD = sc.broadcast(target)
 
        source
@@ -55,6 +55,29 @@ case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEnt
                            .filter(tse => se.mbb.testMBB(tse.mbb, relation))
                            .filter(tse => se.relate(tse, relation))
                            .map(tse => (se.originalID, tse.originalID))
+                   }
+           }
+   }
+
+   def getDE9IM(idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[IM] = {
+       val sc = SparkContext.getOrCreate()
+       val blocksMapBD = sc.broadcast(targetBlocksMap)
+       val collectedBD = sc.broadcast(target)
+
+       source
+           .map(se => (se, se.index(thetaXY)))
+           .flatMap { case (se, blocksArray) =>
+               val compared = mutable.HashSet[Int]()
+               val blocksMap = blocksMapBD.value
+               blocksArray
+                   .filter(blocksMap.contains)
+                   .flatMap { block =>
+                       val entitiesIDs = blocksMap(block).filter(id => !compared.contains(id))
+                       compared ++= entitiesIDs
+                       entitiesIDs
+                           .map(id => collectedBD.value(id - idStart))
+                           .filter(tse => se.mbb.testMBB(tse.mbb, Constants.Relation.INTERSECTS))
+                           .map(tse => IM(se, tse))
                    }
            }
    }
