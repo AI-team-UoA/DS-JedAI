@@ -2,7 +2,7 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.PartitionMatching.{ComparisonCentricPrioritization, PartitionMatching}
+import EntityMatching.PartitionMatching.{PartitionMatching, PartitionMatchingFactory}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
@@ -11,7 +11,7 @@ import org.apache.spark.storage.StorageLevel
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import utils.Constants.MatchingAlgorithm
 import utils.Readers.SpatialReader
-import utils.{ConfigurationParser, Utils}
+import utils.{Configuration, ConfigurationParser, Utils}
 
 object IntersectionMatrixExp {
     def main(args: Array[String]): Unit = {
@@ -99,10 +99,7 @@ object IntersectionMatrixExp {
             log.info("DS-JEDAI: WITHIN: " + imRDD.filter(_.isWithin).count())
         }
         else{
-            val budget = conf.getBudget
-            val ws = conf.getWeightingScheme
-            val theta = conf.getTheta
-            val IMsIter = ComparisonCentricPrioritization(source, target, theta, ws, budget).getDE9IMBudget
+            val IMsIter = PartitionMatchingFactory.getProgressiveAlgorithm(conf: Configuration, source, target).getDE9IMBudget
             var detectedLinks = 0
             var interlinkedGeometries = 0
 
