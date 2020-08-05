@@ -2,7 +2,11 @@ package DataStructures
 
 case class IM(idPair: (String, String), isContains: Boolean, isCoveredBy: Boolean, isCovers: Boolean,
               isCrosses: Boolean, isEquals: Boolean, isIntersects: Boolean, isOverlaps: Boolean, isTouches: Boolean,
-              isWithin: Boolean)
+              isWithin: Boolean){
+
+    def relate: Boolean =
+        isContains|| isCoveredBy || isCovers || isCrosses || isEquals || isIntersects || isOverlaps || isTouches || isWithin
+}
 
 object IM{
     def apply(e1: SpatialEntity, e2: SpatialEntity): IM ={

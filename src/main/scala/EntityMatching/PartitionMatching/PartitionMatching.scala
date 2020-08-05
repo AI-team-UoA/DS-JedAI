@@ -67,7 +67,7 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
 
         // todo adjust on theta
         val mbbRDD = joinedRDD.flatMap(p => p._2._1.map(se => se.mbb) ++ p._2._2.map(se => se.mbb)).persist(StorageLevel.MEMORY_AND_DISK)
-        val mbbMinX = mbbRDD.map(mbb => mbb.minX).min()
+        val mbbMinX = math.floor(mbbRDD.map(mbb => mbb.minX).min())
         val mbbMinY = mbbRDD.map(mbb => mbb.minY).min()
         val mbbMaxX = mbbRDD.map(mbb => mbb.maxX).max()
         val mbbMaxY = mbbRDD.map(mbb => mbb.maxY).max()
@@ -95,11 +95,14 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
         val pairsTiles = allComparisonsRDD.count()
         val uniquePairs = allComparisonsRDD.filter{case (c, (sSE, tSE)) => sSE.mbb.referencePointFiltering(tSE.mbb, c, thetaXY)}.count()
         val intersectingPairs = allComparisonsRDD.filter{case (c, (sSE, tSE)) => sSE.mbb.testMBB(tSE.mbb, Relation.INTERSECTS)}.count()
-        val truePairs = allComparisonsRDD.filter{case (c, (sSE, tSE)) => sSE.mbb.referencePointFiltering(tSE.mbb, c, thetaXY) && sSE.mbb.testMBB(tSE.mbb, Relation.INTERSECTS)}.count()
+        val truePairs = allComparisonsRDD
+            .filter{case (c, (sSE, tSE)) => sSE.mbb.referencePointFiltering(tSE.mbb, c, thetaXY) && sSE.mbb.testMBB(tSE.mbb, Relation.INTERSECTS)}
+            .filter{case (c, (sSE, tSE)) => IM(sSE, tSE).relate}
+            .count()
         log.info("Pairs Tiles: " + pairsTiles)
         log.info("Unique Pairs: " + uniquePairs)
         log.info("Intersecting Pairs: " + intersectingPairs)
-        log.info("Intersecting Pairs: " + truePairs)
+        log.info("True Pairs: " + truePairs)
     }
 }
 
