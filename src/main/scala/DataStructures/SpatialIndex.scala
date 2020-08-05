@@ -1,7 +1,7 @@
 package DataStructures
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.collection.Set
 
 class SpatialIndex(){
@@ -29,4 +29,9 @@ class SpatialIndex(){
     def asKeys: mutable.HashMap[Int, Set[Int]] =
        index.map(i => i._1 -> i._2.keySet)
 
+    def getIndices: ArrayBuffer[(Int, Int)] ={
+        val indices = ArrayBuffer[(Int, Int)]()
+        index.foreach{ case(i1, indicesSet) => indicesSet.keysIterator.foreach(i2 => indices.append((i1, i2)))}
+        indices
+    }
 }
