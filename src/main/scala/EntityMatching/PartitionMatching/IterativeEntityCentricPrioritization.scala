@@ -5,10 +5,11 @@ import java.util
 import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
+import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Constants.WeightStrategy.WeightStrategy
-import utils.{Constants, Utils}
+import utils.Utils
 import utils.Readers.SpatialReader
 
 import scala.collection.mutable
@@ -128,7 +129,7 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
                         pq.clear()
                         val topIM = weightedComparisons
                             .map(_._2)
-                            .filter(i => source(i).mbb.testMBB(e2.mbb, Constants.Relation.INTERSECTS))
+                            .filter(i => source(i).mbb.testMBB(e2.mbb, Relation.INTERSECTS, Relation.TOUCHES))
                             .map(i => IM(source(i), e2))
                         (weight, topIM.toIterator)
                     }

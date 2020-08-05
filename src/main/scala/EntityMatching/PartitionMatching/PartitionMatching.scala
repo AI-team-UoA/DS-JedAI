@@ -54,7 +54,7 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
                 targetSE
                     .index(thetaXY, filteringFunction)
                     .flatMap(c => sourceIndex.get(c).map(j => (c, source(j))))
-                    .filter { case (c, se) => se.mbb.testMBB(targetSE.mbb, Relation.INTERSECTS) && se.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY) }
+                    .filter { case (c, se) => se.mbb.testMBB(targetSE.mbb, Relation.INTERSECTS, Relation.TOUCHES) && se.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY) }
                     .map(_._2)
                     .map(se => IM(se, targetSE))
             }
@@ -94,9 +94,9 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
 
         val pairsTiles = allComparisonsRDD.count()
         val uniquePairs = allComparisonsRDD.filter{case (c, (sSE, tSE)) => sSE.mbb.referencePointFiltering(tSE.mbb, c, thetaXY)}.count()
-        val intersectingPairs = allComparisonsRDD.filter{case (c, (sSE, tSE)) => sSE.mbb.testMBB(tSE.mbb, Relation.INTERSECTS)}.count()
+        val intersectingPairs = allComparisonsRDD.filter{case (c, (sSE, tSE)) => sSE.mbb.testMBB(tSE.mbb, Relation.INTERSECTS, Relation.TOUCHES)}.count()
         val truePairs = allComparisonsRDD
-            .filter{case (c, (sSE, tSE)) => sSE.mbb.referencePointFiltering(tSE.mbb, c, thetaXY) && sSE.mbb.testMBB(tSE.mbb, Relation.INTERSECTS)}
+            .filter{case (c, (sSE, tSE)) => sSE.mbb.referencePointFiltering(tSE.mbb, c, thetaXY) && sSE.mbb.testMBB(tSE.mbb, Relation.INTERSECTS, Relation.TOUCHES)}
             .filter{case (c, (sSE, tSE)) => IM(sSE, tSE).relate}
             .count()
         log.info("Pairs Tiles: " + pairsTiles)
@@ -118,7 +118,7 @@ object PartitionMatching{
 
         val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
 
-        //Utils.printPartition(joinedRDD)
+        Utils.printPartition(joinedRDD)
         PartitionMatching(joinedRDD, thetaXY, null)
     }
 }

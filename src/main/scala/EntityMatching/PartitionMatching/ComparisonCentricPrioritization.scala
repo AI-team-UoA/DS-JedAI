@@ -83,7 +83,7 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
                         sIndices.flatMap(_._2).foreach(i => frequencies(i) += 1)
                         sIndices.flatMap { case (c, indices) =>
                             indices.map(i => (source(i), frequencies(i)))
-                                .filter { case (e1, _) => e1.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY) && e1.mbb.testMBB(targetSE.mbb, Relation.INTERSECTS )}
+                                .filter { case (e1, _) => e1.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY) && e1.mbb.testMBB(targetSE.mbb, Relation.INTERSECTS, Relation.TOUCHES)}
                                 .map { case (e1, f) => (getWeight(f, e1, targetSE), (e1, targetSE)) }
                         }
                     }

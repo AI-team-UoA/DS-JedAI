@@ -45,11 +45,11 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      *  check relation among MBBs
      *
      * @param mbb MBB to examine
-     * @param relation requested relation
+     * @param relations requested relations
      * @return whether the relation is true
      */
-    def testMBB(mbb:MBB, relation: Relation): Boolean ={
-        relation match {
+    def testMBB(mbb:MBB, relations: Relation*): Boolean ={
+        relations.map {
             case Relation.CONTAINS | Relation.COVERS =>
                 contains(mbb)
             case Relation.WITHIN | Relation.COVEREDBY =>
@@ -60,7 +60,8 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
             case Relation.DISJOINT => disjoint(mbb)
             case Relation.EQUALS => equals(mbb)
             case _ => false
-        }
+        }.reduce( _ || _)
+
     }
 
     /**

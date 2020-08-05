@@ -5,9 +5,9 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
 import utils.Constants.ThetaOption.ThetaOption
-import utils.Constants.{ThetaOption, WeightStrategy}
+import utils.Constants.{Relation, ThetaOption, WeightStrategy}
 import utils.Constants.WeightStrategy.WeightStrategy
-import utils.{Constants, Utils}
+import utils.Utils
 
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
@@ -111,7 +111,7 @@ case class IterativeEntityCentricPrioritization(source: RDD[SpatialEntity], targ
                     if (c._2.hasNext) {
                         converged = false
                         val (e1, e2) = (c._1, c._2.next())
-                        if (e1.mbb.testMBB(e2.mbb, Constants.Relation.INTERSECTS))
+                        if (e1.mbb.testMBB(e2.mbb, Relation.INTERSECTS, Relation.TOUCHES))
                             IMs.append(IM(e1, e2))
                     }
                 }

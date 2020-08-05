@@ -4,10 +4,10 @@ import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
-import utils.Constants.{ThetaOption, WeightStrategy}
+import utils.Constants.{Relation, ThetaOption, WeightStrategy}
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Constants.WeightStrategy.WeightStrategy
-import utils.{Constants, Utils}
+import utils.Utils
 
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
@@ -82,7 +82,7 @@ case class ComparisonCentricPrioritization(source: RDD[SpatialEntity], target: A
                 }
                 .sortBy(_._1)(Ordering.Double.reverse)
                 .map(p => (sourceAr(p._2._1), targetBD.value(p._2._2 - idStart)))
-                .filter(c => c._1.mbb.testMBB(c._2.mbb, Constants.Relation.INTERSECTS))
+                .filter(c => c._1.mbb.testMBB(c._2.mbb, Relation.INTERSECTS, Relation.TOUCHES))
                 .map(c => IM(c._1, c._2))
                 .toIterator
         }

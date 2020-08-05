@@ -5,10 +5,11 @@ import java.util
 import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
+import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Constants.WeightStrategy.WeightStrategy
-import utils.{Constants, Utils}
+import utils.Utils
 import utils.Readers.SpatialReader
 
 import scala.collection.mutable
@@ -95,7 +96,7 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
                     var wSum = 0d
                     sIndices
                         .flatMap{ case (c, indices) =>
-                            indices.filter(i => source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY) && source(i).mbb.testMBB(e2.mbb, Constants.Relation.INTERSECTS))}
+                            indices.filter(i => source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY) && source(i).mbb.testMBB(e2.mbb, Relation.INTERSECTS, Relation.TOUCHES))}
                         .foreach { i =>
                             val e1 = source(i)
                             val f = frequencies(i)
