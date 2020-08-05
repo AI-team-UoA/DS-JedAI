@@ -68,9 +68,9 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
         // todo adjust on theta
         val mbbRDD = joinedRDD.flatMap(p => p._2._1.map(se => se.mbb) ++ p._2._2.map(se => se.mbb)).persist(StorageLevel.MEMORY_AND_DISK)
         val mbbMinX = math.floor(mbbRDD.map(mbb => mbb.minX).min())
-        val mbbMinY = mbbRDD.map(mbb => mbb.minY).min()
-        val mbbMaxX = mbbRDD.map(mbb => mbb.maxX).max()
-        val mbbMaxY = mbbRDD.map(mbb => mbb.maxY).max()
+        val mbbMinY = math.floor(mbbRDD.map(mbb => mbb.minY).min())
+        val mbbMaxX = math.ceil(mbbRDD.map(mbb => mbb.maxX).max())
+        val mbbMaxY = math.ceil(mbbRDD.map(mbb => mbb.maxY).max())
         val totalTiles = (mbbMaxX - mbbMinX)*(mbbMaxY - mbbMinY)
         log.info("Total Tiles: " + totalTiles)
         mbbRDD.unpersist()
