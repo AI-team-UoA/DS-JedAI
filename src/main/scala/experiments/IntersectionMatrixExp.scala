@@ -85,7 +85,9 @@ object IntersectionMatrixExp {
 
         val ma = conf.getMatchingAlgorithm
         if (ma == MatchingAlgorithm.SPATIAL) {
-            val imRDD = PartitionMatching(source, target, conf.getTheta).getDE9IM
+            val pm = PartitionMatching(source, target, conf.getTheta)
+            pm.printSpaceInfo()
+            val imRDD = pm.getDE9IM
                 .setName("IntersectionMatrixRDD").persist(StorageLevel.MEMORY_AND_DISK)
 
             log.info("DS-JEDAI: CONTAINS: " + imRDD.filter(_.isContains).count())
