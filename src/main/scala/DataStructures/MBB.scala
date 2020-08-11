@@ -4,7 +4,7 @@ import com.vividsolutions.jts.geom.{Coordinate, Envelope, Geometry, GeometryFact
 import utils.Constants
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
-
+import math._
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
@@ -37,8 +37,22 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
         val maxY1 = maxY / thetaY
         val maxY2 = mbb.maxY / thetaY
 
-        val rf: (Int, Int) =(math.max(minX1, minX2).toInt, math.min(maxY1, maxY2).toInt)
-        rf._1 == b._1 && rf._2 == b._2
+        val rf: (Double, Double) =(max(minX1, minX2), min(maxY1, maxY2))
+        rf._1 < b._1 && rf._1+1 >= b._1 && rf._2 < b._2 && rf._2+1 >= b._2
+    }
+
+    def referencePointFiltering(mbb:MBB, b:(Int, Int), thetaXY: (Double, Double), partition: MBB): Boolean ={
+        val (thetaX, thetaY) = thetaXY
+
+        val minX1 = minX / thetaX
+        val minX2 = mbb.minX / thetaX
+        val maxY1 = maxY / thetaY
+        val maxY2 = mbb.maxY / thetaY
+
+        val rf: (Double, Double) =(max(minX1, minX2)+.0001, min(maxY1, maxY2)+.0001)
+        val rfMBB = MBB(rf._1, rf._2)
+        val blockMBB = MBB(b._1+1, b._1, b._2+1, b._2)
+        blockMBB.contains(rfMBB) && partition.contains(rfMBB)
     }
 
     /**
@@ -68,12 +82,17 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * convert MBB into jts.Geometry
      * @return jts.Geometry
      */
-    def getGeometry: Geometry ={
-        val coordsList: List[(Double, Double)] = List((minX, minY), (minX, maxY), (maxX, maxY), (maxX, minY), (minX, minY))
-        val coordsAr: Array[Coordinate] = coordsList.map(c => new Coordinate(c._1, c._2)).toArray
+    def getGeometry: Geometry = {
         val gf: GeometryFactory = new GeometryFactory()
-        gf.createPolygon(coordsAr)
+        if (minX == maxX)
+            gf.createPoint(new Coordinate(minX, minY))
+        else {
+            val coordsList: List[(Double, Double)] = List((minX, minY), (minX, maxY), (maxX, maxY), (maxX, minY), (minX, minY))
+            val coordsAr: Array[Coordinate] = coordsList.map(c => new Coordinate(c._1, c._2)).toArray
+            gf.createPolygon(coordsAr)
+        }
     }
+
 
     override def toString: String =
         "(" + minX.toString  + ", " + maxX.toString +"), ("+ minY.toString  + ", " + maxY.toString +")"
@@ -180,5 +199,9 @@ object  MBB {
 
     def apply(env: Envelope): MBB ={
         MBB(env.getMaxX, env.getMinX, env.getMaxY, env.getMinY)
+    }
+
+    def apply(x:Double, y:Double): MBB ={
+       MBB(x, x, y, y)
     }
 }

@@ -2,7 +2,7 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.PartitionMatching.{PartitionMatching, PartitionMatchingFactory}
+import EntityMatching.PartitionMatching.PartitionMatchingFactory
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
@@ -11,6 +11,7 @@ import org.apache.spark.storage.StorageLevel
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import utils.{ConfigurationParser, Utils}
 import utils.Readers.SpatialReader
+
 
 object PartitionExp {
 
@@ -72,10 +73,9 @@ object PartitionExp {
         val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.getRelation, sourceCount, targetCount)
 
         val matching_startTime = Calendar.getInstance().getTimeInMillis
-        val matcher = PartitionMatchingFactory.getMatchingAlgorithm(conf, source, target)
-        val matches = matcher.apply(relation)
-        log.info("DS-JEDAI: Matches: " + matches.count)
+        val matches = PartitionMatchingFactory.getMatchingAlgorithm(conf, source, target).apply(relation)
 
+        log.info("DS-JEDAI: Matches: " + matches.count())
         val matching_endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Matching Time: " + (matching_endTime - matching_startTime) / 1000.0)
 
