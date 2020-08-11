@@ -12,6 +12,7 @@ import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
 import utils.Readers.SpatialReader
 
+
 case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Iterable[SpatialEntity]))],
                              thetaXY: (Double, Double), ws: WeightStrategy)  extends  PartitionMatchingTrait {
 
@@ -24,17 +25,18 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
     def apply(relation: Relation): RDD[(String, String)] ={
         joinedRDD.filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty )
         .flatMap { p =>
-            val partitionId = p._1
+            val pid = p._1
+            val partition = partitionsZones(pid)
             val source: Array[SpatialEntity] = p._2._1.toArray
             val target: Iterator[SpatialEntity] = p._2._2.toIterator
-            val sourceIndex = index(source, partitionId)
-            val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
+            val sourceIndex = index(source)
+            val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
 
             target.flatMap{ targetSE =>
                 targetSE
                     .index(thetaXY, filteringFunction)
                     .flatMap(c => sourceIndex.get(c).map(j => (c, source(j))))
-                    .filter{case(c, se) => se.mbb.testMBB(targetSE.mbb, relation)  && se.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY)}
+                    .filter{case(c, se) => se.mbb.testMBB(targetSE.mbb, relation) && se.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY, partition)}
                     .map(_._2)
                     .filter(se => se.relate(targetSE, relation))
                     .map(se => (se.originalID, targetSE.originalID))
@@ -42,19 +44,21 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
         }
     }
 
+
     def getDE9IM: RDD[IM] ={
         joinedRDD.flatMap { p =>
-            val partitionId = p._1
+            val pid = p._1
+            val partition = partitionsZones(pid)
             val source: Array[SpatialEntity] = p._2._1.toArray
             val target: Iterator[SpatialEntity] = p._2._2.toIterator
-            val sourceIndex = index(source, partitionId)
-            val filteringFunction = (b:(Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
+            val sourceIndex = index(source)
+            val filteringFunction = (b:(Int, Int)) => sourceIndex.contains(b)
 
             target.flatMap { targetSE =>
                 targetSE
                     .index(thetaXY, filteringFunction)
                     .flatMap(c => sourceIndex.get(c).map(j => (c, source(j))))
-                    .filter { case (c, se) => se.mbb.testMBB(targetSE.mbb, Relation.INTERSECTS, Relation.TOUCHES) && se.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY) }
+                    .filter { case (c, se) => se.mbb.testMBB(targetSE.mbb, Relation.INTERSECTS, Relation.TOUCHES) && se.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY, partition) }
                     .map(_._2)
                     .map(se => IM(se, targetSE))
             }
@@ -74,15 +78,14 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
         val totalTiles = (mbbMaxX - mbbMinX)*(mbbMaxY - mbbMinY)
         log.info("Total Tiles: " + totalTiles)
         mbbRDD.unpersist()
-    
+
         val allComparisonsRDD: RDD[((Int, Int), (SpatialEntity, SpatialEntity))] = joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
-                val partitionId = p._1
                 val source: Array[SpatialEntity] = p._2._1.toArray
                 val target: Iterator[SpatialEntity] = p._2._2.toIterator
-                val sourceIndex = index(source, partitionId)
-                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
+                val sourceIndex = index(source)
+                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
 
                 target.flatMap { targetSE =>
                     targetSE
@@ -93,11 +96,13 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
             }
 
         val pairsTiles = allComparisonsRDD.count()
-        val uniquePairs = allComparisonsRDD.filter{case (c, (sSE, tSE)) => sSE.mbb.referencePointFiltering(tSE.mbb, c, thetaXY)}.count()
+        val uniquePairs = allComparisonsRDD.filter{case (c, (sSE, tSE)) => sSE.mbb.referencePointFiltering(tSE.mbb, c, thetaXY, partitionsZones(TaskContext.getPartitionId()))}.count()
         val intersectingPairs = allComparisonsRDD.filter{case (c, (sSE, tSE)) => sSE.mbb.testMBB(tSE.mbb, Relation.INTERSECTS, Relation.TOUCHES)}.count()
         val truePairs = allComparisonsRDD
-            .filter{case (c, (sSE, tSE)) => sSE.mbb.referencePointFiltering(tSE.mbb, c, thetaXY) && sSE.mbb.testMBB(tSE.mbb, Relation.INTERSECTS, Relation.TOUCHES)}
+            .filter{case (c, (sSE, tSE)) => sSE.mbb.referencePointFiltering(tSE.mbb, c, thetaXY, partitionsZones(TaskContext.getPartitionId())) && sSE.mbb.testMBB(tSE.mbb, Relation.INTERSECTS, Relation.TOUCHES)}
             .filter{case (c, (sSE, tSE)) => IM(sSE, tSE).relate}
+            .map { case (c, (sSE, tSE)) => (c, sSE.originalID, tSE.originalID)}
+            .distinct()
             .count()
         log.info("Pairs Tiles: " + pairsTiles)
         log.info("Unique Pairs: " + uniquePairs)
@@ -118,7 +123,7 @@ object PartitionMatching{
 
         val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
 
-        Utils.printPartition(joinedRDD)
+        // Utils.printPartition(joinedRDD)
         PartitionMatching(joinedRDD, thetaXY, null)
     }
 }

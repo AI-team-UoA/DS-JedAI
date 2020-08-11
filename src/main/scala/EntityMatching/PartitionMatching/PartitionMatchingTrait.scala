@@ -48,12 +48,12 @@ trait PartitionMatchingTrait {
              if (spaceEdges.maxX == b._1 && spaceEdges.maxY == b._2)
                true
             // we are in the right edge of the whole space
-            else if (spaceEdges.maxX == b._1)
+            else if (spaceEdges.maxX <= b._1 || spaceEdges.minX >= b._1)
                 partitionsZones(pid).minY < b._2+0.001 && partitionsZones(pid).maxY > b._2+0.001
             // we are in the top edge of the whole space
-            else if (spaceEdges.maxY == b._2)
+            else if (spaceEdges.maxY <= b._2 || spaceEdges.minY >= b._2)
                 partitionsZones(pid).minX < b._1+0.001 && partitionsZones(pid).maxX > b._1+0.001
-            // the partition does not touches the edges of space - so we just see if the examined block is in the partition
+             // the partition does not touches the edges of space - so we just see if the examined block is in the partition
             else {
                 (partitionsZones(pid).minX < b._1+0.01 && partitionsZones(pid).maxX > b._1+0.01) &&
                     (partitionsZones(pid).minY < b._2+0.001 && partitionsZones(pid).maxY > b._2+0.001)
@@ -65,13 +65,12 @@ trait PartitionMatchingTrait {
      * index a list of spatial entities
      *
      * @param entities list of spatial entities
-     * @param pid      partition's id to get partition's zone
      * @return a SpatialIndex
      */
-    def index(entities: Array[SpatialEntity], pid: Int): SpatialIndex = {
+    def index(entities: Array[SpatialEntity]): SpatialIndex = {
         val spatialIndex = new SpatialIndex()
         entities.zipWithIndex.foreach { case (se, index) =>
-            val indices: Array[(Int, Int)] = se.index(thetaXY, zoneCheck(pid))
+            val indices: Array[(Int, Int)] = se.index(thetaXY)
             indices.foreach(i => spatialIndex.insert(i, index))
         }
         spatialIndex

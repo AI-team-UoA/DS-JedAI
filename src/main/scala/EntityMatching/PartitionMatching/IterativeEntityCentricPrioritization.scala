@@ -34,13 +34,14 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
         joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
-                val partitionId = p._1
+                val pid = p._1
+                val partition = partitionsZones(pid)
                 val source: Array[SpatialEntity] = p._2._1.toArray
                 val target: Iterator[SpatialEntity] = p._2._2.toIterator
-                val sourceIndex = index(source, partitionId)
+                val sourceIndex = index(source)
                 val sourceSize = source.length
                 val frequencies = new Array[Int](sourceSize)
-                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
+                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
                 val pq = mutable.PriorityQueue[(Double, Int)]()(Ordering.by[(Double, Int), Double](_._1).reverse)
 
                 target
@@ -51,7 +52,7 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
 
                         var wSum = 0d
                         sIndices
-                            .flatMap{ case (c, indices) => indices.filter(i => source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY))}
+                            .flatMap{ case (c, indices) => indices.filter(i => source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY, partition))}
                             .foreach { i =>
                                 val e1 = source(i)
                                 val f = frequencies(i)
@@ -97,13 +98,14 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
         joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
-                val partitionId = p._1
+                val pid = p._1
+                val partition = partitionsZones(pid)
                 val source: Array[SpatialEntity] = p._2._1.toArray
                 val target: Iterator[SpatialEntity] = p._2._2.toIterator
-                val sourceIndex = index(source, partitionId)
+                val sourceIndex = index(source)
                 val sourceSize = source.length
                 val frequencies = new Array[Int](sourceSize)
-                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
+                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
                 val pq = mutable.PriorityQueue[(Double, Int)]()(Ordering.by[(Double, Int), Double](_._1).reverse)
 
                 target
@@ -114,7 +116,7 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
 
                         var wSum = 0d
                         sIndices
-                            .flatMap{ case (c, indices) => indices.filter(i => source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY))}
+                            .flatMap{ case (c, indices) => indices.filter(i => source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY, partition))}
                             .foreach { i =>
                                 val e1 = source(i)
                                 val f = frequencies(i)
