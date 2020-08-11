@@ -201,16 +201,21 @@ object Utils {
 		val partitionsZones = SpatialReader.partitionsZones
 		val (thetaX, thetaY) = thetaXY
 
-		val spaceMinX = math.floor(SpatialReader.partitionsZones.map(p => p.minX / thetaX).min).toInt
-		val spaceMaxX = math.ceil(SpatialReader.partitionsZones.map(p => p.maxX / thetaX).max).toInt
-		val spaceMinY = math.floor(SpatialReader.partitionsZones.map(p => p.minY / thetaY).min).toInt
-		val spaceMaxY = math.ceil(SpatialReader.partitionsZones.map(p => p.maxY / thetaY).max).toInt
+		val globalMinX = SpatialReader.partitionsZones.map(p => p.minX / thetaX).min
+		val globalMaxX = SpatialReader.partitionsZones.map(p => p.maxX / thetaX).max
+		val globalMinY = SpatialReader.partitionsZones.map(p => p.minY / thetaY).min
+		val globalMaxY = SpatialReader.partitionsZones.map(p => p.maxY / thetaY).max
+
+		val spaceMinX = math.floor(SpatialReader.partitionsZones.map(p => p.minX / thetaX).min).toInt - 1
+		val spaceMaxX = math.ceil(SpatialReader.partitionsZones.map(p => p.maxX / thetaX).max).toInt + 1
+		val spaceMinY = math.floor(SpatialReader.partitionsZones.map(p => p.minY / thetaY).min).toInt - 1
+		val spaceMaxY = math.ceil(SpatialReader.partitionsZones.map(p => p.maxY / thetaY).max).toInt + 1
 
 		partitionsZones.map(mbb => {
-			val maxX = if (mbb.maxX / thetaX == spaceMaxX) spaceMaxX else (mbb.maxX / thetaX).toInt + .1d
-			val minX = if (mbb.minX / thetaX == spaceMinX) spaceMinX else (mbb.minX / thetaX).toInt - .1d
-			val maxY = if (mbb.maxY / thetaY == spaceMaxY) spaceMaxY else (mbb.maxY / thetaY).toInt + .1d
-			val minY = if (mbb.minY / thetaY == spaceMinY) spaceMinY else (mbb.minY / thetaY).toInt - .1d
+			val minX = if (mbb.minX / thetaX == globalMinX) spaceMinX else mbb.minX / thetaX
+			val maxX = if (mbb.maxX / thetaX == globalMaxX) spaceMaxX else mbb.maxX / thetaX
+			val minY = if (mbb.minY / thetaY == globalMinY) spaceMinY else mbb.minY / thetaY
+			val maxY = if (mbb.maxY / thetaY == globalMaxY) spaceMaxY else 	mbb.maxY / thetaY
 
 			MBB(maxX, minX, maxY, minY)
 		})
@@ -218,10 +223,10 @@ object Utils {
 
 	def getSpaceEdges: MBB ={
 		val (thetaX, thetaY) = thetaXY
-		val minX = SpatialReader.partitionsZones.map(p => math.floor(p.minX / thetaX)).min.toInt
-		val maxX = SpatialReader.partitionsZones.map(p => math.ceil(p.maxX / thetaX)).max.toInt
-		val minY = SpatialReader.partitionsZones.map(p => math.floor(p.minY / thetaY)).min.toInt
-		val maxY = SpatialReader.partitionsZones.map(p => math.ceil(p.maxY / thetaY)).max.toInt
+		val minX = math.floor(SpatialReader.partitionsZones.map(p => p.minX / thetaX).min).toInt - 1
+		val maxX = math.ceil(SpatialReader.partitionsZones.map(p => p.maxX / thetaX).max).toInt + 1
+		val minY = math.floor(SpatialReader.partitionsZones.map(p => p.minY / thetaY).min).toInt - 1
+		val maxY = math.ceil(SpatialReader.partitionsZones.map(p => p.maxY / thetaY).max).toInt + 1
 		MBB(maxX, minX, maxY, minY)
 	}
 
@@ -239,7 +244,7 @@ object Utils {
 		log.info("----------------------------------------------------------------------------")
 		var pSet = mutable.HashSet[String]()
 		c.foreach(p => {
-			val zoneStr = getZones(p._1).toString
+			val zoneStr = getZones(p._1).getGeometry.toText
 			pSet += zoneStr
 			log.info(p._1 + " ->  (" + p._2._1 + ", " + p._2._2 +  ") - " + zoneStr)
 		})
