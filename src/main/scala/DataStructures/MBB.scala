@@ -29,6 +29,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param b the examined block
      * @return true if the reference point is in the block
      */
+    private[DataStructures]
     def referencePointFiltering(mbb:MBB, b:(Int, Int), thetaXY: (Double, Double)): Boolean ={
         val (thetaX, thetaY) = thetaXY
 
@@ -41,6 +42,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
         rf._1 < b._1 && rf._1+1 >= b._1 && rf._2 < b._2 && rf._2+1 >= b._2
     }
 
+    private[DataStructures]
     def referencePointFiltering(mbb:MBB, b:(Int, Int), thetaXY: (Double, Double), partition: MBB): Boolean ={
         val (thetaX, thetaY) = thetaXY
 
@@ -62,7 +64,8 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param relations requested relations
      * @return whether the relation is true
      */
-    def testMBB(mbb:MBB, relations: Relation*): Boolean ={
+    private[DataStructures]
+    def testMBB(mbb:MBB, relations: Seq[Relation]): Boolean ={
         relations.map {
             case Relation.CONTAINS | Relation.COVERS =>
                 contains(mbb)
@@ -130,6 +133,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param mbb given mbb
      * @return whether it's true
      */
+    private[DataStructures]
     def equals(mbb:MBB): Boolean ={
         minX == mbb.minX && maxX == mbb.maxX && minY == mbb.minY && maxY == mbb.maxY
     }
@@ -139,6 +143,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param mbb given mbb
      * @return whether it's true
      */
+    private[DataStructures]
     def contains(mbb:MBB): Boolean ={
         minX <= mbb.minX && maxX >= mbb.maxX && minY <= mbb.minY && maxY >= mbb.maxY
     }
@@ -148,6 +153,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param mbb given mbb
      * @return whether it's true
      */
+    private[DataStructures]
     def within(mbb: MBB):Boolean ={
         mbb.contains(this)
     }
@@ -157,6 +163,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param mbb given mbb
      * @return whether it's true
      */
+    private[DataStructures]
     def touches(mbb: MBB): Boolean ={
         maxX == mbb.maxX || minX == mbb.minX || maxY == mbb.maxY || minY == mbb.minY
     }
@@ -166,6 +173,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param mbb given mbb
      * @return whether it's true
      */
+    private[DataStructures]
     def intersects(mbb:MBB): Boolean ={
         maxX > mbb.minX && minX < mbb.maxX && maxY > mbb.minY && minY < mbb.maxY
     }
@@ -175,9 +183,11 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param mbb given mbb
      * @return whether it's true
      */
+    private[DataStructures]
     def disjoint(mbb:MBB): Boolean ={
         ! (contains(mbb) || intersects(mbb))
     }
+
 
     def adjust(thetaXY: (Double, Double)) : MBB ={
         val (thetaX, thetaY) = thetaXY

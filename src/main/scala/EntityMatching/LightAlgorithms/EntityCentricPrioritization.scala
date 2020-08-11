@@ -50,7 +50,7 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
                     weightedComparisons
                         .sortBy(_._1)(Ordering.Double.reverse)
                         .map(p => targetBD.value(p._2 - idStart))
-                        .filter(e2 => e1.mbb.testMBB(e2.mbb, relation))
+                        .filter(e2 => e1.testMBB(e2, relation))
                         .filter(e2 => e1.relate(e2, relation))
                         .map(e2 => (e1.originalID, e2.originalID))
                 }
@@ -95,7 +95,7 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
                     weightedComparisons
                         .sortBy(_._1)(Ordering.Double.reverse)
                         .map(p => targetBD.value(p._2 - idStart))
-                        .filter(e2 => e1.mbb.testMBB(e2.mbb, Relation.INTERSECTS, Relation.TOUCHES))
+                        .filter(e2 => e1.testMBB(e2, Relation.INTERSECTS, Relation.TOUCHES))
                         .map(e2 => IM(e1, e2))
                 }
                 .toIterator

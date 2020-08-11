@@ -48,7 +48,7 @@ case class Block(id: Long, coords: (Int, Int), source: ArrayBuffer[SpatialEntity
 	 * @return blocks comparisons after filtering
 	 */
 	def getFilteredComparisons(relation: Relation): ArrayBuffer[Comparison]={
-		for (s <-source; t <- target; if s.mbb.testMBB(t.mbb, relation) && s.mbb.referencePointFiltering(t.mbb, coords, Utils.thetaXY))
+		for (s <-source; t <- target; if s.testMBB(t, relation) && s.referencePointFiltering(t, coords, Utils.thetaXY))
 			yield Comparison(s, t)
 	}
 

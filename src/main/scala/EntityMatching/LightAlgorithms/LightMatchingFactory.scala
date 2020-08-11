@@ -4,7 +4,7 @@ import DataStructures.SpatialEntity
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import utils.Constants.{BlockingAlgorithm, MatchingAlgorithm}
-import utils.{Configuration, Constants}
+import utils.Configuration
 
 object LightMatchingFactory {
 

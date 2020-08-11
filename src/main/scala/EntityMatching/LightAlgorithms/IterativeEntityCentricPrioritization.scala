@@ -58,7 +58,7 @@ case class IterativeEntityCentricPrioritization(source: RDD[SpatialEntity], targ
                     if (c._2.hasNext) {
                         converged = false
                         val (e1, e2) = (c._1, c._2.next())
-                        if (e1.mbb.testMBB(e2.mbb, relation))
+                        if (e1.testMBB(e2, relation))
                             if (e1.relate(e2, relation))
                                 matches.append((e1.originalID, e2.originalID))
                     }
@@ -111,7 +111,7 @@ case class IterativeEntityCentricPrioritization(source: RDD[SpatialEntity], targ
                     if (c._2.hasNext) {
                         converged = false
                         val (e1, e2) = (c._1, c._2.next())
-                        if (e1.mbb.testMBB(e2.mbb, Relation.INTERSECTS, Relation.TOUCHES))
+                        if (e1.testMBB(e2, Relation.INTERSECTS, Relation.TOUCHES))
                             IMs.append(IM(e1, e2))
                     }
                 }

@@ -46,7 +46,7 @@ case class ComparisonCentricPrioritization(source: RDD[SpatialEntity], target: A
                 }
                 .sortBy(_._1)(Ordering.Double.reverse)
                 .map(p => (sourceAr(p._2._1), targetBD.value(p._2._2 - idStart)))
-                .filter(c => c._1.mbb.testMBB(c._2.mbb, relation))
+                .filter(c => c._1.testMBB(c._2, relation))
                 .filter(c => c._1.relate(c._2, relation))
                 .map(c => (c._1.originalID, c._2.originalID))
                 .toIterator
@@ -82,7 +82,7 @@ case class ComparisonCentricPrioritization(source: RDD[SpatialEntity], target: A
                 }
                 .sortBy(_._1)(Ordering.Double.reverse)
                 .map(p => (sourceAr(p._2._1), targetBD.value(p._2._2 - idStart)))
-                .filter(c => c._1.mbb.testMBB(c._2.mbb, Relation.INTERSECTS, Relation.TOUCHES))
+                .filter(c => c._1.testMBB(c._2, Relation.INTERSECTS, Relation.TOUCHES))
                 .map(c => IM(c._1, c._2))
                 .toIterator
         }

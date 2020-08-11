@@ -50,7 +50,7 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
 
                         var wSum = 0d
                         sIndices
-                            .flatMap{ case (c, indices) => indices.filter(i => source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY, partition))}
+                            .flatMap{ case (c, indices) => indices.filter(i => source(i).referencePointFiltering(e2, c, thetaXY, Some(partition)))}
                             .foreach { i =>
                                 val e1 = source(i)
                                 val f = frequencies(i)
@@ -71,7 +71,7 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
             // sort the comparisons based on their mean weight
             .sortByKey(ascending = false)
             .flatMap(_._2)
-            .map(c => ((c._1.originalID, c._2.originalID), c._1.mbb.testMBB(c._2.mbb, relation) && c._1.relate(c._2, relation)))
+            .map(c => ((c._1.originalID, c._2.originalID), c._1.testMBB(c._2, relation) && c._1.relate(c._2, relation)))
     }
 
     def getDE9IM: RDD[IM] = {
@@ -98,7 +98,7 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
                     var wSum = 0d
                     sIndices
                         .flatMap{ case (c, indices) =>
-                            indices.filter(i => source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY, partition) && source(i).mbb.testMBB(e2.mbb, Relation.INTERSECTS, Relation.TOUCHES))}
+                            indices.filter(i => source(i).referencePointFiltering(e2, c, thetaXY, Some(partition)) && source(i).testMBB(e2, Relation.INTERSECTS, Relation.TOUCHES))}
                         .foreach { i =>
                             val e1 = source(i)
                             val f = frequencies(i)

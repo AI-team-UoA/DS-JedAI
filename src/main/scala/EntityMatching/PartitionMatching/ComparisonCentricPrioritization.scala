@@ -33,12 +33,13 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
         joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
-                val partitionId = p._1
+                val pid = p._1
+                val partition = partitionsZones(pid)
                 val source = p._2._1.toArray
                 val target = p._2._2.toIterator
-                val sourceIndex = index(source, partitionId)
+                val sourceIndex = index(source)
                 val frequencies = new Array[Int](source.length)
-                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
+                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
 
                 target
                     .map(targetSE => (targetSE, targetSE.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))))
@@ -51,7 +52,7 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
                         sIndices.flatMap { case (c, indices) =>
                             indices
                                 .map(i => (source(i), frequencies(i)))
-                                .filter { case (e1, _) => e1.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY) && e1.mbb.testMBB(targetSE.mbb, relation) }
+                                .filter { case (e1, _) => e1.referencePointFiltering(targetSE, c, thetaXY, Some(partition)) && e1.testMBB(targetSE, relation) }
                                 .map { case (e1, f) => (getWeight(f, e1, targetSE), (e1, targetSE)) }
                         }
                     }
@@ -67,11 +68,12 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
         joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
-                val partitionId = p._1
+                val pid = p._1
+                val partition = partitionsZones(pid)
                 val source = p._2._1.toArray
                 val target = p._2._2.toIterator
-                val sourceIndex = index(source, partitionId)
-                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b) && zoneCheck(partitionId)(b)
+                val sourceIndex = index(source)
+                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
                 val frequencies = new Array[Int](source.length)
 
                 target
@@ -83,7 +85,7 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
                         sIndices.flatMap(_._2).foreach(i => frequencies(i) += 1)
                         sIndices.flatMap { case (c, indices) =>
                             indices.map(i => (source(i), frequencies(i)))
-                                .filter { case (e1, _) => e1.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY) && e1.mbb.testMBB(targetSE.mbb, Relation.INTERSECTS, Relation.TOUCHES)}
+                                .filter { case (e1, _) => e1.referencePointFiltering(targetSE, c, thetaXY, Some(partition)) && e1.testMBB(targetSE, Relation.INTERSECTS, Relation.TOUCHES)}
                                 .map { case (e1, f) => (getWeight(f, e1, targetSE), (e1, targetSE)) }
                         }
                     }

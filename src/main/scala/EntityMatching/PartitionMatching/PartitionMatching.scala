@@ -36,7 +36,7 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
                 targetSE
                     .index(thetaXY, filteringFunction)
                     .flatMap(c => sourceIndex.get(c).map(j => (c, source(j))))
-                    .filter{case(c, se) => se.mbb.testMBB(targetSE.mbb, relation) && se.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY, partition)}
+                    .filter{case(c, se) => se.testMBB(targetSE, relation) && se.referencePointFiltering(targetSE, c, thetaXY, Some(partition))}
                     .map(_._2)
                     .filter(se => se.relate(targetSE, relation))
                     .map(se => (se.originalID, targetSE.originalID))
@@ -58,7 +58,7 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
                 targetSE
                     .index(thetaXY, filteringFunction)
                     .flatMap(c => sourceIndex.get(c).map(j => (c, source(j))))
-                    .filter { case (c, se) => se.mbb.testMBB(targetSE.mbb, Relation.INTERSECTS, Relation.TOUCHES) && se.mbb.referencePointFiltering(targetSE.mbb, c, thetaXY, partition) }
+                    .filter { case (c, se) => se.testMBB(targetSE, Relation.INTERSECTS, Relation.TOUCHES) && se.referencePointFiltering(targetSE, c, thetaXY, Some(partition)) }
                     .map(_._2)
                     .map(se => IM(se, targetSE))
             }
@@ -96,11 +96,11 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
             }
 
         val pairsTiles = allComparisonsRDD.count()
-        val uniquePairs = allComparisonsRDD.filter{case (c, (sSE, tSE)) => sSE.mbb.referencePointFiltering(tSE.mbb, c, thetaXY, partitionsZones(TaskContext.getPartitionId()))}.count()
-        val intersectingPairs = allComparisonsRDD.filter{case (c, (sSE, tSE)) => sSE.mbb.testMBB(tSE.mbb, Relation.INTERSECTS, Relation.TOUCHES)}.count()
+        val uniquePairs = allComparisonsRDD.filter{case (c, (sSE, tSE)) => sSE.referencePointFiltering(tSE, c, thetaXY, Some(partitionsZones(TaskContext.getPartitionId())))}.count()
+        val intersectingPairs = allComparisonsRDD.filter{case (_, (sSE, tSE)) => sSE.testMBB(tSE, Relation.INTERSECTS, Relation.TOUCHES)}.count()
         val truePairs = allComparisonsRDD
-            .filter{case (c, (sSE, tSE)) => sSE.mbb.referencePointFiltering(tSE.mbb, c, thetaXY, partitionsZones(TaskContext.getPartitionId())) && sSE.mbb.testMBB(tSE.mbb, Relation.INTERSECTS, Relation.TOUCHES)}
-            .filter{case (c, (sSE, tSE)) => IM(sSE, tSE).relate}
+            .filter{case (c, (sSE, tSE)) => sSE.referencePointFiltering(tSE, c, thetaXY, Some(partitionsZones(TaskContext.getPartitionId()))) && sSE.testMBB(tSE, Relation.INTERSECTS, Relation.TOUCHES)}
+            .filter{case (_, (sSE, tSE)) => IM(sSE, tSE).relate}
             .map { case (c, (sSE, tSE)) => (c, sSE.originalID, tSE.originalID)}
             .distinct()
             .count()

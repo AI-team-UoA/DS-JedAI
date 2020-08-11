@@ -52,7 +52,7 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
 
                         var wSum = 0d
                         sIndices
-                            .flatMap{ case (c, indices) => indices.filter(i => source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY, partition))}
+                            .flatMap{ case (c, indices) => indices.filter(i => source(i).referencePointFiltering(e2, c, thetaXY, Some(partition)))}
                             .foreach { i =>
                                 val e1 = source(i)
                                 val f = frequencies(i)
@@ -83,7 +83,7 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
                         if (comparisonIter.hasNext) {
                             converge = false
                             val (e1, e2) = comparisonIter.next()
-                            val isMatch = e1.mbb.testMBB(e2.mbb, relation) && e1.relate(e2, relation)
+                            val isMatch = e1.testMBB(e2, relation) && e1.relate(e2, relation)
                             pairs = pairs :+ ((e1.originalID, e2.originalID), isMatch)
                         }
                     }
@@ -116,7 +116,7 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
 
                         var wSum = 0d
                         sIndices
-                            .flatMap{ case (c, indices) => indices.filter(i => source(i).mbb.referencePointFiltering(e2.mbb, c, thetaXY, partition))}
+                            .flatMap{ case (c, indices) => indices.filter(i => source(i).referencePointFiltering(e2, c, thetaXY, Some(partition)))}
                             .foreach { i =>
                                 val e1 = source(i)
                                 val f = frequencies(i)
@@ -131,7 +131,7 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
                         pq.clear()
                         val topIM = weightedComparisons
                             .map(_._2)
-                            .filter(i => source(i).mbb.testMBB(e2.mbb, Relation.INTERSECTS, Relation.TOUCHES))
+                            .filter(i => source(i).testMBB(e2, Relation.INTERSECTS, Relation.TOUCHES))
                             .map(i => IM(source(i), e2))
                         (weight, topIM.toIterator)
                     }

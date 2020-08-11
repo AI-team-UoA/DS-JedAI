@@ -32,6 +32,15 @@ case class SpatialEntity(id: Int, originalID: String = "", geometry: Geometry,  
         }
     }
 
+    def testMBB(se: SpatialEntity, relation: Relation*): Boolean = mbb.testMBB(se.mbb, relation)
+
+    def referencePointFiltering(se: SpatialEntity, block: (Int, Int), thetaXY: (Double, Double), partition: Option[MBB]=None): Boolean ={
+        partition match {
+            case Some(p) => mbb.referencePointFiltering(se.mbb, block, thetaXY, p)
+            case None => mbb.referencePointFiltering(se.mbb, block, thetaXY)
+        }
+    }
+
     /**
      * Get the blocks of the spatial entity
      *
