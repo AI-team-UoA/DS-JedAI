@@ -7,6 +7,7 @@ import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.storage.StorageLevel
 import utils.Readers.Reader
 import utils.{ConfigurationParser, Utils}
 
@@ -75,9 +76,23 @@ object LightExp {
         Utils.targetCount = targetCount
         Utils.sourceCount = sourceCount
 
-        val matches = LightMatchingFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).apply(0, conf.getRelation)
+        val imRDD = LightMatchingFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).applyDE9IM(0).persist(StorageLevel.MEMORY_AND_DISK)
 
-        log.info("DS-JEDAI: Matches: " + matches.count)
+        log.info("DS-JEDAI: CONTAINS: " + imRDD.filter(_.isContains).count())
+        log.info("DS-JEDAI: COVERED BY: " + imRDD.filter(_.isCoveredBy).count())
+        log.info("DS-JEDAI: COVERS: " + imRDD.filter(_.isCovers).count())
+        log.info("DS-JEDAI: CROSSES: " + imRDD.filter(_.isCrosses).count())
+        log.info("DS-JEDAI: EQUALS: " + imRDD.filter(_.isEquals).count())
+        log.info("DS-JEDAI: INTERSECTS: " + imRDD.filter(_.isIntersects).count())
+        log.info("DS-JEDAI: OVERLAPS: " + imRDD.filter(_.isOverlaps).count())
+        log.info("DS-JEDAI: TOUCHES: " + imRDD.filter(_.isTouches).count())
+        log.info("DS-JEDAI: WITHIN: " + imRDD.filter(_.isWithin).count())
+
+
+
+
+
+        //log.info("DS-JEDAI: Matches: " + matches.count)
 
         val endTime = Calendar.getInstance()
         log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime) / 1000.0)

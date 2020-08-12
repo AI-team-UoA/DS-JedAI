@@ -32,6 +32,13 @@ trait LightMatchingTrait {
         matchTargetData(relation, idStart, blocksMap)
     }
 
+
+    def applyDE9IM(idStart: Int):RDD[IM] = {
+        val blocksMap = indexTarget()
+        getDE9IM(idStart, blocksMap)
+    }
+
+
     /**
      * Index the collected dataset
      *
