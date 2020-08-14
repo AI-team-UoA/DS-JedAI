@@ -3,6 +3,7 @@ package experiments
 import java.util.Calendar
 
 import EntityMatching.PartitionMatching.{PartitionMatching, PartitionMatchingFactory}
+import EntityMatching.SpaceStatsCounter
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
@@ -73,20 +74,12 @@ object IntersectionMatrixExp {
 
         val matching_startTime = Calendar.getInstance().getTimeInMillis
 
-        var containsArray = Array[(String, String)]()
-        var coveredByArray = Array[(String, String)]()
-        var coversArray = Array[(String, String)]()
-        var crossesArray = Array[(String, String)]()
-        var equalsArray = Array[(String, String)]()
-        var intersectsArray = Array[(String, String)]()
-        var overlapsArray = Array[(String, String)]()
-        var touchesArray = Array[(String, String)]()
-        var withinArray = Array[(String, String)]()
-
         val ma = conf.getMatchingAlgorithm
         if (ma == MatchingAlgorithm.SPATIAL) {
+
+            SpaceStatsCounter(source, target, conf.getTheta).printSpaceInfo()
+
             val pm = PartitionMatching(source, target, conf.getTheta)
-            pm.printSpaceInfo()
             val imRDD = pm.getDE9IM
                 .setName("IntersectionMatrixRDD").persist(StorageLevel.MEMORY_AND_DISK)
 
@@ -104,6 +97,18 @@ object IntersectionMatrixExp {
             val IMsIter = PartitionMatchingFactory.getProgressiveAlgorithm(conf: Configuration, source, target).getDE9IMBudget
             var detectedLinks = 0
             var interlinkedGeometries = 0
+
+
+            var containsArray = Array[(String, String)]()
+            var coveredByArray = Array[(String, String)]()
+            var coversArray = Array[(String, String)]()
+            var crossesArray = Array[(String, String)]()
+            var equalsArray = Array[(String, String)]()
+            var intersectsArray = Array[(String, String)]()
+            var overlapsArray = Array[(String, String)]()
+            var touchesArray = Array[(String, String)]()
+            var withinArray = Array[(String, String)]()
+
 
             var i:Int = 0
             IMsIter
