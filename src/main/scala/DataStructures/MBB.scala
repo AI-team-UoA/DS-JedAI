@@ -51,7 +51,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
         val maxY1 = maxY / thetaY
         val maxY2 = mbb.maxY / thetaY
 
-        val rf: (Double, Double) =(max(minX1, minX2)+.0001, min(maxY1, maxY2)+.0001)
+        val rf: (Double, Double) =(max(minX1, minX2)+.00001, min(maxY1, maxY2)+.00001)
         val rfMBB = MBB(rf._1, rf._2)
         val blockMBB = MBB(b._1+1, b._1, b._2+1, b._2)
         blockMBB.contains(rfMBB) && partition.contains(rfMBB)
@@ -175,7 +175,8 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      */
     private[DataStructures]
     def intersects(mbb:MBB): Boolean ={
-        maxX > mbb.minX && minX < mbb.maxX && maxY > mbb.minY && minY < mbb.maxY
+        //maxX >= mbb.minX && minX <= mbb.maxX && maxY >= mbb.minY && minY <= mbb.maxY
+        ! disjoint(mbb)
     }
 
     /**
@@ -185,7 +186,9 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      */
     private[DataStructures]
     def disjoint(mbb:MBB): Boolean ={
-        ! (contains(mbb) || intersects(mbb))
+        // ! (contains(mbb) || intersects(mbb))
+        minX > mbb.maxX || maxX < mbb.minX || minY > mbb.maxY || maxY < mbb.minY
+        //return this.lat2 < i.lat1 || this.lat1 > i.lat2 || this.lon2 < i.lon1 || this.lon1 > i.lon2;
     }
 
 
