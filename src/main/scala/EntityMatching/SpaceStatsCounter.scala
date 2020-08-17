@@ -9,6 +9,8 @@ import utils.Constants.ThetaOption.ThetaOption
 import utils.Readers.SpatialReader
 import utils.Utils
 
+import scala.collection.mutable.ArrayBuffer
+
 case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Iterable[SpatialEntity]))], thetaXY: (Double, Double)){
 
     val partitionsZones: Array[MBB] = Utils.getZones
@@ -28,10 +30,17 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
         val tsePerTile: RDD[((Int, Int), Int)] = targetTiles.map((_,1)).reduceByKey(_ + _)
 
         val commonTiles = ssePerTile.join(tsePerTile).setName("CommonTiles").cache()
-        val tiles = commonTiles.map{ case(c, (n1, n2)) => n1 }.sum()
-        val pairTiles = commonTiles.map{ case(c, (n1, n2)) => n1*n2}.sum()
+        val tiles = commonTiles.map{ case(c, (n1, n2)) => n2 }.sum()
         log.info("Tiles: " + tiles)
+
+        val pairTiles = commonTiles.map{ case(c, (n1, n2)) => n1*n2}.sum()
         log.info("Pairs Tiles: " + pairTiles)
+
+        val tilesSE = source.flatMap(se => se.index(thetaXY).map(c => (c, ArrayBuffer(se.originalID)))).reduceByKey(_ ++ _)
+        val tilesTE = target.flatMap(se => se.index(thetaXY).map(c => (c, ArrayBuffer(se.originalID)))).reduceByKey(_ ++ _)
+        val uniqueTiles = tilesSE.leftOuterJoin(tilesTE).filter(_._2._2.isDefined).flatMap{case(c, (sse, tse)) => sse.map(se => (se, tse.get.toSet))}.reduceByKey(_ ++ _).map(_._2.size).sum
+        log.info("Unique Tiles: " + uniqueTiles)
+
 
         source.unpersist()
         target.unpersist()
@@ -39,7 +48,7 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
         targetTiles.unpersist()
         commonTiles.unpersist()
 
-        val uniqueTilesRDD: RDD[((Int, Int), (SpatialEntity, SpatialEntity))] = joinedRDD
+        val uniqueTilesRDD: RDD[(SpatialEntity, SpatialEntity)] = joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
                 val source: Array[SpatialEntity] = p._2._1.toArray
@@ -54,14 +63,13 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
                         .index(thetaXY, filteringFunction)
                         .flatMap(c => sourceIndex.get(c).map(j => (c, source(j))))
                         .filter{case(c, se) => se.referencePointFiltering(targetSE, c, thetaXY, Some(partition))}
-                        .map {case(c, se) => (c, (se, targetSE))}
+                        .map {case(_, se) => (se, targetSE)}
                 }
             }.setName("UniqueTilesRDD").cache()
 
-        val intersectingTiles = uniqueTilesRDD.filter{ case (c, (sSE, tSE)) => sSE.testMBB(tSE, Relation.INTERSECTS, Relation.TOUCHES)}
-        val truePairs = uniqueTilesRDD.filter{ case (c, (sSE, tSE)) => sSE.testMBB(tSE, Relation.INTERSECTS, Relation.TOUCHES)}.filter{case (_, (sSE, tSE)) => IM(sSE, tSE).relate}
+        val intersectingTiles = uniqueTilesRDD.filter{ case (sSE, tSE) => sSE.testMBB(tSE, Relation.INTERSECTS, Relation.TOUCHES)}
+        val truePairs = uniqueTilesRDD.filter{ case (sSE, tSE) => sSE.testMBB(tSE, Relation.INTERSECTS, Relation.TOUCHES)}.filter{case (sSE, tSE) => IM(sSE, tSE).relate}
 
-        log.info("Unique Tiles: " + uniqueTilesRDD.count())
         log.info("Intersecting Pairs: " + intersectingTiles.count())
         log.info("True Pairs: " + truePairs.count())
         log.info("")
