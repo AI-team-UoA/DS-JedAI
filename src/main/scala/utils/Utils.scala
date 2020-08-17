@@ -175,20 +175,28 @@ object Utils {
 					val total = sourceCount + targetCount
 					val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).sum() / total
 					val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).sum() / total
+
 					(thetaX, thetaY)
 				case ThetaOption.AVG_x2 =>
-					val sourceX = source.map(se => se.mbb.maxX - se.mbb.minX).sum()
-					val sourceY = source.map(se => se.mbb.maxY - se.mbb.minY).sum()
-					val thetaXs = sourceX / sourceCount
-					val thetaYs = sourceY / sourceCount
+					val distinctSource = source.map(se => (se.originalID, se)).distinct().map(_._2).cache()
+					val distinctTarget = source.map(se => (se.originalID, se)).distinct().map(_._2).cache()
 
-					val targetX = target.map(se => se.mbb.maxX - se.mbb.minX).sum()
-					val targetY = target.map(se => se.mbb.maxY - se.mbb.minY).sum()
-					val thetaXt = targetX / targetCount
-					val thetaYt = targetY / targetCount
+					val distinctSourceCount = distinctSource.count()
+					val distinctTargetCount = distinctSource.count()
+
+
+					val thetaXs = distinctSource.map(se => se.geometry.getEnvelopeInternal.getWidth).sum() / distinctSourceCount
+					val thetaYs = distinctSource.map(se => se.geometry.getEnvelopeInternal.getHeight).sum() / distinctSourceCount
+
+					val thetaXt = distinctTarget.map(se => se.geometry.getEnvelopeInternal.getWidth).sum() / distinctTargetCount
+					val thetaYt = distinctTarget.map(se => se.geometry.getEnvelopeInternal.getHeight).sum() / distinctTargetCount
 
 					val thetaX = 0.5 * (thetaXs + thetaXt)
 					val thetaY = 0.5 * (thetaYs + thetaYt)
+
+					distinctSource.unpersist()
+					distinctTarget.unpersist()
+
 					(thetaX, thetaY)
 				case _ =>
 					(1d, 1d)
