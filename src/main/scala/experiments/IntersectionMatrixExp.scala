@@ -61,13 +61,13 @@ object IntersectionMatrixExp {
         SpatialReader.setGridType(conf.getGridType)
         val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
             .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
-        val sourceCount = sourceRDD.count().toInt
+        val sourceCount = sourceRDD.map(_.originalID).distinct().count().toInt
         log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
 
         // Loading Target
         val targetRDD = SpatialReader.load(conf.target.path, conf.source.realIdField, conf.source.geometryField)
             .setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK)
-        val targetCount = targetRDD.count().toInt
+        val targetCount = targetRDD.map(_.originalID).distinct().count().toInt
         log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
 
         val (source, target, _) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.getRelation, sourceCount, targetCount)
