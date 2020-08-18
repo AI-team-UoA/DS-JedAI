@@ -39,7 +39,7 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
         val tilesSE = source.flatMap(se => se.index(thetaXY).map(c => (c, ArrayBuffer(se.originalID)))).reduceByKey(_ ++ _)
         val tilesTE = target.flatMap(se => se.index(thetaXY).map(c => (c, ArrayBuffer(se.originalID)))).reduceByKey(_ ++ _)
         val joinedTiles = tilesSE.leftOuterJoin(tilesTE).filter(_._2._2.isDefined).cache()
-        val uniqueTiles = joinedTiles.flatMap{case(c, (sse, tse)) => sse.map(se => (se, tse.get))}.reduceByKey(_ ++ _).map(_._2.toSet.size).sum
+        val uniqueTiles = joinedTiles.flatMap{case(c, (sse, tse)) => sse.map(se => (se, tse.get)).groupBy(_._1).mapValues(p => p.flatMap(_._2.toSet))}.reduceByKey(_ ++ _).map(_._2.toSet.size).sum
         log.info("Unique Tiles: " + uniqueTiles)
 
 
