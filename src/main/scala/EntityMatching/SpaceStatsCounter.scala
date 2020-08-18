@@ -9,7 +9,8 @@ import utils.Constants.ThetaOption.ThetaOption
 import utils.Readers.SpatialReader
 import utils.Utils
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+
 
 case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Iterable[SpatialEntity]))], thetaXY: (Double, Double)){
 
@@ -30,22 +31,24 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
         val tsePerTile: RDD[((Int, Int), Int)] = targetTiles.map((_,1)).reduceByKey(_ + _)
 
         val commonTiles = ssePerTile.join(tsePerTile).setName("CommonTiles").cache()
-        val tiles = commonTiles.map{ case(c, (n1, n2)) => n1 }.sum()
+        val tiles = commonTiles.map{ case(_, (n1, n2)) => n2}.sum()
         log.info("Tiles: " + tiles)
 
-        //val pairTiles = commonTiles.map{ case(c, (n1, n2)) => n1*n2}.sum()
-        //log.info("Pairs Tiles: " + pairTiles)
+        val pairTiles = commonTiles.map{ case(c, (n1, n2)) => n1*n2}.sum()
+        log.info("Pairs Tiles: " + pairTiles)
 
         sourceTiles.unpersist()
         targetTiles.unpersist()
         commonTiles.unpersist()
 
-        // val tilesSE = source.flatMap(se => se.index(thetaXY).map(c => (c, ArrayBuffer(se.originalID)))).reduceByKey(_ ++ _)
-        // val tilesTE = target.flatMap(se => se.index(thetaXY).map(c => (c, ArrayBuffer(se.originalID)))).reduceByKey(_ ++ _)
-        // val joinedTiles = tilesSE.leftOuterJoin(tilesTE).filter(_._2._2.isDefined).setName("Joined").cache()
-        //val uniqueTiles = joinedTiles.flatMap{case(c, (sse, tse)) => sse.map(se => (se, tse.get)).groupBy(_._1).mapValues(p => p.flatMap(_._2.toSet))}.reduceByKey(_ ++ _).map(_._2.toSet.size).sum
+        val tilesSE = source.flatMap(se => se.index(thetaXY).map(c => (c, ListBuffer(se.originalID)))).reduceByKey(_ ++ _)
+        val tilesTE = target.flatMap(se => se.index(thetaXY).map(c => (c, ListBuffer(se.originalID)))).reduceByKey(_ ++ _)
+        val joinedTiles = tilesSE.leftOuterJoin(tilesTE).filter(_._2._2.isDefined).setName("Joined").cache()
+        val uniquePairs = joinedTiles.flatMap{case(_, (sse, tse)) => sse.map(se => (se, tse.get))}.reduceByKey(_ ++ _).map(_._2.distinct.size).sum
+        log.info("Unique Tiles: " + uniquePairs)
 
-        val pairTilesRDD = joinedRDD
+
+        /*val pairTilesRDD = joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
                 val source: Array[SpatialEntity] = p._2._1.toArray
@@ -58,12 +61,11 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
             }.setName("pairTilesRDD").cache()
 
         // not the exact number but an approach
-        log.info("Pair Tiles: "+ pairTilesRDD.map( p => (p._1, p._2.size)).reduceByKey(_ + _).map(_._2).sum())
-        log.info("Unique Tiles: " + pairTilesRDD.reduceByKey(_.distinct ++ _.distinct).map(_._2.distinct.size).sum)
+        pairTilesRDD.unpersist()
+        */
 
         source.unpersist()
         target.unpersist()
-        pairTilesRDD.unpersist()
 
         val comparisonsRDD: RDD[(SpatialEntity, SpatialEntity)] = joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)

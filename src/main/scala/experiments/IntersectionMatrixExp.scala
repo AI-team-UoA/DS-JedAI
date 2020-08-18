@@ -77,7 +77,7 @@ object IntersectionMatrixExp {
         val ma = conf.getMatchingAlgorithm
         if (ma == MatchingAlgorithm.SPATIAL) {
 
-            SpaceStatsCounter(source, target, conf.getTheta).printSpaceInfo()
+            SpaceStatsCounter(sourceRDD, targetRDD, conf.getTheta).printSpaceInfo()
 
             val pm = PartitionMatching(source, target, conf.getTheta)
             val imRDD = pm.getDE9IM
