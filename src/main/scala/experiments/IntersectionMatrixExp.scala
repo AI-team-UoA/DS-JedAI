@@ -11,7 +11,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import utils.Constants.MatchingAlgorithm
-import utils.Readers.SpatialReader
+import utils.Readers.{Reader, SpatialReader}
 import utils.{Configuration, ConfigurationParser, Utils}
 
 object IntersectionMatrixExp {
@@ -55,21 +55,32 @@ object IntersectionMatrixExp {
         val conf = ConfigurationParser.parse(conf_path)
         val partitions: Int = conf.getPartitions
 
-        // Loading Source
+        // source and target count
+        val totalSourceEntities = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, conf).count()
+        val totalTargetEntities = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, conf).count()
+
+        // we always want the bigger dataset to be the source in order to adjust partitioner based on it
+        val sourcePath = if (totalSourceEntities >= totalTargetEntities) conf.source.path else conf.target.path
+        val targetPath = if (totalSourceEntities >= totalTargetEntities) conf.target.path else conf.source.path
+
+        // setting SpatialReader
         SpatialReader.setPartitions(partitions)
         SpatialReader.noConsecutiveID()
         SpatialReader.setGridType(conf.getGridType)
-        val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
+
+        // Loading Source Spatial partitioned
+        val sourceRDD = SpatialReader.load(sourcePath, conf.source.realIdField, conf.source.geometryField)
             .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
         val sourceCount = sourceRDD.map(_.originalID).distinct().count().toInt
         log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
 
-        // Loading Target
-        val targetRDD = SpatialReader.load(conf.target.path, conf.source.realIdField, conf.source.geometryField)
+        // Loading Target Spatial partitioned
+        val targetRDD = SpatialReader.load(targetPath, conf.source.realIdField, conf.source.geometryField)
             .setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK)
         val targetCount = targetRDD.map(_.originalID).distinct().count().toInt
         log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
 
+        // swapping for better spatial partitioneing  - swap happend based on ETH and not on count
         val (source, target, _) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.getRelation, sourceCount, targetCount)
 
         val matching_startTime = Calendar.getInstance().getTimeInMillis
@@ -83,15 +94,27 @@ object IntersectionMatrixExp {
             val imRDD = pm.getDE9IM
                 .setName("IntersectionMatrixRDD").persist(StorageLevel.MEMORY_AND_DISK)
 
-            log.info("DS-JEDAI: CONTAINS: " + imRDD.filter(_.isContains).count())
-            log.info("DS-JEDAI: COVERED BY: " + imRDD.filter(_.isCoveredBy).count())
-            log.info("DS-JEDAI: COVERS: " + imRDD.filter(_.isCovers).count())
-            log.info("DS-JEDAI: CROSSES: " + imRDD.filter(_.isCrosses).count())
-            log.info("DS-JEDAI: EQUALS: " + imRDD.filter(_.isEquals).count())
-            log.info("DS-JEDAI: INTERSECTS: " + imRDD.filter(_.isIntersects).count())
-            log.info("DS-JEDAI: OVERLAPS: " + imRDD.filter(_.isOverlaps).count())
-            log.info("DS-JEDAI: TOUCHES: " + imRDD.filter(_.isTouches).count())
-            log.info("DS-JEDAI: WITHIN: " + imRDD.filter(_.isWithin).count())
+            val totalContains = imRDD.filter(_.isContains).count()
+            val totalCoveredBy = imRDD.filter(_.isCoveredBy).count()
+            val totalCovers = imRDD.filter(_.isCovers).count()
+            val totalCrosses = imRDD.filter(_.isCrosses).count()
+            val totalEquals = imRDD.filter(_.isEquals).count()
+            val totalIntersects = imRDD.filter(_.isIntersects).count()
+            val totalOverlaps = imRDD.filter(_.isOverlaps).count()
+            val totalTouches = imRDD.filter(_.isTouches).count()
+            val totalWithin = imRDD.filter(_.isWithin).count()
+            val totalRelations = totalContains+totalCoveredBy+totalCovers+totalCrosses+totalEquals+totalIntersects+totalOverlaps+totalTouches+totalWithin
+
+            log.info("DS-JEDAI: CONTAINS: " + totalContains)
+            log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
+            log.info("DS-JEDAI: COVERS: " + totalCovers)
+            log.info("DS-JEDAI: CROSSES: " + totalCrosses)
+            log.info("DS-JEDAI: EQUALS: " + totalEquals)
+            log.info("DS-JEDAI: INTERSECTS: " + totalIntersects)
+            log.info("DS-JEDAI: OVERLAPS: " + totalOverlaps)
+            log.info("DS-JEDAI: TOUCHES: " + totalTouches)
+            log.info("DS-JEDAI: WITHIN: " + totalWithin)
+            log.info("DS-JEDAI: Total Top Relations: " + totalRelations)
         }
         else{
             val IMsIter = PartitionMatchingFactory.getProgressiveAlgorithm(conf: Configuration, source, target).getDE9IMBudget
@@ -99,16 +122,15 @@ object IntersectionMatrixExp {
             var interlinkedGeometries = 0
 
 
-            var containsArray = Array[(String, String)]()
-            var coveredByArray = Array[(String, String)]()
-            var coversArray = Array[(String, String)]()
-            var crossesArray = Array[(String, String)]()
-            var equalsArray = Array[(String, String)]()
-            var intersectsArray = Array[(String, String)]()
-            var overlapsArray = Array[(String, String)]()
-            var touchesArray = Array[(String, String)]()
-            var withinArray = Array[(String, String)]()
-
+            var totalContains = 0
+            var totalCoveredBy = 0
+            var totalCovers = 0
+            var totalCrosses = 0
+            var totalEquals = 0
+            var totalIntersects = 0
+            var totalOverlaps = 0
+            var totalTouches = 0
+            var totalWithin = 0
 
             var i:Int = 0
             IMsIter
@@ -120,55 +142,55 @@ object IntersectionMatrixExp {
                     if (im.isContains) {
                         relate = true
                         detectedLinks += 1
-                        containsArray = containsArray :+ im.idPair
+                        totalContains += 1
                     }
 
                     if (im.isCoveredBy) {
                         relate = true
                         detectedLinks += 1
-                        coveredByArray = coveredByArray :+ im.idPair
+                        totalCoveredBy += 1
                     }
 
                     if (im.isCovers) {
                         relate = true
                         detectedLinks += 1
-                        coversArray = coversArray :+ im.idPair
+                        totalCovers += 1
                     }
 
                     if (im.isCrosses) {
                         relate = true
                         detectedLinks += 1
-                        crossesArray = crossesArray :+ im.idPair
+                        totalCrosses += 1
                     }
 
                     if (im.isEquals) {
                         relate = true
                         detectedLinks += 1
-                        equalsArray = equalsArray :+ im.idPair
+                        totalEquals += 1
                     }
 
                     if (im.isIntersects) {
                         relate = true
                         detectedLinks += 1
-                        intersectsArray = intersectsArray :+ im.idPair
+                        totalIntersects += 1
                     }
 
                     if (im.isOverlaps) {
                         relate = true
                         detectedLinks += 1
-                        overlapsArray = overlapsArray :+ im.idPair
+                        totalOverlaps += 1
                     }
 
                     if (im.isTouches) {
                         relate = true
                         detectedLinks += 1
-                        touchesArray = touchesArray :+ im.idPair
+                        totalTouches += 1
                     }
 
                     if (im.isWithin) {
                         relate = true
                         detectedLinks += 1
-                        withinArray = withinArray :+ im.idPair
+                        totalWithin += 1
                     }
 
                     if (relate)
@@ -177,15 +199,15 @@ object IntersectionMatrixExp {
                 })
             log.info("DS-JEDAI: Iteration: " + i +" Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks )
             log.info("\n")
-            log.info("DS-JEDAI: CONTAINS: " + containsArray.length)
-            log.info("DS-JEDAI: COVERED BY: " + coveredByArray.length)
-            log.info("DS-JEDAI: COVERS: " + coversArray.length)
-            log.info("DS-JEDAI: CROSSES: " + crossesArray.length)
-            log.info("DS-JEDAI: EQUALS: " + equalsArray.length)
-            log.info("DS-JEDAI: INTERSECTS: " + intersectsArray.length)
-            log.info("DS-JEDAI: OVERLAPS: " + overlapsArray.length)
-            log.info("DS-JEDAI: TOUCHES: " + touchesArray.length)
-            log.info("DS-JEDAI: WITHIN: " + withinArray.length + "\n")
+            log.info("DS-JEDAI: CONTAINS: " + totalContains)
+            log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
+            log.info("DS-JEDAI: COVERS: " + totalCovers)
+            log.info("DS-JEDAI: CROSSES: " + totalCrosses)
+            log.info("DS-JEDAI: EQUALS: " + totalEquals)
+            log.info("DS-JEDAI: INTERSECTS: " + totalIntersects)
+            log.info("DS-JEDAI: OVERLAPS: " + totalOverlaps)
+            log.info("DS-JEDAI: TOUCHES: " + totalTouches)
+            log.info("DS-JEDAI: WITHIN: " + totalWithin + "\n")
 
         }
 
