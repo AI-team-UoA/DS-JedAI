@@ -57,11 +57,11 @@ object IntersectionMatrixExp {
 
         // source and target count
         val totalSourceEntities = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, conf).count()
-        val totalTargetEntities = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, conf).count()
+        val totalTargetEntities = Reader.read(conf.target.path, conf.target.realIdField, conf.target.geometryField, conf).count()
 
         // we always want the bigger dataset to be the source in order to adjust partitioner based on it
-        val sourcePath = if (totalSourceEntities >= totalTargetEntities) conf.source.path else conf.target.path
-        val targetPath = if (totalSourceEntities >= totalTargetEntities) conf.target.path else conf.source.path
+        val sourceConf = if (totalSourceEntities >= totalTargetEntities) conf.source else conf.target
+        val targetConf = if (totalSourceEntities >= totalTargetEntities) conf.target else conf.source
 
         // setting SpatialReader
         SpatialReader.setPartitions(partitions)
@@ -69,13 +69,13 @@ object IntersectionMatrixExp {
         SpatialReader.setGridType(conf.getGridType)
 
         // Loading Source Spatial partitioned
-        val sourceRDD = SpatialReader.load(sourcePath, conf.source.realIdField, conf.source.geometryField)
+        val sourceRDD = SpatialReader.load(sourceConf.path, sourceConf.realIdField, sourceConf.geometryField)
             .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
         val sourceCount = sourceRDD.map(_.originalID).distinct().count().toInt
         log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
 
         // Loading Target Spatial partitioned
-        val targetRDD = SpatialReader.load(targetPath, conf.source.realIdField, conf.source.geometryField)
+        val targetRDD = SpatialReader.load(targetConf.path, targetConf.realIdField, targetConf.geometryField)
             .setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK)
         val targetCount = targetRDD.map(_.originalID).distinct().count().toInt
         log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
