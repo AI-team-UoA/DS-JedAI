@@ -4,6 +4,7 @@ import DataStructures.{IM, MBB, SpatialEntity, SpatialIndex}
 import org.apache.log4j.{Level, LogManager}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
 import utils.Constants.Relation
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Readers.SpatialReader
@@ -47,23 +48,7 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
         val uniquePairs = joinedTiles.flatMap{case(_, (sse, tse)) => sse.map(se => (se, tse.get))}.reduceByKey(_ ++ _).map(_._2.distinct.size).sum
         log.info("Unique Tiles: " + uniquePairs)
 
-
-        /*val pairTilesRDD = joinedRDD
-            .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
-            .flatMap { p =>
-                val source: Array[SpatialEntity] = p._2._1.toArray
-                val target: Iterator[SpatialEntity] = p._2._2.toIterator
-                val sourceIndex = index(source)
-                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
-                target.flatMap { targetSE =>
-                    targetSE.index(thetaXY, filteringFunction).map(c => (targetSE.originalID, sourceIndex.get(c).map(j => source(j).originalID)))
-                }
-            }.setName("pairTilesRDD").cache()
-
-        // not the exact number but an approach
-        pairTilesRDD.unpersist()
-        */
-
+        joinedTiles.unpersist()
         source.unpersist()
         target.unpersist()
 
@@ -84,7 +69,7 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
                         .filter{case(c, se) => se.referencePointFiltering(targetSE, c, thetaXY, Some(partition))}
                         .map {case(_, se) => (se, targetSE)}
                 }
-            }.setName("ComparisonsRDD").cache()
+            }.setName("ComparisonsRDD").persist(StorageLevel.MEMORY_AND_DISK)
 
         val intersectingTiles = comparisonsRDD.filter{ case (sSE, tSE) => sSE.testMBB(tSE, Relation.INTERSECTS, Relation.TOUCHES)}
         val truePairs = comparisonsRDD.filter{ case (sSE, tSE) => sSE.testMBB(tSE, Relation.INTERSECTS, Relation.TOUCHES)}.filter{case (sSE, tSE) => IM(sSE, tSE).relate}
