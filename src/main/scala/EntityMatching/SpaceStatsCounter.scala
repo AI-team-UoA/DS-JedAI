@@ -44,8 +44,8 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
 
         val tilesSE = source.flatMap(se => se.index(thetaXY).map(c => (c, ListBuffer(se.originalID)))).reduceByKey(_ ++ _)
         val tilesTE = target.flatMap(se => se.index(thetaXY).map(c => (c, ListBuffer(se.originalID)))).reduceByKey(_ ++ _)
-        val joinedTiles = tilesSE.leftOuterJoin(tilesTE).filter(_._2._2.isDefined).setName("Joined").cache()
-        val uniquePairs = joinedTiles.flatMap{case(_, (sse, tse)) => sse.map(se => (se, tse.get))}.reduceByKey(_ ++ _).map(_._2.distinct.size).sum
+        val joinedTiles = tilesSE.rightOuterJoin(tilesTE).filter(_._2._1.isDefined).setName("Joined").cache()
+        val uniquePairs = joinedTiles.flatMap{case(_, (sse, tse)) => tse.map(se => (se, sse.get))}.reduceByKey(_ ++ _).map(_._2.distinct.size).sum
         log.info("Unique Tiles: " + uniquePairs)
 
         joinedTiles.unpersist()
@@ -69,7 +69,7 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
                         .filter{case(c, se) => se.referencePointFiltering(targetSE, c, thetaXY, Some(partition))}
                         .map {case(_, se) => (se, targetSE)}
                 }
-            }.setName("ComparisonsRDD").persist(StorageLevel.MEMORY_AND_DISK)
+            }.setName("ComparisonsRDD")
 
         val intersectingTiles = comparisonsRDD.filter{ case (sSE, tSE) => sSE.testMBB(tSE, Relation.INTERSECTS, Relation.TOUCHES)}
         val truePairs = comparisonsRDD.filter{ case (sSE, tSE) => sSE.testMBB(tSE, Relation.INTERSECTS, Relation.TOUCHES)}.filter{case (sSE, tSE) => IM(sSE, tSE).relate}
@@ -77,9 +77,6 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
         log.info("Intersecting Pairs: " + intersectingTiles.count())
         log.info("True Pairs: " + truePairs.count())
         log.info("")
-
-        comparisonsRDD.unpersist()
-
     }
 
     /**
