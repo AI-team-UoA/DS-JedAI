@@ -1,7 +1,7 @@
 package utils.Readers
 
 import DataStructures.{MBB, SpatialEntity}
-import com.vividsolutions.jts.geom.{Envelope, Geometry}
+import com.vividsolutions.jts.geom.{Envelope, Geometry, GeometryCollection}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.{SparkConf, SparkContext}
@@ -13,7 +13,6 @@ import org.datasyslab.geospark.spatialRDD.SpatialRDD
 import org.datasyslab.geosparksql.utils.{Adapter, GeoSparkSQLRegistrator}
 import org.apache.spark.sql.types.{LongType, StructField, StructType}
 import org.datasyslab.geospark.spatialPartitioning.quadtree.QuadRectangle
-import org.wololo.geojson.GeometryCollection
 import utils.Constants
 
 
@@ -107,12 +106,13 @@ object SpatialReader extends TReader {
                     val ids = geom.getUserData.asInstanceOf[String].split("\t")
                     val realID = ids(0)
                     val id = ids(1).toInt
-                    if (geom.getGeometryType == "GeometryCollection")
-                        geom.asInstanceOf[GeometryCollection].getGeometries.map(g => (g, realID, id))
-                    else
-                        Seq((geom, realID, id))
+                    if (geom.getGeometryType == "GeometryCollection") {
+                        val gc = geom.asInstanceOf[GeometryCollection]
+                        for (n <- 0 until  geom.asInstanceOf[GeometryCollection].getNumGeometries) yield (gc.getGeometryN(n), realID, id)
+                    }
+                    else Seq((geom, realID, id))
             }
-            .map{ case(g, realID, id) => SpatialEntity(id, realID, g.asInstanceOf[Geometry])}
+            .map{ case(g, realID, id) =>  SpatialEntity(id, realID, g.asInstanceOf[Geometry])}
 
     }
 }
