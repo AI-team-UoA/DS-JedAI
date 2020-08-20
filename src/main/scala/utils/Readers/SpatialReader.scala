@@ -14,7 +14,7 @@ import org.datasyslab.geosparksql.utils.{Adapter, GeoSparkSQLRegistrator}
 import org.apache.spark.sql.types.{LongType, StructField, StructType}
 import org.datasyslab.geospark.spatialPartitioning.quadtree.QuadRectangle
 import utils.Constants
-
+import org.apache.spark.sql.functions.col
 
 object SpatialReader extends TReader {
 
@@ -68,6 +68,8 @@ object SpatialReader extends TReader {
             .option("quote", "\"")
             .option("header", header)
             .load(filepath)
+            .filter(col(realIdField).isNotNull)
+            .filter(col(geometryField).isNotNull)
 
         val newSchema = StructType(inputDF.schema.fields ++ Array(StructField("ROW_ID", LongType, nullable = false)))
 
