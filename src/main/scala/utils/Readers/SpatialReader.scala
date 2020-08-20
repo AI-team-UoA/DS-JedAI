@@ -113,8 +113,8 @@ object SpatialReader extends TReader {
                     }
                     else Seq((geom, realID, id))
             }
-            .filter( ! _._1.isEmpty)
-            .map{ case(g, realID, id) =>  SpatialEntity(id, realID, g.asInstanceOf[Geometry])}
+            .filter{case (g, _, _) => !g.isEmpty && g.isValid}
+            .map{ case(g, realId, id) =>  SpatialEntity(id, realId, g.asInstanceOf[Geometry])}
 
     }
 }
