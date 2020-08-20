@@ -13,6 +13,7 @@ import org.datasyslab.geospark.spatialRDD.SpatialRDD
 import org.datasyslab.geosparksql.utils.{Adapter, GeoSparkSQLRegistrator}
 import org.apache.spark.sql.types.{LongType, StructField, StructType}
 import org.datasyslab.geospark.spatialPartitioning.quadtree.QuadRectangle
+import org.wololo.geojson.GeometryCollection
 import utils.Constants
 
 
@@ -70,14 +71,12 @@ object SpatialReader extends TReader {
             .load(filepath)
             .filter(r =>  ! r.getAs(geometryField).asInstanceOf[String].contains("EMPTY"))
 
-
         val newSchema = StructType(inputDF.schema.fields ++ Array(StructField("ROW_ID", LongType, nullable = false)))
 
         // Zip on RDD level
         val rddWithId = if (consecutiveId) inputDF.rdd.zipWithIndex else inputDF.rdd.zipWithUniqueId()
         // Convert back to DataFrame
         val dfZippedWithId =  spark.createDataFrame(rddWithId.map{ case (row, index) => Row.fromSeq(row.toSeq ++ Array(index))}, newSchema)
-
 
         dfZippedWithId.createOrReplaceTempView("GEOMETRIES")
 
@@ -104,13 +103,16 @@ object SpatialReader extends TReader {
             srdd.spatialPartitioning(spatialPartitioner)
 
         srdd.spatialPartitionedRDD.rdd
-            .map{ g =>
-                    val ids = g.getUserData.asInstanceOf[String].split("\t")
+            .flatMap{ geom =>
+                    val ids = geom.getUserData.asInstanceOf[String].split("\t")
                     val realID = ids(0)
                     val id = ids(1).toInt
-                    (g, realID, id)
+                    if (geom.getGeometryType == "GeometryCollection")
+                        geom.asInstanceOf[GeometryCollection].getGeometries.map(g => (g, realID, id))
+                    else
+                        Seq((geom, realID, id))
             }
-            .map{ case(g, realID, id) => SpatialEntity(id, realID, g)}
+            .map{ case(g, realID, id) => SpatialEntity(id, realID, g.asInstanceOf[Geometry])}
 
     }
 }
