@@ -68,7 +68,6 @@ object SpatialReader extends TReader {
             .option("quote", "\"")
             .option("header", header)
             .load(filepath)
-            .filter(r =>  ! r.getAs(geometryField).asInstanceOf[String].contains("EMPTY"))
 
         val newSchema = StructType(inputDF.schema.fields ++ Array(StructField("ROW_ID", LongType, nullable = false)))
 
@@ -112,6 +111,7 @@ object SpatialReader extends TReader {
                     }
                     else Seq((geom, realID, id))
             }
+            .filter( ! _._1.isEmpty)
             .map{ case(g, realID, id) =>  SpatialEntity(id, realID, g.asInstanceOf[Geometry])}
 
     }
