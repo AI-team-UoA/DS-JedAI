@@ -55,28 +55,32 @@ object IntersectionMatrixExp {
         val conf = ConfigurationParser.parse(conf_path)
         val partitions: Int = conf.getPartitions
 
-        // source and target count
-        val totalSourceEntities = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, conf).count()
-        val totalTargetEntities = Reader.read(conf.target.path, conf.target.realIdField, conf.target.geometryField, conf).count()
-
-        // we always want the bigger dataset to be the source in order to adjust partitioner based on it
-        val sourceConf = if (totalSourceEntities >= totalTargetEntities) conf.source else conf.target
-        val targetConf = if (totalSourceEntities >= totalTargetEntities) conf.target else conf.source
-
         // setting SpatialReader
         SpatialReader.setPartitions(partitions)
         SpatialReader.noConsecutiveID()
         SpatialReader.setGridType(conf.getGridType)
 
-        // Loading Source Spatial partitioned
-        val sourceRDD = SpatialReader.load(sourceConf.path, sourceConf.realIdField, sourceConf.geometryField)
-            .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
+        // loading source and target, its very important the big dataset to be partitioned first as it will set the partitioner
+        val (sourceRDD, targetRDD) = if (conf.partitionBySource){
+            val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
+                .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
+
+            val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
+                .setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK)
+            (sourceRDD, targetRDD)
+        }
+        else {
+            val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
+                .setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK)
+
+            val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
+                .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
+            (sourceRDD, targetRDD)
+        }
+
         val sourceCount = sourceRDD.map(_.originalID).distinct().count().toInt
         log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
 
-        // Loading Target Spatial partitioned
-        val targetRDD = SpatialReader.load(targetConf.path, targetConf.realIdField, targetConf.geometryField)
-            .setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK)
         val targetCount = targetRDD.map(_.originalID).distinct().count().toInt
         log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
 

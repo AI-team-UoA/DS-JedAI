@@ -48,6 +48,8 @@ case class Configuration(source: Dataset, target:Dataset, relation: String, var 
 
 	def getBlockingDistance: Double = configurations.getOrElse(YamlConfiguration.CONF_STATIC_BLOCKING_DISTANCE, "0.0").toDouble
 
+	def partitionBySource: Boolean =  configurations.getOrElse(YamlConfiguration.CONF_PARTITION_BY, Constants.DT_SOURCE)  == Constants.DT_SOURCE
+
 
 }
 
@@ -127,6 +129,12 @@ object ConfigurationParser {
 					case YamlConfiguration.CONF_GRIDTYPE=>
 						if (! GridType.exists(value)){
 							log.error("DS-JEDAI: Grid Type '" + value + "' is not supported")
+							System.exit(1)
+						}
+
+					case YamlConfiguration.CONF_PARTITION_BY=>
+						if (!(value == Constants.DT_SOURCE || value == Constants.DT_TARGET)) {
+							log.error("DS-JEDAI: Error in partitionBy conf, accepted values are \"source\" or \"target\"")
 							System.exit(1)
 						}
 				}

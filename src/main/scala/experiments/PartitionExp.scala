@@ -55,20 +55,33 @@ object PartitionExp {
         val conf = ConfigurationParser.parse(conf_path)
         val partitions: Int = conf.getPartitions
 
-        // Loading Source
         SpatialReader.setPartitions(partitions)
         SpatialReader.noConsecutiveID()
         SpatialReader.setGridType(conf.getGridType)
-        val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
-            .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
-        val sourceCount = sourceRDD.map(_.originalID).distinct().count().toInt
-        log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions +" partitions")
 
-        // Loading Target
-        val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
-            .setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK)
+        // loading source and target, its very important the big dataset to be partitioned first as it will set the partitioner
+        val (sourceRDD, targetRDD) = if (conf.partitionBySource){
+            val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
+                .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
+
+            val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
+                .setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK)
+            (sourceRDD, targetRDD)
+        }
+        else {
+            val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
+                .setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK)
+
+            val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
+                .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
+            (sourceRDD, targetRDD)
+        }
+
+        val sourceCount = sourceRDD.map(_.originalID).distinct().count().toInt
+        log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
+
         val targetCount = targetRDD.map(_.originalID).distinct().count().toInt
-        log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions +" partitions")
+        log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
 
         val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.getRelation, sourceCount, targetCount)
 

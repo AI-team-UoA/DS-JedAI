@@ -81,6 +81,7 @@ object Constants {
 		val CONF_WEIGHTING_STRG = "weighting_strategy"
 		val CONF_BUDGET = "budget"
 		val CONF_GRIDTYPE = "gridType"
+		val CONF_PARTITION_BY = "partitionBy"
 	}
 
 	object GridType extends Enumeration{
