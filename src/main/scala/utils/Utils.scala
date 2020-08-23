@@ -25,8 +25,8 @@ object Utils {
 	val spark: SparkSession = SparkSession.builder().getOrCreate()
 	var swapped = false
 	var thetaXY: (Double, Double) = _
-	var sourceCount: Long = _
-	var targetCount: Long = _
+	var sourceCount: Long = -1
+	var targetCount: Long = -1
 	val log: Logger = LogManager.getRootLogger
 	/**
 	 * Cantor Pairing function. Map two positive integers to a unique integer number.
@@ -178,8 +178,8 @@ object Utils {
 
 					(thetaX, thetaY)
 				case ThetaOption.AVG_x2 =>
-					val distinctSource = source.map(se => (se.originalID, se)).distinct().map(_._2).cache()
-					val distinctTarget = target.map(se => (se.originalID, se)).distinct().map(_._2).cache()
+					val distinctSource = source.map(se => (se.originalID, se)).distinct().map(_._2)//.cache()
+					val distinctTarget = target.map(se => (se.originalID, se)).distinct().map(_._2)//.cache()
 
 					val distinctSourceCount = distinctSource.count()
 					val distinctTargetCount = distinctTarget.count()
