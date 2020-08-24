@@ -22,11 +22,11 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
         val log = LogManager.getRootLogger
         log.setLevel(Level.INFO)
 
-        val source: RDD[SpatialEntity] = joinedRDD.flatMap(_._2._1.map(se => (se.originalID, se))).distinct().map(_._2).setName("Source")//.cache()
-        val target: RDD[SpatialEntity] = joinedRDD.flatMap(_._2._2.map(se => (se.originalID, se))).distinct().map(_._2).setName("target")//.cache()
+        val source: RDD[SpatialEntity] = joinedRDD.flatMap(_._2._1.map(se => (se.originalID, se))).distinct().map(_._2).setName("Source").cache()
+        val target: RDD[SpatialEntity] = joinedRDD.flatMap(_._2._2.map(se => (se.originalID, se))).distinct().map(_._2).setName("target").cache()
 
-        val sourceTiles: RDD[(Int, Int)] = source.flatMap(se => se.index(thetaXY)).setName("SourceTiles")//.cache()
-        val targetTiles: RDD[(Int, Int)] = target.flatMap(se => se.index(thetaXY)).setName("TargetTiles")//.cache()
+        val sourceTiles: RDD[(Int, Int)] = source.flatMap(se => se.index(thetaXY)).setName("SourceTiles").cache()
+        val targetTiles: RDD[(Int, Int)] = target.flatMap(se => se.index(thetaXY)).setName("TargetTiles").cache()
 
         val ssePerTile: RDD[((Int, Int), Int)] = sourceTiles.map((_,1)).reduceByKey(_ + _)
         val tsePerTile: RDD[((Int, Int), Int)] = targetTiles.map((_,1)).reduceByKey(_ + _)

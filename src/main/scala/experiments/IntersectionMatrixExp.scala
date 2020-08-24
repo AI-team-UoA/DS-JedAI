@@ -79,13 +79,13 @@ object IntersectionMatrixExp {
         }
 
         val sourceCount = sourceRDD.map(_.originalID).distinct().count().toInt
-        log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
+        log.info("DS-JEDAI: Number of distinct profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
 
         val targetCount = targetRDD.map(_.originalID).distinct().count().toInt
-        log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
+        log.info("DS-JEDAI: Number of distinct profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
 
-        // swapping for better spatial partitioneing  - swap happend based on ETH and not on count
-        val (source, target, _) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.getRelation, sourceCount, targetCount)
+        // swapping for better spatial partitioning  - swap happened based on ETH and not on count
+        // val (source, target, _) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.getRelation, sourceCount, targetCount)
 
         val matching_startTime = Calendar.getInstance().getTimeInMillis
 
@@ -94,7 +94,7 @@ object IntersectionMatrixExp {
 
             SpaceStatsCounter(sourceRDD, targetRDD, conf.getTheta).printSpaceInfo()
 
-            val pm = PartitionMatching(source, target, conf.getTheta)
+            val pm = PartitionMatching(sourceRDD, targetRDD, conf.getTheta)
             val imRDD = pm.getDE9IM
                 .setName("IntersectionMatrixRDD").persist(StorageLevel.MEMORY_AND_DISK)
 
@@ -121,7 +121,7 @@ object IntersectionMatrixExp {
             log.info("DS-JEDAI: Total Top Relations: " + totalRelations)
         }
         else{
-            val IMsIter = PartitionMatchingFactory.getProgressiveAlgorithm(conf: Configuration, source, target).getDE9IMBudget
+            val IMsIter = PartitionMatchingFactory.getProgressiveAlgorithm(conf: Configuration, sourceRDD, targetRDD).getDE9IMBudget
             var detectedLinks = 0
             var interlinkedGeometries = 0
 
