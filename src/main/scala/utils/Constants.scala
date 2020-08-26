@@ -82,6 +82,7 @@ object Constants {
 		val CONF_BUDGET = "budget"
 		val CONF_GRIDTYPE = "gridType"
 		val CONF_PARTITION_BY = "partitionBy"
+		val CONF_STATS ="stats"
 	}
 
 	object GridType extends Enumeration{

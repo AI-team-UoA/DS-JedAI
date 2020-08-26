@@ -28,6 +28,12 @@ object Utils {
 	var sourceCount: Long = -1
 	var targetCount: Long = -1
 	val log: Logger = LogManager.getRootLogger
+
+	def setCounters(sc: Long, tc: Long): Unit ={
+		sourceCount = sc
+		targetCount = tc
+	}
+
 	/**
 	 * Cantor Pairing function. Map two positive integers to a unique integer number.
 	 *
@@ -112,8 +118,8 @@ object Utils {
 	def swappingStrategy(sourceRDD: RDD[SpatialEntity], targetRDD: RDD[SpatialEntity], relation: Relation,
 						 scount: Long = -1, tcount: Long = -1):	(RDD[SpatialEntity], RDD[SpatialEntity], Relation)= {
 
-		sourceCount = if (scount > 0) scount else sourceRDD.count()
-		targetCount = if (tcount > 0) tcount else targetRDD.count()
+		sourceCount = if (scount > 0) scount else sourceRDD.map(_.originalID).distinct().count()
+		targetCount = if (tcount > 0) tcount else targetRDD.map(_.originalID).distinct().count()
 		val sourceETH = getETH(sourceRDD, sourceCount)
 		val targetETH = getETH(targetRDD, targetCount)
 
@@ -156,6 +162,9 @@ object Utils {
 	 * initialize theta based on theta measure
 	 */
 	def initTheta(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption): (Double, Double) ={
+		if (sourceCount < 0)  sourceCount = source.map(_.originalID).distinct().count()
+		if (targetCount < 0)  targetCount = target.map(_.originalID).distinct().count()
+
 		thetaXY =
 			thetaOption match {
 				case ThetaOption.MIN =>
@@ -181,15 +190,12 @@ object Utils {
 					val distinctSource = source.map(se => (se.originalID, se)).distinct().map(_._2).cache()
 					val distinctTarget = target.map(se => (se.originalID, se)).distinct().map(_._2).cache()
 
-					val distinctSourceCount = distinctSource.count()
-					val distinctTargetCount = distinctTarget.count()
 
+					val thetaXs = distinctSource.map(se => se.geometry.getEnvelopeInternal.getWidth).sum() / sourceCount
+					val thetaYs = distinctSource.map(se => se.geometry.getEnvelopeInternal.getHeight).sum() / sourceCount
 
-					val thetaXs = distinctSource.map(se => se.geometry.getEnvelopeInternal.getWidth).sum() / distinctSourceCount
-					val thetaYs = distinctSource.map(se => se.geometry.getEnvelopeInternal.getHeight).sum() / distinctSourceCount
-
-					val thetaXt = distinctTarget.map(se => se.geometry.getEnvelopeInternal.getWidth).sum() / distinctTargetCount
-					val thetaYt = distinctTarget.map(se => se.geometry.getEnvelopeInternal.getHeight).sum() / distinctTargetCount
+					val thetaXt = distinctTarget.map(se => se.geometry.getEnvelopeInternal.getWidth).sum() / targetCount
+					val thetaYt = distinctTarget.map(se => se.geometry.getEnvelopeInternal.getHeight).sum() / targetCount
 
 					val thetaX = 0.5 * (thetaXs + thetaXt)
 					val thetaY = 0.5 * (thetaYs + thetaYt)

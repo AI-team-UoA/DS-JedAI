@@ -11,7 +11,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import utils.Constants.MatchingAlgorithm
-import utils.Readers.{Reader, SpatialReader}
+import utils.Readers.SpatialReader
 import utils.{Configuration, ConfigurationParser, Utils}
 
 object IntersectionMatrixExp {
@@ -36,6 +36,8 @@ object IntersectionMatrixExp {
                 case Nil => map
                 case ("-c" | "-conf") :: value :: tail =>
                     nextOption(map ++ Map("conf" -> value), tail)
+                case ("-s" | "-stats") :: tail =>
+                    nextOption(map ++ Map("stats" -> "true"), tail)
                 case _ :: tail =>
                     log.warn("DS-JEDAI: Unrecognized argument")
                     nextOption(map, tail)
@@ -45,6 +47,7 @@ object IntersectionMatrixExp {
         val arglist = args.toList
         type OptionMap = Map[String, String]
         val options = nextOption(Map(), arglist)
+        val stats = options.contains("stats")
 
         if (!options.contains("conf")) {
             log.error("DS-JEDAI: No configuration file!")
@@ -84,6 +87,7 @@ object IntersectionMatrixExp {
         val targetCount = targetRDD.map(_.originalID).distinct().count().toInt
         log.info("DS-JEDAI: Number of distinct profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
 
+        Utils.setCounters(sourceCount, targetCount)
         // swapping for better spatial partitioning  - swap happened based on ETH and not on count
         // val (source, target, _) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.getRelation, sourceCount, targetCount)
 
@@ -92,21 +96,39 @@ object IntersectionMatrixExp {
         val ma = conf.getMatchingAlgorithm
         if (ma == MatchingAlgorithm.SPATIAL) {
 
-            SpaceStatsCounter(sourceRDD, targetRDD, conf.getTheta).printSpaceInfo()
+            if(stats) SpaceStatsCounter(sourceRDD, targetRDD, conf.getTheta).printSpaceInfo()
 
             val pm = PartitionMatching(sourceRDD, targetRDD, conf.getTheta)
-            val imRDD = pm.getDE9IM
-                .setName("IntersectionMatrixRDD").persist(StorageLevel.MEMORY_AND_DISK)
+            val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects, totalOverlaps, totalTouches, totalWithin) = pm.getDE9IM.
+                mapPartitions{ imIterator =>
+                    var totalContains = 0
+                    var totalCoveredBy = 0
+                    var totalCovers = 0
+                    var totalCrosses = 0
+                    var totalEquals = 0
+                    var totalIntersects = 0
+                    var totalOverlaps = 0
+                    var totalTouches = 0
+                    var totalWithin = 0
+                    imIterator.foreach { im =>
+                        if (im.isContains) totalContains += 1
+                        if (im.isCoveredBy) totalCoveredBy += 1
+                        if (im.isCovers) totalCovers += 1
+                        if (im.isCrosses) totalCrosses += 1
+                        if (im.isEquals) totalEquals += 1
+                        if (im.isIntersects) totalIntersects += 1
+                        if (im.isOverlaps) totalOverlaps += 1
+                        if (im.isTouches) totalTouches += 1
+                        if (im.isWithin) totalWithin += 1
+                    }
+                    Iterator((totalContains, totalCoveredBy, totalCovers,
+                        totalCrosses, totalEquals, totalIntersects,
+                        totalOverlaps, totalTouches, totalWithin))
+                }
+                .reduce { case((cnt1, cb1, c1, cs1, eq1, i1, o1, t1,w1), (cnt2, cb2, c2, cs2, eq2, i2, o2, t2, w2)) =>
+                    (cnt1+cnt2, cb1+cb2, c1+c2, cs1+cs2, eq1+eq2, i1+i2, o1+o2, t1+t2, w1+w2)
+                }
 
-            val totalContains = imRDD.filter(_.isContains).count()
-            val totalCoveredBy = imRDD.filter(_.isCoveredBy).count()
-            val totalCovers = imRDD.filter(_.isCovers).count()
-            val totalCrosses = imRDD.filter(_.isCrosses).count()
-            val totalEquals = imRDD.filter(_.isEquals).count()
-            val totalIntersects = imRDD.filter(_.isIntersects).count()
-            val totalOverlaps = imRDD.filter(_.isOverlaps).count()
-            val totalTouches = imRDD.filter(_.isTouches).count()
-            val totalWithin = imRDD.filter(_.isWithin).count()
             val totalRelations = totalContains+totalCoveredBy+totalCovers+totalCrosses+totalEquals+totalIntersects+totalOverlaps+totalTouches+totalWithin
 
             log.info("DS-JEDAI: CONTAINS: " + totalContains)
