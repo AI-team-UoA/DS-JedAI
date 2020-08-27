@@ -75,8 +75,12 @@ object BlockingExp {
 		val targetCount = targetRDD.setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK).count().toInt
 		log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions +" partitions")
 
-		val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.getRelation)
-		val dimensions = if (Utils.swapped ) (targetCount, sourceCount) else (sourceCount, targetCount)
+		Utils(sourceRDD, targetRDD, sourceCount, targetCount, conf.getTheta)
+		val toSwap = Utils.toSwap
+		val (source, target, relation) =
+			if (toSwap) (targetRDD, sourceRDD, Relation.swap(conf.getRelation))
+			else (sourceRDD, targetRDD, conf.getRelation)
+		val dimensions = if (toSwap ) (targetCount, sourceCount) else (sourceCount, targetCount)
 
 		if (relation == Relation.DISJOINT) {
 			val matching_startTime = Calendar.getInstance().getTimeInMillis

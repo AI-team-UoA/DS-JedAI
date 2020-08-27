@@ -47,7 +47,7 @@ case class StaticBlocking (source: RDD[SpatialEntity], target: RDD[SpatialEntity
 
 object StaticBlocking{
 	def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaOption: ThetaOption, blockingParameter: Double, distance: Double): StaticBlocking={
-		val thetaXY = Utils.initTheta(source, target, thetaOption)
+		val thetaXY = Utils.getTheta
 		StaticBlocking(source, target, thetaXY, blockingParameter, distance)
 	}
 }

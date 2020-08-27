@@ -85,15 +85,15 @@ object IntersectionMatrixExp {
             (sourceRDD, targetRDD)
         }
 
-        val sourceCount = sourceRDD.map(_.originalID).distinct().count().toInt
+        val distinctSource = sourceRDD.map(se => (se.originalID, se)).distinct().map(_._2).setName("distinctSourceRDD").cache()
+        val sourceCount = distinctSource.count().toInt
         log.info("DS-JEDAI: Number of distinct profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
 
-        val targetCount = targetRDD.map(_.originalID).distinct().count().toInt
+        val distinctTarget = targetRDD.map(se => (se.originalID, se)).distinct().map(_._2).setName("distinctTarget").cache()
+        val targetCount = distinctTarget.count().toInt
         log.info("DS-JEDAI: Number of distinct profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
 
-        Utils.setCounters(sourceCount, targetCount)
-        // swapping for better spatial partitioning  - swap happened based on ETH and not on count
-        // val (source, target, _) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.getRelation, sourceCount, targetCount)
+        Utils(distinctSource, distinctTarget, sourceCount, targetCount, conf.getTheta)
 
         val matching_startTime = Calendar.getInstance().getTimeInMillis
 

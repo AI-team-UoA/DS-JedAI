@@ -9,8 +9,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
 import org.apache.spark.sql.{Encoder, Encoders, Row, SparkSession}
-import utils.Constants.{Relation, ThetaOption}
-import utils.Constants.Relation.Relation
+import utils.Constants.ThetaOption
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Readers.SpatialReader
 
@@ -23,16 +22,24 @@ import scala.reflect.ClassTag
 object Utils {
 
 	val spark: SparkSession = SparkSession.builder().getOrCreate()
-	var swapped = false
-	var thetaXY: (Double, Double) = _
 	var sourceCount: Long = -1
 	var targetCount: Long = -1
 	val log: Logger = LogManager.getRootLogger
+	var thetaOption: ThetaOption = _
+	var source: RDD[SpatialEntity] = _
+	var target: RDD[SpatialEntity] = _
+	lazy val thetaXY: (Double, Double) = initTheta(source, target, thetaOption)
 
-	def setCounters(sc: Long, tc: Long): Unit ={
-		sourceCount = sc
-		targetCount = tc
+
+	def apply(sourceRDD: RDD[SpatialEntity], targetRDD: RDD[SpatialEntity], sc: Long= -1, tc: Long = -1, thetaOpt: ThetaOption = Constants.ThetaOption.AVG_x2): Unit ={
+		source = sourceRDD
+		target = targetRDD
+		sourceCount = if (sc > 0) sc else source.count()
+		targetCount = if (tc > 0) tc else target.count()
+		thetaOption = thetaOpt
 	}
+
+	def getTheta: (Double, Double)= thetaXY
 
 	/**
 	 * Cantor Pairing function. Map two positive integers to a unique integer number.
@@ -108,40 +115,11 @@ object Utils {
 	}
 
 	/**
-	 * Swaps source to the set with the smallest ETH, and change the relation respectively.
+	 * tells whether to swap the two RDD. Source must be the RDD  with the smallest ETH
 	 *
-	 * @param sourceRDD source
-	 * @param targetRDD target
-	 * @param relation relation
-	 * @return the swapped values
+	 * @return whether to swap
 	 */
-	def swappingStrategy(sourceRDD: RDD[SpatialEntity], targetRDD: RDD[SpatialEntity], relation: Relation,
-						 scount: Long = -1, tcount: Long = -1):	(RDD[SpatialEntity], RDD[SpatialEntity], Relation)= {
-
-		sourceCount = if (scount > 0) scount else sourceRDD.map(_.originalID).distinct().count()
-		targetCount = if (tcount > 0) tcount else targetRDD.map(_.originalID).distinct().count()
-		val sourceETH = getETH(sourceRDD, sourceCount)
-		val targetETH = getETH(targetRDD, targetCount)
-
-		if (targetETH < sourceETH){
-			swapped = true
-			val temp = sourceCount
-			sourceCount = targetCount
-			targetCount = temp
-
-			val newRelation: Relation =
-				relation match {
-					case Relation.WITHIN => Relation.CONTAINS
-					case Relation.CONTAINS => Relation.WITHIN
-					case Relation.COVERS => Relation.COVEREDBY
-					case Relation.COVEREDBY => Relation.COVERS;
-					case _ => relation
-				}
-			(targetRDD, sourceRDD, newRelation)
-		}
-		else
-			(sourceRDD, targetRDD, relation)
-	}
+	def toSwap: Boolean = getETH(target, targetCount) < getETH(source, sourceCount)
 
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
 	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
@@ -161,53 +139,44 @@ object Utils {
 	/**
 	 * initialize theta based on theta measure
 	 */
-	def initTheta(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption): (Double, Double) ={
-		if (sourceCount < 0)  sourceCount = source.map(_.originalID).distinct().count()
-		if (targetCount < 0)  targetCount = target.map(_.originalID).distinct().count()
+	private def initTheta(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption): (Double, Double) = {
+		if (sourceCount < 0) sourceCount = source.map(_.originalID).distinct().count()
+		if (targetCount < 0) targetCount = target.map(_.originalID).distinct().count()
 
-		thetaXY =
-			thetaOption match {
-				case ThetaOption.MIN =>
-					// need filtering because there are cases where the geometries are perpendicular to the axes
-					// hence its width or height is equal to 0.0
-					val union = source.union(target)
-					val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).filter(_ != 0.0d).min
-					val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).filter(_ != 0.0d).min
-					(thetaX, thetaY)
-				case ThetaOption.MAX =>
-					val union = source.union(target)
-					val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).max
-					val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).max
-					(thetaX, thetaY)
-				case ThetaOption.AVG =>
-					val union = source.union(target)
-					val total = sourceCount + targetCount
-					val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).sum() / total
-					val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).sum() / total
+		thetaOption match {
+			case ThetaOption.MIN =>
+				// need filtering because there are cases where the geometries are perpendicular to the axes
+				// hence its width or height is equal to 0.0
+				val union = source.union(target)
+				val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).filter(_ != 0.0d).min
+				val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).filter(_ != 0.0d).min
+				(thetaX, thetaY)
+			case ThetaOption.MAX =>
+				val union = source.union(target)
+				val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).max
+				val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).max
+				(thetaX, thetaY)
+			case ThetaOption.AVG =>
+				val union = source.union(target)
+				val total = sourceCount + targetCount
+				val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).sum() / total
+				val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).sum() / total
 
-					(thetaX, thetaY)
-				case ThetaOption.AVG_x2 =>
-					val distinctSource = source.map(se => (se.originalID, se)).distinct().map(_._2).cache()
-					val distinctTarget = target.map(se => (se.originalID, se)).distinct().map(_._2).cache()
+				(thetaX, thetaY)
+			case ThetaOption.AVG_x2 =>
 
+				val thetaXs = source.map(se => se.geometry.getEnvelopeInternal.getWidth).sum() / sourceCount
+				val thetaYs = source.map(se => se.geometry.getEnvelopeInternal.getHeight).sum() / sourceCount
 
-					val thetaXs = distinctSource.map(se => se.geometry.getEnvelopeInternal.getWidth).sum() / sourceCount
-					val thetaYs = distinctSource.map(se => se.geometry.getEnvelopeInternal.getHeight).sum() / sourceCount
+				val thetaXt = target.map(se => se.geometry.getEnvelopeInternal.getWidth).sum() / targetCount
+				val thetaYt = target.map(se => se.geometry.getEnvelopeInternal.getHeight).sum() / targetCount
 
-					val thetaXt = distinctTarget.map(se => se.geometry.getEnvelopeInternal.getWidth).sum() / targetCount
-					val thetaYt = distinctTarget.map(se => se.geometry.getEnvelopeInternal.getHeight).sum() / targetCount
-
-					val thetaX = 0.5 * (thetaXs + thetaXt)
-					val thetaY = 0.5 * (thetaYs + thetaYt)
-
-					distinctSource.unpersist()
-					distinctTarget.unpersist()
-
-					(thetaX, thetaY)
-				case _ =>
-					(1d, 1d)
-			}
-		thetaXY
+				val thetaX = 0.5 * (thetaXs + thetaXt)
+				val thetaY = 0.5 * (thetaYs + thetaYt)
+				(thetaX, thetaY)
+			case _ =>
+				(1d, 1d)
+		}
 	}
 
 

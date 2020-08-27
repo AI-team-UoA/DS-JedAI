@@ -54,7 +54,7 @@ case class RADON(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY
 
 object RADON{
 	def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaOption: ThetaOption): RADON={
-		val thetaXY = Utils.initTheta(source, target, thetaOption)
+		val thetaXY = Utils.getTheta
 		RADON(source, target, thetaXY)
 	}
 }

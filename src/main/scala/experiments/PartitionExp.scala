@@ -9,6 +9,7 @@ import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
+import utils.Constants.Relation
 import utils.{ConfigurationParser, Utils}
 import utils.Readers.SpatialReader
 
@@ -77,13 +78,18 @@ object PartitionExp {
             (sourceRDD, targetRDD)
         }
 
-        val sourceCount = sourceRDD.map(_.originalID).distinct().count().toInt
-        log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
+        val distinctSource = sourceRDD.map(se => (se.originalID, se)).distinct().map(_._2).setName("distinctSourceRDD").cache()
+        val sourceCount = distinctSource.count().toInt
+        log.info("DS-JEDAI: Number of distinct profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
 
-        val targetCount = targetRDD.map(_.originalID).distinct().count().toInt
-        log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
+        val distinctTarget = targetRDD.map(se => (se.originalID, se)).distinct().map(_._2).setName("distinctTarget").cache()
+        val targetCount = distinctTarget.count().toInt
+        log.info("DS-JEDAI: Number of distinct profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
 
-        val (source, target, relation) = Utils.swappingStrategy(sourceRDD, targetRDD, conf.getRelation, sourceCount, targetCount)
+        Utils(distinctSource, distinctTarget, sourceCount, targetCount, conf.getTheta)
+        val (source, target, relation) =
+            if (Utils.toSwap) (targetRDD, sourceRDD, Relation.swap(conf.getRelation))
+            else (sourceRDD, targetRDD, conf.getRelation)
 
         val matching_startTime = Calendar.getInstance().getTimeInMillis
         val matches = PartitionMatchingFactory.getMatchingAlgorithm(conf, source, target).apply(relation)

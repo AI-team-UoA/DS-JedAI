@@ -38,6 +38,13 @@ object Constants {
 		val COVEREDBY: Relation.Value = Value("coveredby")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
+		def swap(r: Relation): Relation = r match {
+			case Relation.WITHIN => Relation.CONTAINS
+			case Relation.CONTAINS => Relation.WITHIN
+			case Relation.COVERS => Relation.COVEREDBY
+			case Relation.COVEREDBY => Relation.COVERS;
+			case _ => r
+		}
 	}
 
 	object ThetaOption extends Enumeration{
@@ -82,7 +89,6 @@ object Constants {
 		val CONF_BUDGET = "budget"
 		val CONF_GRIDTYPE = "gridType"
 		val CONF_PARTITION_BY = "partitionBy"
-		val CONF_STATS ="stats"
 	}
 
 	object GridType extends Enumeration{

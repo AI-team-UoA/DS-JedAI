@@ -95,7 +95,7 @@ object LightRADON {
      * @return LightRADON instance
      */
     def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaOption: ThetaOption = ThetaOption.NO_USE): LightRADON ={
-        val thetaXY = Utils.initTheta(source, target, thetaOption)
+        val thetaXY = Utils.getTheta
         LightRADON(source, target.sortBy(_.id).collect().to[ArrayBuffer], thetaXY)
     }
 

@@ -129,7 +129,7 @@ object EntityCentricPrioritization{
     def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption, ws: WeightStrategy, budget: Long)
     : EntityCentricPrioritization ={
 
-        val thetaXY = Utils.initTheta(source, target, thetaOption)
+        val thetaXY = Utils.getTheta
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
 

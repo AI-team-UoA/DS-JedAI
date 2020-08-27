@@ -108,7 +108,7 @@ case class PartitionBlocking(source: RDD[SpatialEntity], target: RDD[SpatialEnti
 
 object PartitionBlocking {
     def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaOption: ThetaOption): PartitionBlocking={
-        val thetaXY = Utils.initTheta(source, target, thetaOption)
+        val thetaXY = Utils.getTheta
         PartitionBlocking(source, target, thetaXY)
     }
 }

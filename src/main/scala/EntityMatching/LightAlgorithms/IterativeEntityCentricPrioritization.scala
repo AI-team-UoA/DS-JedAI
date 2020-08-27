@@ -131,7 +131,7 @@ object IterativeEntityCentricPrioritization {
      * @return LightRADON instance
      */
     def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaOption: ThetaOption = ThetaOption.NO_USE, ws: WeightStrategy = WeightStrategy.CBS): IterativeEntityCentricPrioritization = {
-        val thetaXY = Utils.initTheta(source, target, thetaOption)
+        val thetaXY = Utils.getTheta
         IterativeEntityCentricPrioritization(source, target.sortBy(_.id).collect().to[ArrayBuffer], thetaXY, ws)
     }
 }

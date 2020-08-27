@@ -99,7 +99,7 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
 object SpaceStatsCounter{
 
     def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption): SpaceStatsCounter ={
-        val thetaXY = Utils.initTheta(source, target, thetaOption)
+        val thetaXY = Utils.getTheta
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
 
