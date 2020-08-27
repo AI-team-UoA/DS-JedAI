@@ -40,6 +40,8 @@ object IntersectionMatrixExp {
                     nextOption(map ++ Map("fraction" -> value), tail)
                 case ("-s" | "-stats") :: tail =>
                     nextOption(map ++ Map("stats" -> "true"), tail)
+                case ("-p" | "-partitions") :: value :: tail =>
+                    nextOption(map ++ Map("partitions" -> value), tail)
                 case _ :: tail =>
                     log.warn("DS-JEDAI: Unrecognized argument")
                     nextOption(map, tail)
@@ -60,7 +62,7 @@ object IntersectionMatrixExp {
 
         val conf_path = options("conf")
         val conf = ConfigurationParser.parse(conf_path)
-        val partitions: Int = conf.getPartitions
+        val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
 
         // setting SpatialReader
         SpatialReader.setPartitions(partitions)
