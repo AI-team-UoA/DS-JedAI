@@ -63,6 +63,28 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
         }
     }
 
+
+    def getSampleDE9IM(frac: Double): RDD[IM] ={
+        joinedRDD
+            .flatMap { p =>
+                val pid = p._1
+                val partition = partitionsZones(pid)
+                val source: Array[SpatialEntity] = p._2._1.toArray
+                val target: Iterator[SpatialEntity] = p._2._2.toIterator
+                val sourceIndex = index(source)
+                val filteringFunction = (b:(Int, Int)) => sourceIndex.contains(b)
+
+                target.flatMap { targetSE =>
+                    targetSE
+                        .index(thetaXY, filteringFunction)
+                        .flatMap(c => sourceIndex.get(c).map(j => (c, source(j))))
+                        .filter { case (c, se) => se.testMBB(targetSE, Relation.INTERSECTS, Relation.TOUCHES) && se.referencePointFiltering(targetSE, c, thetaXY, Some(partition)) }
+                        .map(se => (se._2, targetSE))
+                }
+            }
+            .sample(withReplacement = false, frac)
+            .map{ case(sse, tse) => IM(sse, tse)}
+    }
 }
 
 /**

@@ -36,6 +36,8 @@ object IntersectionMatrixExp {
                 case Nil => map
                 case ("-c" | "-conf") :: value :: tail =>
                     nextOption(map ++ Map("conf" -> value), tail)
+                case ("-f" | "-fraction") :: value :: tail =>
+                    nextOption(map ++ Map("fraction" -> value), tail)
                 case ("-s" | "-stats") :: tail =>
                     nextOption(map ++ Map("stats" -> "true"), tail)
                 case _ :: tail =>
@@ -48,6 +50,8 @@ object IntersectionMatrixExp {
         type OptionMap = Map[String, String]
         val options = nextOption(Map(), arglist)
         val stats = options.contains("stats")
+
+        val sampleFraction = if (options.contains("fraction")) options("fraction").toDouble else -1d
 
         if (!options.contains("conf")) {
             log.error("DS-JEDAI: No configuration file!")
@@ -99,7 +103,11 @@ object IntersectionMatrixExp {
             if(stats) SpaceStatsCounter(sourceRDD, targetRDD, conf.getTheta).printSpaceInfo()
 
             val pm = PartitionMatching(sourceRDD, targetRDD, conf.getTheta)
-            val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects, totalOverlaps, totalTouches, totalWithin) = pm.getDE9IM.
+            val imRDD = if(sampleFraction < 0) pm.getDE9IM else pm.getSampleDE9IM(sampleFraction)
+
+            val (totalContains, totalCoveredBy, totalCovers,
+                 totalCrosses, totalEquals, totalIntersects,
+                 totalOverlaps, totalTouches, totalWithin, intersectingPairs) = imRDD.
                 mapPartitions{ imIterator =>
                     var totalContains = 0
                     var totalCoveredBy = 0
@@ -110,7 +118,9 @@ object IntersectionMatrixExp {
                     var totalOverlaps = 0
                     var totalTouches = 0
                     var totalWithin = 0
+                    var intersectingPairs = 0
                     imIterator.foreach { im =>
+                        intersectingPairs += 1
                         if (im.isContains) totalContains += 1
                         if (im.isCoveredBy) totalCoveredBy += 1
                         if (im.isCovers) totalCovers += 1
@@ -123,14 +133,14 @@ object IntersectionMatrixExp {
                     }
                     Iterator((totalContains, totalCoveredBy, totalCovers,
                         totalCrosses, totalEquals, totalIntersects,
-                        totalOverlaps, totalTouches, totalWithin))
+                        totalOverlaps, totalTouches, totalWithin, intersectingPairs))
                 }
-                .reduce { case((cnt1, cb1, c1, cs1, eq1, i1, o1, t1,w1), (cnt2, cb2, c2, cs2, eq2, i2, o2, t2, w2)) =>
-                    (cnt1+cnt2, cb1+cb2, c1+c2, cs1+cs2, eq1+eq2, i1+i2, o1+o2, t1+t2, w1+w2)
+                .reduce { case((cnt1, cb1, c1, cs1, eq1, i1, o1, t1,w1, ip1), (cnt2, cb2, c2, cs2, eq2, i2, o2, t2, w2, ip2)) =>
+                    (cnt1+cnt2, cb1+cb2, c1+c2, cs1+cs2, eq1+eq2, i1+i2, o1+o2, t1+t2, w1+w2, ip1+ip2)
                 }
 
             val totalRelations = totalContains+totalCoveredBy+totalCovers+totalCrosses+totalEquals+totalIntersects+totalOverlaps+totalTouches+totalWithin
-
+            log.info("DS-JEDAI: Total Intersecting Pairs: " + intersectingPairs)
             log.info("DS-JEDAI: CONTAINS: " + totalContains)
             log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
             log.info("DS-JEDAI: COVERS: " + totalCovers)
