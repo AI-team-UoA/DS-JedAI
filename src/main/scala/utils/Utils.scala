@@ -28,7 +28,7 @@ object Utils {
 	var thetaOption: ThetaOption = _
 	var source: RDD[SpatialEntity] = _
 	var target: RDD[SpatialEntity] = _
-	lazy val thetaXY: (Double, Double) = initTheta(source, target, thetaOption)
+	lazy val thetaXY: (Double, Double) = initTheta()
 
 
 	def apply(sourceRDD: RDD[SpatialEntity], targetRDD: RDD[SpatialEntity], sc: Long= -1, tc: Long = -1, thetaOpt: ThetaOption = Constants.ThetaOption.AVG_x2): Unit ={
@@ -37,6 +37,7 @@ object Utils {
 		sourceCount = if (sc > 0) sc else source.count()
 		targetCount = if (tc > 0) tc else target.count()
 		thetaOption = thetaOpt
+
 	}
 
 	def getTheta: (Double, Double)= thetaXY
@@ -139,11 +140,11 @@ object Utils {
 	/**
 	 * initialize theta based on theta measure
 	 */
-	private def initTheta(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption): (Double, Double) = {
+	private def initTheta(): (Double, Double) = {
 		if (sourceCount < 0) sourceCount = source.map(_.originalID).distinct().count()
 		if (targetCount < 0) targetCount = target.map(_.originalID).distinct().count()
 
-		thetaOption match {
+		val (tx, ty) = thetaOption match {
 			case ThetaOption.MIN =>
 				// need filtering because there are cases where the geometries are perpendicular to the axes
 				// hence its width or height is equal to 0.0
@@ -177,6 +178,9 @@ object Utils {
 			case _ =>
 				(1d, 1d)
 		}
+		source.unpersist()
+		target.unpersist()
+		(tx, ty)
 	}
 
 
