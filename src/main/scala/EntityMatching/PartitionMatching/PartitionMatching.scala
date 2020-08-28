@@ -64,7 +64,7 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
     }
 
 
-    def getSampleDE9IM(frac: Double): RDD[IM] ={
+    def getSampleDE9IM(frac: Double): RDD[(SpatialEntity, SpatialEntity)] ={
         joinedRDD
             .flatMap { p =>
                 val pid = p._1
@@ -83,7 +83,7 @@ case class PartitionMatching(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
                 }
             }
             .sample(withReplacement = false, frac)
-            .map{ case(sse, tse) => IM(sse, tse)}
+
     }
 }
 

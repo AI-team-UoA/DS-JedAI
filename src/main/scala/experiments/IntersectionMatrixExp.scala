@@ -2,6 +2,7 @@ package experiments
 
 import java.util.Calendar
 
+import DataStructures.IM
 import EntityMatching.PartitionMatching.{PartitionMatching, PartitionMatchingFactory}
 import EntityMatching.SpaceStatsCounter
 import org.apache.log4j.{Level, LogManager, Logger}
@@ -105,12 +106,17 @@ object IntersectionMatrixExp {
             if(stats) SpaceStatsCounter(sourceRDD, targetRDD, conf.getTheta).printSpaceInfo()
 
             val pm = PartitionMatching(sourceRDD, targetRDD, conf.getTheta)
-            val imRDD = if(sampleFraction < 0) pm.getDE9IM else pm.getSampleDE9IM(sampleFraction)
+            val imRDD = if(sampleFraction < 0) pm.getDE9IM else{
+                val imRDDtmp = pm.getSampleDE9IM(sampleFraction).setName("IMRDD").cache()
+                val ip = imRDDtmp.count()
+                imRDDtmp.map{ case(sse, tse) => IM(sse, tse)}
+            }
 
+            val de9im_startTime = Calendar.getInstance().getTimeInMillis
             val (totalContains, totalCoveredBy, totalCovers,
                  totalCrosses, totalEquals, totalIntersects,
-                 totalOverlaps, totalTouches, totalWithin, intersectingPairs) = imRDD.
-                mapPartitions{ imIterator =>
+                 totalOverlaps, totalTouches, totalWithin, intersectingPairs) = imRDD
+                .mapPartitions{ imIterator =>
                     var totalContains = 0
                     var totalCoveredBy = 0
                     var totalCovers = 0
@@ -153,6 +159,8 @@ object IntersectionMatrixExp {
             log.info("DS-JEDAI: TOUCHES: " + totalTouches)
             log.info("DS-JEDAI: WITHIN: " + totalWithin)
             log.info("DS-JEDAI: Total Top Relations: " + totalRelations)
+            val de9im_endTime = Calendar.getInstance().getTimeInMillis
+            log.info("DS-JEDAI: Only DE-9IM Time: " + (de9im_endTime - de9im_startTime) / 1000.0)
         }
         else{
             val IMsIter = PartitionMatchingFactory.getProgressiveAlgorithm(conf: Configuration, sourceRDD, targetRDD).getDE9IMBudget
