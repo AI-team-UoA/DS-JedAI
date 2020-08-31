@@ -112,6 +112,9 @@ object IntersectionMatrixExp {
                 imRDDtmp.map{ case(sse, tse) => IM(sse, tse)}
             }
 
+            val ds = imRDD.map(_.idPair._1).distinct().count()
+            val dt = imRDD.map(_.idPair._2).distinct().count()
+
             val de9im_startTime = Calendar.getInstance().getTimeInMillis
             val (totalContains, totalCoveredBy, totalCovers,
                  totalCrosses, totalEquals, totalIntersects,
@@ -148,6 +151,9 @@ object IntersectionMatrixExp {
                 }
 
             val totalRelations = totalContains+totalCoveredBy+totalCovers+totalCrosses+totalEquals+totalIntersects+totalOverlaps+totalTouches+totalWithin
+            log.info("DS-JEDAI: Distinct Source " + ds)
+            log.info("DS-JEDAI: Distinct Target " + dt)
+
             log.info("DS-JEDAI: Total Intersecting Pairs: " + intersectingPairs)
             log.info("DS-JEDAI: CONTAINS: " + totalContains)
             log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
