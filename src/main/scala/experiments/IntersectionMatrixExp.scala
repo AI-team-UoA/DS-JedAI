@@ -97,6 +97,8 @@ object IntersectionMatrixExp {
         log.info("DS-JEDAI: Number of distinct profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
 
         Utils(distinctSource, distinctTarget, sourceCount, targetCount, conf.getTheta)
+        val readTime = Calendar.getInstance()
+        log.info("DS-JEDAI: Reading input dataset took: " + (readTime.getTimeInMillis - startTime) / 1000.0)
 
         val matching_startTime = Calendar.getInstance().getTimeInMillis
 
