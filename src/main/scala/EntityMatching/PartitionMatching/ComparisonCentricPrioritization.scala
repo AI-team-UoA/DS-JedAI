@@ -13,7 +13,7 @@ import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
 import utils.Readers.SpatialReader
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.ListBuffer
 
 
 case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
@@ -44,7 +44,7 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
                 target
                     .map(targetSE => (targetSE, targetSE.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))))
                     .filter(_._2.length > 0)
-                    .flatMap { case(targetSE: SpatialEntity, sIndices:  Array[((Int, Int), ArrayBuffer[Int])]) =>
+                    .flatMap { case(targetSE: SpatialEntity, sIndices:  Array[((Int, Int), ListBuffer[Int])]) =>
 
                         util.Arrays.fill(frequencies, 0)
                         sIndices.flatMap(_._2).foreach(i => frequencies(i) += 1)
@@ -79,7 +79,7 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
                 target
                     .map(targetSE => (targetSE, targetSE.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))))
                     .filter(_._2.length > 0)
-                    .flatMap { case(targetSE: SpatialEntity, sIndices:  Array[((Int, Int), ArrayBuffer[Int])]) =>
+                    .flatMap { case(targetSE: SpatialEntity, sIndices:  Array[((Int, Int), ListBuffer[Int])]) =>
 
                         util.Arrays.fill(frequencies, 0)
                         sIndices.flatMap(_._2).foreach(i => frequencies(i) += 1)

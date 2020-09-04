@@ -13,7 +13,7 @@ import utils.Utils
 import utils.Readers.SpatialReader
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.ListBuffer
 
 case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
                                            thetaXY: (Double, Double), ws: WeightStrategy, targetCount: Long, budget: Long) extends ProgressiveTrait {
@@ -46,7 +46,7 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
 
                 target
                     .map {e2 =>
-                        val sIndices:Array[((Int, Int), ArrayBuffer[Int])] = e2.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))
+                        val sIndices:Array[((Int, Int), ListBuffer[Int])] = e2.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))
                         util.Arrays.fill(frequencies, 0)
                         sIndices.flatMap(_._2)foreach(i => frequencies(i) += 1)
 
@@ -110,7 +110,7 @@ case class IterativeEntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[S
 
                 target
                     .map {e2 =>
-                        val sIndices:Array[((Int, Int), ArrayBuffer[Int])] = e2.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))
+                        val sIndices:Array[((Int, Int), ListBuffer[Int])] = e2.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))
                         util.Arrays.fill(frequencies, 0)
                         sIndices.flatMap(_._2)foreach(i => frequencies(i) += 1)
 
