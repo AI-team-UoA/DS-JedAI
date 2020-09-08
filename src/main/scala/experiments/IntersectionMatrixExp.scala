@@ -18,8 +18,8 @@ import utils.{Configuration, ConfigurationParser, Utils}
 object IntersectionMatrixExp {
     def main(args: Array[String]): Unit = {
         val startTime = Calendar.getInstance().getTimeInMillis
-        Logger.getLogger("org").setLevel(Level.INFO)
-        Logger.getLogger("akka").setLevel(Level.INFO)
+        Logger.getLogger("org").setLevel(Level.ERROR)
+        Logger.getLogger("akka").setLevel(Level.ERROR)
         val log = LogManager.getRootLogger
         log.setLevel(Level.INFO)
 
@@ -164,10 +164,10 @@ object IntersectionMatrixExp {
             log.info("DS-JEDAI: Only DE-9IM Time: " + (de9im_endTime - de9im_startTime) / 1000.0)
         }
         else{
+            val budget = conf.getBudget
             val IMsIter = PartitionMatchingFactory.getProgressiveAlgorithm(conf: Configuration, sourceRDD, targetRDD).getDE9IMBudget
             var detectedLinks = 0
             var interlinkedGeometries = 0
-
 
             var totalContains = 0
             var totalCoveredBy = 0
@@ -179,72 +179,61 @@ object IntersectionMatrixExp {
             var totalTouches = 0
             var totalWithin = 0
 
-            var i:Int = 0
             IMsIter
-                .foreach(im => {
-                    var relate = false
+                .zipWithIndex
+                .takeWhile( _._2 < budget)
+                .foreach { case (im, i) =>
                     if (i % 10000 == 0)
-                        log.info("DS-JEDAI: Iteration: " + i +" Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks )
+                        log.info("DS-JEDAI: Iteration: " + i + " Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks)
+                    if (im.relate)
+                        interlinkedGeometries += 1
 
                     if (im.isContains) {
-                        relate = true
                         detectedLinks += 1
                         totalContains += 1
                     }
 
                     if (im.isCoveredBy) {
-                        relate = true
                         detectedLinks += 1
                         totalCoveredBy += 1
                     }
 
                     if (im.isCovers) {
-                        relate = true
                         detectedLinks += 1
                         totalCovers += 1
                     }
 
                     if (im.isCrosses) {
-                        relate = true
                         detectedLinks += 1
                         totalCrosses += 1
                     }
 
                     if (im.isEquals) {
-                        relate = true
                         detectedLinks += 1
                         totalEquals += 1
                     }
 
                     if (im.isIntersects) {
-                        relate = true
                         detectedLinks += 1
                         totalIntersects += 1
                     }
 
                     if (im.isOverlaps) {
-                        relate = true
                         detectedLinks += 1
                         totalOverlaps += 1
                     }
 
                     if (im.isTouches) {
-                        relate = true
                         detectedLinks += 1
                         totalTouches += 1
                     }
 
                     if (im.isWithin) {
-                        relate = true
                         detectedLinks += 1
                         totalWithin += 1
                     }
-
-                    if (relate)
-                        interlinkedGeometries += 1
-                    i += 1
-                })
-            log.info("DS-JEDAI: Iteration: " + i +" Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks )
+                }
+            log.info("DS-JEDAI: Iteration: " + budget +" Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks )
             log.info("\n")
             log.info("DS-JEDAI: CONTAINS: " + totalContains)
             log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
