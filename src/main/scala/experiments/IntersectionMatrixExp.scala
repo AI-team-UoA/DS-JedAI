@@ -168,6 +168,7 @@ object IntersectionMatrixExp {
             val IMsIter = PartitionMatchingFactory.getProgressiveAlgorithm(conf: Configuration, sourceRDD, targetRDD).getDE9IMBudget
             var detectedLinks = 0
             var interlinkedGeometries = 0
+            var gAUC = 0
 
             var totalContains = 0
             var totalCoveredBy = 0
@@ -185,53 +186,55 @@ object IntersectionMatrixExp {
                 .foreach { case (im, i) =>
                     if (i % 10000 == 0)
                         log.info("DS-JEDAI: Iteration: " + i + " Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks)
-                    if (im.relate)
+                    if (im.relate) {
                         interlinkedGeometries += 1
 
-                    if (im.isContains) {
-                        detectedLinks += 1
-                        totalContains += 1
-                    }
+                        if (im.isContains) {
+                            detectedLinks += 1
+                            totalContains += 1
+                        }
 
-                    if (im.isCoveredBy) {
-                        detectedLinks += 1
-                        totalCoveredBy += 1
-                    }
+                        if (im.isCoveredBy) {
+                            detectedLinks += 1
+                            totalCoveredBy += 1
+                        }
 
-                    if (im.isCovers) {
-                        detectedLinks += 1
-                        totalCovers += 1
-                    }
+                        if (im.isCovers) {
+                            detectedLinks += 1
+                            totalCovers += 1
+                        }
 
-                    if (im.isCrosses) {
-                        detectedLinks += 1
-                        totalCrosses += 1
-                    }
+                        if (im.isCrosses) {
+                            detectedLinks += 1
+                            totalCrosses += 1
+                        }
 
-                    if (im.isEquals) {
-                        detectedLinks += 1
-                        totalEquals += 1
-                    }
+                        if (im.isEquals) {
+                            detectedLinks += 1
+                            totalEquals += 1
+                        }
 
-                    if (im.isIntersects) {
-                        detectedLinks += 1
-                        totalIntersects += 1
-                    }
+                        if (im.isIntersects) {
+                            detectedLinks += 1
+                            totalIntersects += 1
+                        }
 
-                    if (im.isOverlaps) {
-                        detectedLinks += 1
-                        totalOverlaps += 1
-                    }
+                        if (im.isOverlaps) {
+                            detectedLinks += 1
+                            totalOverlaps += 1
+                        }
 
-                    if (im.isTouches) {
-                        detectedLinks += 1
-                        totalTouches += 1
-                    }
+                        if (im.isTouches) {
+                            detectedLinks += 1
+                            totalTouches += 1
+                        }
 
-                    if (im.isWithin) {
-                        detectedLinks += 1
-                        totalWithin += 1
+                        if (im.isWithin) {
+                            detectedLinks += 1
+                            totalWithin += 1
+                        }
                     }
+                    gAUC += interlinkedGeometries
                 }
             log.info("DS-JEDAI: Iteration: " + budget +" Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks )
             log.info("\n")
@@ -244,6 +247,7 @@ object IntersectionMatrixExp {
             log.info("DS-JEDAI: OVERLAPS: " + totalOverlaps)
             log.info("DS-JEDAI: TOUCHES: " + totalTouches)
             log.info("DS-JEDAI: WITHIN: " + totalWithin + "\n")
+            log.info("Geometry AUC: " + gAUC.toDouble / interlinkedGeometries.toDouble / budget.toDouble)
 
         }
 
