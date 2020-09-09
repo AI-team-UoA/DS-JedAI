@@ -7,6 +7,8 @@ import utils.Constants.Relation.Relation
 import utils.Constants.WeightStrategy
 import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
+import math.{floor, ceil}
+
 
 trait PartitionMatchingTrait {
 
@@ -79,7 +81,7 @@ trait PartitionMatchingTrait {
     /**
      * Weight a comparison
      *
-     * @param frequency total comparisons of e1 with e2
+     * @param frequency common blocks of e1 and e2
      * @param e1        Spatial entity
      * @param e2        Spatial entity
      * @return weight
@@ -87,18 +89,18 @@ trait PartitionMatchingTrait {
     def getWeight(frequency: Int, e1: SpatialEntity, e2: SpatialEntity): Double = {
         ws match {
             case WeightStrategy.ECBS =>
-                val e1Blocks = (e1.mbb.maxX - e1.mbb.minX + 1) * (e1.mbb.maxY - e1.mbb.minY + 1)
-                val e2Blocks = (e2.mbb.maxX - e2.mbb.minX + 1) * (e2.mbb.maxY - e2.mbb.minY + 1)
+                val e1Blocks = (ceil(e1.mbb.maxX/thetaXY._1).toInt - floor(e1.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e1.mbb.maxY/thetaXY._2).toInt - floor(e1.mbb.minY/thetaXY._2).toInt + 1)
+                val e2Blocks = (ceil(e2.mbb.maxX/thetaXY._1).toInt - floor(e2.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e2.mbb.maxY/thetaXY._2).toInt - floor(e2.mbb.minY/thetaXY._2).toInt + 1)
                 frequency * math.log10(totalBlocks / e1Blocks) * math.log10(totalBlocks / e2Blocks)
 
             case WeightStrategy.JS =>
-                val e1Blocks = (e1.mbb.maxX - e1.mbb.minX + 1) * (e1.mbb.maxY - e1.mbb.minY + 1)
-                val e2Blocks = (e2.mbb.maxX - e2.mbb.minX + 1) * (e2.mbb.maxY - e2.mbb.minY + 1)
+                val e1Blocks = (ceil(e1.mbb.maxX/thetaXY._1).toInt - floor(e1.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e1.mbb.maxY/thetaXY._2).toInt - floor(e1.mbb.minY/thetaXY._2).toInt + 1)
+                val e2Blocks = (ceil(e2.mbb.maxX/thetaXY._1).toInt - floor(e2.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e2.mbb.maxY/thetaXY._2).toInt - floor(e2.mbb.minY/thetaXY._2).toInt + 1)
                 frequency / (e1Blocks + e2Blocks - frequency)
 
             case WeightStrategy.PEARSON_X2 =>
-                val e1Blocks = (e1.mbb.maxX - e1.mbb.minX + 1) * (e1.mbb.maxY - e1.mbb.minY + 1)
-                val e2Blocks = (e2.mbb.maxX - e2.mbb.minX + 1) * (e2.mbb.maxY - e2.mbb.minY + 1)
+                val e1Blocks = (ceil(e1.mbb.maxX/thetaXY._1).toInt - floor(e1.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e1.mbb.maxY/thetaXY._2).toInt - floor(e1.mbb.minY/thetaXY._2).toInt + 1)
+                val e2Blocks = (ceil(e2.mbb.maxX/thetaXY._1).toInt - floor(e2.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e2.mbb.maxY/thetaXY._2).toInt - floor(e2.mbb.minY/thetaXY._2).toInt + 1)
 
                 val v1: Array[Long] = Array[Long](frequency, (e2Blocks - frequency).toLong)
                 val v2: Array[Long] = Array[Long]((e1Blocks - frequency).toLong, (totalBlocks - (v1(0) + v1(1) + (e1Blocks - frequency))).toLong)
