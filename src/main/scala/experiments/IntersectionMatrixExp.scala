@@ -165,10 +165,10 @@ object IntersectionMatrixExp {
         }
         else{
             val budget = conf.getBudget
-            val IMsIter = PartitionMatchingFactory.getProgressiveAlgorithm(conf: Configuration, sourceRDD, targetRDD).getDE9IMBudget
-            var detectedLinks = 0
-            var interlinkedGeometries = 0
-            var gAUC = 0
+            val IMsIter = PartitionMatchingFactory.getProgressiveAlgorithm(conf: Configuration, sourceRDD, targetRDD).getDE9IMIterator
+            var detectedLinks: Long = 0
+            var interlinkedGeometries: Long = 0
+            var gAUC: Long = 0
 
             var totalContains = 0
             var totalCoveredBy = 0
@@ -184,7 +184,7 @@ object IntersectionMatrixExp {
                 .zipWithIndex
                 .takeWhile( _._2 < budget)
                 .foreach { case (im, i) =>
-                    if (i % 10000 == 0)
+                    if (i % 100000 == 0)
                         log.info("DS-JEDAI: Iteration: " + i + " Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks)
                     if (im.relate) {
                         interlinkedGeometries += 1
