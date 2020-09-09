@@ -8,7 +8,7 @@ import utils.Constants.Relation.Relation
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-case class SpatialEntity(id: Int, originalID: String = "", geometry: Geometry,  mbb: MBB, crossesMeridian: Boolean){
+case class SpatialEntity(id: Int, originalID: String = "", geometry: Geometry, mbb: MBB, crossesMeridian: Boolean){
 
     /**
      * Find the relation with another SpatialEntity
@@ -61,8 +61,7 @@ case class SpatialEntity(id: Int, originalID: String = "", geometry: Geometry,  
         (for (x <- minX to maxX; y <- minY to maxY; if filter((x, y))) yield (x, y)).toArray
     }
 
-    def getIntersectionMatrix(t: SpatialEntity): IntersectionMatrix =
-        geometry.relate(t.geometry)
+    def getIntersectionMatrix(t: SpatialEntity): IntersectionMatrix = geometry.relate(t.geometry)
 
 }
 
