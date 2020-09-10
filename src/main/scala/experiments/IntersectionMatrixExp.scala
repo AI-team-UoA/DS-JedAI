@@ -181,8 +181,8 @@ object IntersectionMatrixExp {
             var totalWithin = 0
 
             IMsIter
+                .take(budget)
                 .zipWithIndex
-                .takeWhile( _._2 < budget)
                 .foreach { case (im, i) =>
                     if (i % 100000 == 0)
                         log.info("DS-JEDAI: Iteration: " + i + " Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks)
