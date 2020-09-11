@@ -62,9 +62,7 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
             .map(c => ((c._1.originalID, c._2.originalID), c._1.relate(c._2, relation)))
     }
 
-
-
-    def getDE9IM: RDD[IM] ={
+    def getDE9IM: RDD[IM] =
         joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
@@ -92,6 +90,37 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
             }
             .map{case (w, c) => (w, IM(c._1, c._2))}
             .sortByKey(ascending = false)
+            .map(_._2)
+
+    def getDE9IMIterator: Iterator[IM] ={
+        joinedRDD
+            .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
+            .flatMap { p =>
+                val pid = p._1
+                val partition = partitionsZones(pid)
+                val source = p._2._1.toArray
+                val target = p._2._2.toIterator
+                val sourceIndex = index(source)
+                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
+                val frequencies = new Array[Int](source.length)
+
+                target
+                    .map(targetSE => (targetSE, targetSE.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))))
+                    .filter(_._2.length > 0)
+                    .flatMap { case(targetSE: SpatialEntity, sIndices:  Array[((Int, Int), ListBuffer[Int])]) =>
+
+                        util.Arrays.fill(frequencies, 0)
+                        sIndices.flatMap(_._2).foreach(i => frequencies(i) += 1)
+                        sIndices.flatMap { case (c, indices) =>
+                            indices.map(i => (source(i), frequencies(i)))
+                                .filter { case (e1, _) => e1.referencePointFiltering(targetSE, c, thetaXY, Some(partition)) && e1.testMBB(targetSE, Relation.INTERSECTS, Relation.TOUCHES)}
+                                .map { case (e1, f) => (getWeight(f, e1, targetSE), (e1, targetSE)) }
+                        }
+                    }
+            }
+            .map{case (w, c) => (w, IM(c._1, c._2))}
+            .takeOrdered(budget.toInt)(Ordering.by[(Double, IM), Double](_._1).reverse)
+            .toIterator
             .map(_._2)
     }
 

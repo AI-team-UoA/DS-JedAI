@@ -3,7 +3,7 @@ package experiments
 import java.util.Calendar
 
 import DataStructures.IM
-import EntityMatching.PartitionMatching.{PartitionMatching, PartitionMatchingFactory}
+import EntityMatching.PartitionMatching.{ComparisonCentricPrioritization, PartitionMatching, PartitionMatchingFactory}
 import EntityMatching.SpaceStatsCounter
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -165,11 +165,14 @@ object IntersectionMatrixExp {
         }
         else{
             val budget = conf.getBudget
-            val IMsIter = PartitionMatchingFactory.getProgressiveAlgorithm(conf: Configuration, sourceRDD, targetRDD).getDE9IMIterator
+            //val IMsIter = PartitionMatchingFactory.getProgressiveAlgorithm(conf: Configuration, sourceRDD, targetRDD).getDE9IMIterator
+            val IMsIter = ComparisonCentricPrioritization(sourceRDD, targetRDD, conf.getTheta, conf.getWeightingScheme, conf.getBudget).getDE9IMIterator//.getDE9IM.take(conf.getBudget.toInt).toIterator
+
             var detectedLinks: Long = 0
             var interlinkedGeometries: Long = 0
             var gAUC: Long = 0
             var gAUC5M: Long = 0
+            var interlinkedGeometries5M: Long = 0
 
             var totalContains = 0
             var totalCoveredBy = 0
@@ -234,6 +237,7 @@ object IntersectionMatrixExp {
                     }
                     gAUC += interlinkedGeometries
                     if (i < 5000000) gAUC5M += interlinkedGeometries
+                    if (i == 5000000) interlinkedGeometries5M = interlinkedGeometries
                 }
             log.info("DS-JEDAI: Interlinked Geometries: " + interlinkedGeometries)
             log.info("DS-JEDAI: Detected Links: " + interlinkedGeometries)
@@ -249,7 +253,7 @@ object IntersectionMatrixExp {
             log.info("DS-JEDAI: TOUCHES: " + totalTouches)
             log.info("DS-JEDAI: WITHIN: " + totalWithin + "\n")
             log.info("Geometry AUC: " + gAUC.toDouble / interlinkedGeometries.toDouble / budget.toDouble)
-            log.info("Geometry 5M AUC: " + gAUC5M.toDouble / interlinkedGeometries.toDouble / budget.toDouble)
+            log.info("Geometry 5M AUC: " + gAUC5M.toDouble / interlinkedGeometries5M.toDouble / 5000000d)
 
         }
 

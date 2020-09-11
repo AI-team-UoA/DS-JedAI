@@ -19,5 +19,5 @@ trait ProgressiveTrait extends PartitionMatchingTrait{
 
     def apply(relation: Relation): RDD[(String, String)] = getComparisons(relation).filter(_._2).map(_._1)
 
-    def getDE9IMIterator: Iterator[IM] = getDE9IM.take(budget.toInt).toIterator
+    // def getDE9IMIterator: Iterator[IM] = getDE9IM
 }
