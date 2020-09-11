@@ -73,8 +73,7 @@ object LightExp {
         val targetCount = targetRDD.setName("TargetRDD").cache().count()
         log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
 
-        Utils.targetCount = targetCount
-        Utils.sourceCount = sourceCount
+        Utils(sourceRDD.map(_.mbb), targetRDD.map(_.mbb), sourceCount, targetCount, conf.getTheta)
 
         val imRDD = LightMatchingFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).applyDE9IM(0).persist(StorageLevel.MEMORY_AND_DISK)
 

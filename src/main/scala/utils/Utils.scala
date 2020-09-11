@@ -26,12 +26,12 @@ object Utils {
 	var targetCount: Long = -1
 	val log: Logger = LogManager.getRootLogger
 	var thetaOption: ThetaOption = _
-	var source: RDD[SpatialEntity] = _
-	var target: RDD[SpatialEntity] = _
+	var source: RDD[MBB] = _
+	var target: RDD[MBB] = _
 	lazy val thetaXY: (Double, Double) = initTheta()
 
 
-	def apply(sourceRDD: RDD[SpatialEntity], targetRDD: RDD[SpatialEntity], sc: Long= -1, tc: Long = -1, thetaOpt: ThetaOption = Constants.ThetaOption.AVG_x2): Unit ={
+	def apply(sourceRDD: RDD[MBB], targetRDD: RDD[MBB], sc: Long= -1, tc: Long = -1, thetaOpt: ThetaOption = Constants.ThetaOption.AVG_x2): Unit ={
 		source = sourceRDD
 		target = targetRDD
 		sourceCount = if (sc > 0) sc else source.count()
@@ -93,7 +93,7 @@ object Utils {
 	 * @param seRDD Spatial Entities
 	 * @return Estimation of the Total Hyper-volume
 	 */
-	def getETH(seRDD: RDD[SpatialEntity]): Double ={
+	def getETH(seRDD: RDD[MBB]): Double ={
 		getETH(seRDD, seRDD.count())
 	}
 
@@ -105,10 +105,10 @@ object Utils {
 	 * @param count number of the entities
 	 * @return Estimation of the Total Hyper-volume
 	 */
-	def getETH(seRDD: RDD[SpatialEntity], count: Double): Double ={
+	def getETH(seRDD: RDD[MBB], count: Double): Double ={
 		val denom = 1/count
 		val coords_sum = seRDD
-			.map(se => (se.mbb.maxX - se.mbb.minX, se.mbb.maxY - se.mbb.minY))
+			.map(mbb => (mbb.maxX - mbb.minX, mbb.maxY - mbb.minY))
 			.fold((0, 0)) { case ((x1, y1), (x2, y2)) => (x1 + x2, y1 + y2) }
 
 		val eth = count * ( (denom * coords_sum._1) * (denom * coords_sum._2) )
@@ -141,36 +141,34 @@ object Utils {
 	 * initialize theta based on theta measure
 	 */
 	private def initTheta(): (Double, Double) = {
-		if (sourceCount < 0) sourceCount = source.map(_.originalID).distinct().count()
-		if (targetCount < 0) targetCount = target.map(_.originalID).distinct().count()
 
 		val (tx, ty) = thetaOption match {
 			case ThetaOption.MIN =>
 				// need filtering because there are cases where the geometries are perpendicular to the axes
 				// hence its width or height is equal to 0.0
 				val union = source.union(target)
-				val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).filter(_ != 0.0d).min
-				val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).filter(_ != 0.0d).min
+				val thetaX = union.map(mbb => mbb.maxX - mbb.minX).filter(_ != 0.0d).min
+				val thetaY = union.map(mbb => mbb.maxY - mbb.minY).filter(_ != 0.0d).min
 				(thetaX, thetaY)
 			case ThetaOption.MAX =>
 				val union = source.union(target)
-				val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).max
-				val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).max
+				val thetaX = union.map(mbb => mbb.maxX - mbb.minX).max
+				val thetaY = union.map(mbb => mbb.maxY - mbb.minY).max
 				(thetaX, thetaY)
 			case ThetaOption.AVG =>
 				val union = source.union(target)
 				val total = sourceCount + targetCount
-				val thetaX = union.map(se => se.mbb.maxX - se.mbb.minX).sum() / total
-				val thetaY = union.map(se => se.mbb.maxY - se.mbb.minY).sum() / total
+				val thetaX = union.map(mbb => mbb.maxX - mbb.minX).sum() / total
+				val thetaY = union.map(mbb => mbb.maxY - mbb.minY).sum() / total
 
 				(thetaX, thetaY)
 			case ThetaOption.AVG_x2 =>
 
-				val thetaXs = source.map(se => se.geometry.getEnvelopeInternal.getWidth).sum() / sourceCount
-				val thetaYs = source.map(se => se.geometry.getEnvelopeInternal.getHeight).sum() / sourceCount
+				val thetaXs = source.map(mbb => mbb.maxX - mbb.minX).sum() / sourceCount
+				val thetaYs = source.map(mbb => mbb.maxY - mbb.minY).sum() / sourceCount
 
-				val thetaXt = target.map(se => se.geometry.getEnvelopeInternal.getWidth).sum() / targetCount
-				val thetaYt = target.map(se => se.geometry.getEnvelopeInternal.getHeight).sum() / targetCount
+				val thetaXt = target.map(mbb => mbb.maxX - mbb.minX).sum() / targetCount
+				val thetaYt = target.map(mbb => mbb.maxY - mbb.minY).sum() / targetCount
 
 				val thetaX = 0.5 * (thetaXs + thetaXt)
 				val thetaY = 0.5 * (thetaYs + thetaYt)

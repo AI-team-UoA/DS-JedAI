@@ -88,15 +88,15 @@ object IntersectionMatrixExp {
             (sourceRDD, targetRDD)
         }
 
-        val distinctSource = sourceRDD.map(se => (se.originalID, se)).distinct().map(_._2).setName("distinctSourceRDD").cache()
-        val sourceCount = distinctSource.count().toInt
+        val distinctSourceMBB = sourceRDD.map(se => (se.originalID, se.mbb)).distinct().map(_._2).setName("distinctSourceMBB").cache()
+        val sourceCount = distinctSourceMBB.count().toInt
         log.info("DS-JEDAI: Number of distinct profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
 
-        val distinctTarget = targetRDD.map(se => (se.originalID, se)).distinct().map(_._2).setName("distinctTarget").cache()
-        val targetCount = distinctTarget.count().toInt
+        val distinctTargetMBB = targetRDD.map(se => (se.originalID, se.mbb)).distinct().map(_._2).setName("distinctTargetMBB").cache()
+        val targetCount = distinctTargetMBB.count().toInt
         log.info("DS-JEDAI: Number of distinct profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
 
-        Utils(distinctSource, distinctTarget, sourceCount, targetCount, conf.getTheta)
+        Utils(distinctSourceMBB, distinctTargetMBB, sourceCount, targetCount, conf.getTheta)
         val readTime = Calendar.getInstance()
         log.info("DS-JEDAI: Reading input dataset took: " + (readTime.getTimeInMillis - startTime) / 1000.0)
 
@@ -169,6 +169,7 @@ object IntersectionMatrixExp {
             var detectedLinks: Long = 0
             var interlinkedGeometries: Long = 0
             var gAUC: Long = 0
+            var gAUC5M: Long = 0
 
             var totalContains = 0
             var totalCoveredBy = 0
@@ -181,11 +182,8 @@ object IntersectionMatrixExp {
             var totalWithin = 0
 
             IMsIter
-                .take(budget)
                 .zipWithIndex
-                .foreach { case (im, i) =>
-                    if (i % 100000 == 0)
-                        log.info("DS-JEDAI: Iteration: " + i + " Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks)
+                .foreach { case(im, i) =>
                     if (im.relate) {
                         interlinkedGeometries += 1
 
@@ -235,6 +233,7 @@ object IntersectionMatrixExp {
                         }
                     }
                     gAUC += interlinkedGeometries
+                    if (i < 5000000) gAUC5M += interlinkedGeometries
                 }
             log.info("DS-JEDAI: Iteration: " + budget +" Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks )
             log.info("\n")
@@ -248,6 +247,7 @@ object IntersectionMatrixExp {
             log.info("DS-JEDAI: TOUCHES: " + totalTouches)
             log.info("DS-JEDAI: WITHIN: " + totalWithin + "\n")
             log.info("Geometry AUC: " + gAUC.toDouble / interlinkedGeometries.toDouble / budget.toDouble)
+            log.info("Geometry 5M AUC: " + gAUC5M.toDouble / interlinkedGeometries.toDouble / budget.toDouble)
 
         }
 

@@ -75,7 +75,7 @@ object BlockingExp {
 		val targetCount = targetRDD.setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK).count().toInt
 		log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions +" partitions")
 
-		Utils(sourceRDD, targetRDD, sourceCount, targetCount, conf.getTheta)
+		Utils(sourceRDD.map(_.mbb), targetRDD.map(_.mbb), sourceCount, targetCount, conf.getTheta)
 		val toSwap = Utils.toSwap
 		val (source, target, relation) =
 			if (toSwap) (targetRDD, sourceRDD, Relation.swap(conf.getRelation))
