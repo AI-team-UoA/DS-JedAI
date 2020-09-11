@@ -235,7 +235,9 @@ object IntersectionMatrixExp {
                     gAUC += interlinkedGeometries
                     if (i < 5000000) gAUC5M += interlinkedGeometries
                 }
-            log.info("DS-JEDAI: Iteration: " + budget +" Links\t:\t" + interlinkedGeometries + "\t" + detectedLinks )
+            log.info("DS-JEDAI: Interlinked Geometries: " + interlinkedGeometries)
+            log.info("DS-JEDAI: Detected Links: " + interlinkedGeometries)
+
             log.info("\n")
             log.info("DS-JEDAI: CONTAINS: " + totalContains)
             log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
