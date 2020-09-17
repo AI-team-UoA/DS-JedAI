@@ -29,8 +29,8 @@ class SpatialIndex(){
     def asKeys: mutable.HashMap[Int, Set[Int]] =
        index.map(i => i._1 -> i._2.keySet)
 
-    def getIndices: ArrayBuffer[(Int, Int)] ={
-        val indices = ArrayBuffer[(Int, Int)]()
+    def getIndices: ListBuffer[(Int, Int)] ={
+        val indices = ListBuffer[(Int, Int)]()
         index.foreach{ case(i1, indicesSet) => indicesSet.keysIterator.foreach(i2 => indices.append((i1, i2)))}
         indices
     }
