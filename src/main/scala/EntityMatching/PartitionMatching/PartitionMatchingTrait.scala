@@ -116,6 +116,47 @@ trait PartitionMatchingTrait {
     def apply(relation: Relation): RDD[(String, String)]
 
     def getDE9IM: RDD[IM]
+
+    def countRelations: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = {
+        getDE9IM
+            .mapPartitions { imIterator =>
+                var totalContains = 0
+                var totalCoveredBy = 0
+                var totalCovers = 0
+                var totalCrosses = 0
+                var totalEquals = 0
+                var totalIntersects = 0
+                var totalOverlaps = 0
+                var totalTouches = 0
+                var totalWithin = 0
+                var intersectingPairs = 0
+                var interlinkedGeometries = 0
+                imIterator.foreach { im =>
+                    intersectingPairs += 1
+                    if (im.relate) {
+                        interlinkedGeometries += 1
+                        if (im.isContains) totalContains += 1
+                        if (im.isCoveredBy) totalCoveredBy += 1
+                        if (im.isCovers) totalCovers += 1
+                        if (im.isCrosses) totalCrosses += 1
+                        if (im.isEquals) totalEquals += 1
+                        if (im.isIntersects) totalIntersects += 1
+                        if (im.isOverlaps) totalOverlaps += 1
+                        if (im.isTouches) totalTouches += 1
+                        if (im.isWithin) totalWithin += 1
+                    }
+                }
+
+                Iterator((totalContains, totalCoveredBy, totalCovers,
+                    totalCrosses, totalEquals, totalIntersects,
+                    totalOverlaps, totalTouches, totalWithin,
+                    intersectingPairs, interlinkedGeometries))
+            }
+            .treeReduce { case ((cnt1, cb1, c1, cs1, eq1, i1, o1, t1, w1, ip1, ig1),
+            (cnt2, cb2, c2, cs2, eq2, i2, o2, t2, w2, ip2, ig2)) =>
+                (cnt1 + cnt2, cb1 + cb2, c1 + c2, cs1 + cs2, eq1 + eq2, i1 + i2, o1 + o2, t1 + t2, w1 + w2, ip1 + ip2, ig1 + ig2)
+            }
+    }
 }
 
 

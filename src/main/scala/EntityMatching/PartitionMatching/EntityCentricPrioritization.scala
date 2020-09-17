@@ -15,7 +15,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
-                                       thetaXY: (Double, Double), ws: WeightStrategy, targetCount: Long, budget: Long)
+                                       thetaXY: (Double, Double), ws: WeightStrategy, budget: Long, sourceCount: Long)
    extends ProgressiveTrait {
 
 
@@ -27,14 +27,14 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
      * @return  an RDD of Intersection Matrices
      */
     def getDE9IM: RDD[IM] ={
-        val totalComparisons: Long = joinedRDD.map(p => p._2._1.size * p._2._2.size).sum().toLong
+        //val totalComparisons: Long = joinedRDD.map(p => p._2._1.size * p._2._2.size).sum().toLong
         joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
                 val pid = p._1
                 val partition = partitionsZones(pid)
                 val source: Array[SpatialEntity] = p._2._1.toArray
-                val target: Iterable[SpatialEntity] = p._2._2
+                val target: Iterator[SpatialEntity] = p._2._2.toIterator
                 val sourceIndex = index(source)
                 val sourceSize = source.length
                 val frequencies = new Array[Int](sourceSize)
@@ -42,12 +42,11 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
                 val innerPQ = mutable.PriorityQueue[(Double, Int)]()(Ordering.by[(Double, Int), Double](_._1).reverse)
                 val partitionPQ = mutable.PriorityQueue[(Double, (Iterator[Int], SpatialEntity))]()(Ordering.by[(Double, (Iterator[Int], SpatialEntity)), Double](_._1))
 
-                val localCartesian = target.size*source.length
-                val localBudget: Int = ((localCartesian*budget)/totalComparisons).toInt
+                //val localCartesian = target.size*source.length
+                val localBudget: Int = ((sourceSize*budget)/sourceCount).toInt
                 val k = localBudget / p._2._2.size
                 var minW = 10000d
                 target
-                    .toIterator
                     .foreach {e2 =>
                         val sIndices:Array[((Int, Int), ListBuffer[Int])] = e2.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))
                         util.Arrays.fill(frequencies, 0)
@@ -93,12 +92,12 @@ object EntityCentricPrioritization{
     : EntityCentricPrioritization ={
 
         val thetaXY = Utils.getTheta
+        val sourceCount = Utils.getSourceCount
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
 
-        val targetCount = Utils.targetCount
         val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
-        EntityCentricPrioritization(joinedRDD, thetaXY, ws, targetCount, budget)
+        EntityCentricPrioritization(joinedRDD, thetaXY, ws, budget, sourceCount)
     }
 
 }

@@ -23,24 +23,20 @@ object Utils {
 
 	val spark: SparkSession = SparkSession.builder().getOrCreate()
 	var sourceCount: Long = -1
-	var targetCount: Long = -1
 	val log: Logger = LogManager.getRootLogger
 	var thetaOption: ThetaOption = _
 	var source: RDD[MBB] = _
-	var target: RDD[MBB] = _
+	//var target: RDD[MBB] = _
 	lazy val thetaXY: (Double, Double) = initTheta()
 
-
-	def apply(sourceRDD: RDD[MBB], targetRDD: RDD[MBB], sc: Long= -1, tc: Long = -1, thetaOpt: ThetaOption = Constants.ThetaOption.AVG_x2): Unit ={
+	def apply(sourceRDD: RDD[MBB], count: Long= -1, thetaOpt: ThetaOption = Constants.ThetaOption.AVG_x2): Unit ={
 		source = sourceRDD
-		target = targetRDD
-		sourceCount = if (sc > 0) sc else source.count()
-		targetCount = if (tc > 0) tc else target.count()
+		sourceCount = if (count > 0) count else sourceRDD.count()
 		thetaOption = thetaOpt
-
 	}
 
 	def getTheta: (Double, Double)= thetaXY
+	def getSourceCount: Long = sourceCount
 
 	/**
 	 * Cantor Pairing function. Map two positive integers to a unique integer number.
@@ -93,9 +89,9 @@ object Utils {
 	 * @param seRDD Spatial Entities
 	 * @return Estimation of the Total Hyper-volume
 	 */
-	def getETH(seRDD: RDD[MBB]): Double ={
-		getETH(seRDD, seRDD.count())
-	}
+//	def getETH(seRDD: RDD[MBB]): Double ={
+//		getETH(seRDD, seRDD.count())
+//	}
 
 
 	/**
@@ -120,7 +116,7 @@ object Utils {
 	 *
 	 * @return whether to swap
 	 */
-	def toSwap: Boolean = getETH(target, targetCount) < getETH(source, sourceCount)
+	//def toSwap: Boolean = getETH(target, targetCount) < getETH(source, sourceCount)
 
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
 	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
@@ -146,20 +142,20 @@ object Utils {
 			case ThetaOption.MIN =>
 				// need filtering because there are cases where the geometries are perpendicular to the axes
 				// hence its width or height is equal to 0.0
-				val union = source.union(target)
-				val thetaX = union.map(mbb => mbb.maxX - mbb.minX).filter(_ != 0.0d).min
-				val thetaY = union.map(mbb => mbb.maxY - mbb.minY).filter(_ != 0.0d).min
+				//val union = source.union(target)
+				val thetaX = source.map(mbb => mbb.maxX - mbb.minX).filter(_ != 0.0d).min
+				val thetaY = source.map(mbb => mbb.maxY - mbb.minY).filter(_ != 0.0d).min
 				(thetaX, thetaY)
 			case ThetaOption.MAX =>
-				val union = source.union(target)
-				val thetaX = union.map(mbb => mbb.maxX - mbb.minX).max
-				val thetaY = union.map(mbb => mbb.maxY - mbb.minY).max
+				//val union = source.union(target)
+				val thetaX = source.map(mbb => mbb.maxX - mbb.minX).max
+				val thetaY = source.map(mbb => mbb.maxY - mbb.minY).max
 				(thetaX, thetaY)
 			case ThetaOption.AVG =>
-				val union = source.union(target)
-				val total = sourceCount + targetCount
-				val thetaX = union.map(mbb => mbb.maxX - mbb.minX).sum() / total
-				val thetaY = union.map(mbb => mbb.maxY - mbb.minY).sum() / total
+				//val union = source.union(target)
+				//val total = sourceCount + targetCount
+				val thetaX = source.map(mbb => mbb.maxX - mbb.minX).sum() / sourceCount
+				val thetaY = source.map(mbb => mbb.maxY - mbb.minY).sum() / sourceCount
 
 				(thetaX, thetaY)
 			case ThetaOption.AVG_x2 =>
@@ -167,17 +163,19 @@ object Utils {
 				val thetaXs = source.map(mbb => mbb.maxX - mbb.minX).sum() / sourceCount
 				val thetaYs = source.map(mbb => mbb.maxY - mbb.minY).sum() / sourceCount
 
-				val thetaXt = target.map(mbb => mbb.maxX - mbb.minX).sum() / targetCount
-				val thetaYt = target.map(mbb => mbb.maxY - mbb.minY).sum() / targetCount
+//				val thetaXt = target.map(mbb => mbb.maxX - mbb.minX).sum() / targetCount
+//				val thetaYt = target.map(mbb => mbb.maxY - mbb.minY).sum() / targetCount
 
-				val thetaX = 0.5 * (thetaXs + thetaXt)
-				val thetaY = 0.5 * (thetaYs + thetaYt)
+//				val thetaX = 0.5 * (thetaXs + thetaXt)
+//				val thetaY = 0.5 * (thetaYs + thetaYt)
+
+				val thetaX = 0.5 * thetaXs
+				val thetaY = 0.5 * thetaYs
+
 				(thetaX, thetaY)
 			case _ =>
 				(1d, 1d)
 		}
-		source.unpersist()
-		target.unpersist()
 		(tx, ty)
 	}
 
