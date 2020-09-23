@@ -24,4 +24,6 @@ trait ProgressiveTrait extends PartitionMatchingTrait{
     }
 
     def getDE9IM: RDD[IM]
+
+    def getWeightedDE9IM: RDD[(Double, IM)]
 }
