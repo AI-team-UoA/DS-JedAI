@@ -57,6 +57,19 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
         blockMBB.contains(rfMBB) && partition.contains(rfMBB)
     }
 
+    def partitionRF(mbb:MBB, thetaXY: (Double, Double), partition: MBB): Boolean ={
+        val (thetaX, thetaY) = thetaXY
+
+        val minX1 = minX / thetaX
+        val minX2 = mbb.minX / thetaX
+        val maxY1 = maxY / thetaY
+        val maxY2 = mbb.maxY / thetaY
+
+        val rf: (Double, Double) =(max(minX1, minX2)+.0000001, min(maxY1, maxY2)+.0000001)
+        val rfMBB = MBB(rf._1, rf._2)
+        partition.contains(rfMBB)
+    }
+
     /**
      *  check relation among MBBs
      *

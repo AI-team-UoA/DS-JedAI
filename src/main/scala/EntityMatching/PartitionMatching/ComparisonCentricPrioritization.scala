@@ -29,7 +29,6 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
      * @return  an RDD of Intersection Matrices
      */
     def getDE9IM: RDD[IM] ={
-        //val totalComparisons: Long = joinedRDD.map(p => p._2._1.size * p._2._2.size).sum().toLong
         joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
@@ -39,9 +38,7 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
                 val target = p._2._2.toIterator
                 val sourceIndex = index(source)
                 val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
-                val frequencies = new Array[Int](source.length)
 
-                //val localCartesian = target.size*source.length
                 val localBudget: Int = ((source.length*budget)/sourceCount).toInt
                 val pq = mutable.PriorityQueue()(Ordering.by[(Double, (Int, SpatialEntity)), Double](_._1).reverse)
                 var minW = 10000d
@@ -52,32 +49,68 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
                     .filter(_._2.length > 0)
                     .foreach { case(e2: SpatialEntity, sIndices:  Array[((Int, Int), ListBuffer[Int])]) =>
 
-                        util.Arrays.fill(frequencies, 0)
-                        sIndices.flatMap(_._2).foreach(i => frequencies(i) += 1)
-                        sIndices.foreach { case (c, indices) =>
-                            indices
-                                .filter { i => source(i).referencePointFiltering(e2, c, thetaXY, Some(partition)) &&
-                                    source(i).testMBB(e2, Relation.INTERSECTS, Relation.TOUCHES)}
-                                .foreach{ i =>
-                                    val e1 = source(i)
-                                    val f = frequencies(i)
-                                    val w =  getWeight(f, e1, e2)
-                                    if(pq.size < localBudget) {
-                                        if (w < minW) minW = w
-                                        pq.enqueue((w, (i, e2)))
-                                    } else if (w > minW) {
-                                        pq.dequeue()
-                                        pq.enqueue((w, (i, e2)))
-                                        minW = pq.head._1
-                                    }
+                        val frequencies = sIndices.flatMap(_._2).groupBy(identity).mapValues(_.length)
+                        frequencies
+                            .filter{ case(i, _) => source(i).partitionRF(e2.mbb, thetaXY, partition) && source(i).testMBB(e2, Relation.INTERSECTS, Relation.TOUCHES) }
+                            .foreach{ case(i, f) =>
+                                val e1 = source(i)
+                                val w =  getWeight(f, e1, e2)
+                                if(pq.size < localBudget) {
+                                    if (w < minW) minW = w
+                                    pq.enqueue((w, (i, e2)))
+                                } else if (w > minW) {
+                                    pq.dequeue()
+                                    pq.enqueue((w, (i, e2)))
+                                    minW = pq.head._1
                                 }
+                            }
                         }
-                    }
-
                pq.dequeueAll.map{case (_, (i, e2)) => IM(source(i), e2)}.reverse
             }
     }
 
+
+    def getWeightedDE9IM: RDD[(Double, IM)] ={
+        joinedRDD
+            .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
+            .flatMap { p =>
+                val pid = p._1
+                val partition = partitionsZones(pid)
+                val source = p._2._1.toArray
+                val target = p._2._2.toIterator
+                val sourceIndex = index(source)
+                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
+
+                val localBudget: Int = ((source.length*budget)/sourceCount).toInt
+                val pq = mutable.PriorityQueue()(Ordering.by[(Double, (Int, SpatialEntity)), Double](_._1).reverse)
+                var minW = 10000d
+
+                // weight and put the comparisons in a PQ
+                target
+                    .map(e2 => (e2, e2.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))))
+                    .filter(_._2.length > 0)
+                    .foreach { case(e2: SpatialEntity, sIndices:  Array[((Int, Int), ListBuffer[Int])]) =>
+
+                        val frequencies = sIndices.flatMap(_._2).groupBy(identity).mapValues(_.length)
+                        frequencies
+                            .filter{ case(i, _) => source(i).partitionRF(e2.mbb, thetaXY, partition) && source(i).testMBB(e2, Relation.INTERSECTS, Relation.TOUCHES) }
+                            .foreach{ case(i, f) =>
+                                val e1 = source(i)
+                                val w =  getWeight(f, e1, e2)
+                                if(pq.size < localBudget) {
+                                    if (w < minW) minW = w
+                                    pq.enqueue((w, (i, e2)))
+                                } else if (w > minW) {
+                                    pq.dequeue()
+                                    pq.enqueue((w, (i, e2)))
+                                    minW = pq.head._1
+                                }
+                            }
+                    }
+
+                pq.dequeueAll.map{case (w, (i, e2)) => (w, IM(source(i), e2))}.reverse
+            }
+    }
 }
 
 

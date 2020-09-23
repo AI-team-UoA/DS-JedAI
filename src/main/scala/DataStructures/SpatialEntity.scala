@@ -41,7 +41,12 @@ case class SpatialEntity(id: Int, originalID: String = "", geometry: Geometry, m
         }
     }
 
-    /**
+    def partitionRF(mbb:MBB, thetaXY: (Double, Double), partition: MBB): Boolean ={
+        mbb.partitionRF(mbb, thetaXY, partition)
+    }
+
+
+        /**
      * Get the blocks of the spatial entity
      *
      * @param thetaXY coordinated are adjusted to the selected theta
