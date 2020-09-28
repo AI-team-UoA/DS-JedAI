@@ -1,8 +1,6 @@
 package EntityMatching.PartitionMatching
 
 
-import java.util
-
 import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
@@ -45,11 +43,11 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
 
                 // weight and put the comparisons in a PQ
                 target
-                    .map(e2 => (e2, e2.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))))
-                    .filter(_._2.length > 0)
-                    .foreach { case(e2: SpatialEntity, sIndices:  Array[((Int, Int), ListBuffer[Int])]) =>
-
-                        val frequencies = sIndices.flatMap(_._2).groupBy(identity).mapValues(_.length)
+                    .foreach {e2 =>
+                    val frequencies = e2.index(thetaXY, filteringFunction)
+                        .flatMap(c => sourceIndex.get(c))
+                        .groupBy(identity)
+                        .mapValues(_.length)
                         frequencies
                             .filter{ case(i, _) => source(i).partitionRF(e2.mbb, thetaXY, partition) && source(i).testMBB(e2, Relation.INTERSECTS, Relation.TOUCHES) }
                             .foreach{ case(i, f) =>
