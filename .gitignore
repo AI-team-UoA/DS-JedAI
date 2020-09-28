@@ -21,3 +21,5 @@ project/plugins/project/
 .idea/*
 
 config/*
+/config/polar_uc.yaml
+/config/

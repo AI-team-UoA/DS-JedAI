@@ -24,8 +24,6 @@ case class BlockMatching(blocks:RDD[Block]) extends BlockMatchingTrait {
 			.map(c => (c.entity1.originalID, c.entity2.originalID))
 	}
 
-
-
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
 	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
 	implicit def tuple[Int, String](implicit e1: Encoder[Int], e2: Encoder[String]): Encoder[(Int,String)] = Encoders.tuple[Int,String](e1, e2)
