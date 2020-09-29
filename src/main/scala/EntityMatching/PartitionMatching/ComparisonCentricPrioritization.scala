@@ -37,9 +37,9 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
                 val sourceIndex = index(source)
                 val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
 
-                val localBudget: Int = ((source.length*budget)/sourceCount).toInt
+                val localBudget: Int = math.ceil((source.length*budget)/sourceCount).toInt
                 val pq = mutable.PriorityQueue()(Ordering.by[(Double, (Int, SpatialEntity)), Double](_._1).reverse)
-                var minW = 10000d
+                var minW = 0d
 
                 // weight and put the comparisons in a PQ
                 target
@@ -53,13 +53,10 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
                             .foreach{ case(i, f) =>
                                 val e1 = source(i)
                                 val w =  getWeight(f, e1, e2)
-                                if(pq.size < localBudget) {
-                                    if (w < minW) minW = w
+                                if(minW < w) {
                                     pq.enqueue((w, (i, e2)))
-                                } else if (w > minW) {
-                                    pq.dequeue()
-                                    pq.enqueue((w, (i, e2)))
-                                    minW = pq.head._1
+                                    if (pq.size > localBudget)
+                                        minW = pq.dequeue()._1
                                 }
                             }
                         }
@@ -79,9 +76,9 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
                 val sourceIndex = index(source)
                 val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
 
-                val localBudget: Int = ((source.length*budget)/sourceCount).toInt
+                val localBudget: Int = math.ceil((source.length*budget)/sourceCount).toInt
                 val pq = mutable.PriorityQueue()(Ordering.by[(Double, (Int, SpatialEntity)), Double](_._1).reverse)
-                var minW = 10000d
+                var minW = 0d
 
                 // weight and put the comparisons in a PQ
                 target
@@ -95,13 +92,10 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
                             .foreach{ case(i, f) =>
                                 val e1 = source(i)
                                 val w =  getWeight(f, e1, e2)
-                                if(pq.size < localBudget) {
-                                    if (w < minW) minW = w
+                                if(minW < w) {
                                     pq.enqueue((w, (i, e2)))
-                                } else if (w > minW) {
-                                    pq.dequeue()
-                                    pq.enqueue((w, (i, e2)))
-                                    minW = pq.head._1
+                                    if (pq.size > localBudget)
+                                        minW = pq.dequeue()._1
                                 }
                             }
                     }
