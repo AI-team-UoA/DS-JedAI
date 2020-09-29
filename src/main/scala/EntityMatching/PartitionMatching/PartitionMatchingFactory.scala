@@ -26,9 +26,9 @@ object PartitionMatchingFactory {
             case MatchingAlgorithm.ΕΝΤΙΤΥ_CENTRIC =>
                 log.info("Matching Algorithm: " + MatchingAlgorithm.ΕΝΤΙΤΥ_CENTRIC)
                 EntityCentricPrioritization(source, target, theta_msr, ws, budget)
-            case MatchingAlgorithm.ITERATIVE_ΕΝΤΙΤΥ_CENTRIC =>
-                log.info("Matching Algorithm: " + MatchingAlgorithm.ITERATIVE_ΕΝΤΙΤΥ_CENTRIC)
-                IterativeEntityCentricPrioritization(source, target, theta_msr, ws, budget)
+            case MatchingAlgorithm.TOPK =>
+                log.info("Matching Algorithm: " + MatchingAlgorithm.TOPK)
+                TopKPairs(source, target, theta_msr, ws, budget)
             case _ =>
                 log.info("Matching Algorithm: " + MatchingAlgorithm.SPATIAL)
                 PartitionMatching(source, target, theta_msr)
@@ -50,9 +50,9 @@ object PartitionMatchingFactory {
             case MatchingAlgorithm.ΕΝΤΙΤΥ_CENTRIC =>
                 log.info("Matching Algorithm: " + MatchingAlgorithm.ΕΝΤΙΤΥ_CENTRIC)
                 EntityCentricPrioritization(source, target, theta_msr, ws, budget)
-            case MatchingAlgorithm.ITERATIVE_ΕΝΤΙΤΥ_CENTRIC =>
-                log.info("Matching Algorithm: " + MatchingAlgorithm.ITERATIVE_ΕΝΤΙΤΥ_CENTRIC)
-                IterativeEntityCentricPrioritization(source, target, theta_msr, ws, budget)
+            case MatchingAlgorithm.TOPK =>
+                log.info("Matching Algorithm: " + MatchingAlgorithm.TOPK)
+                TopKPairs(source, target, theta_msr, ws, budget)
         }
     }
 }

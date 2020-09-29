@@ -1,7 +1,5 @@
 package EntityMatching.PartitionMatching
 
-import java.util
-
 import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
@@ -37,12 +35,13 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
                 val sourceIndex = index(source)
                 val sourceSize = source.length
                 val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
-                val innerPQ = mutable.PriorityQueue[(Double, Int)]()(Ordering.by[(Double, Int), Double](_._1).reverse)
+                val entityPQ = mutable.PriorityQueue[(Double, Int)]()(Ordering.by[(Double, Int), Double](_._1).reverse)
                 val partitionPQ = mutable.PriorityQueue[(Double, (Iterator[Int], SpatialEntity))]()(Ordering.by[(Double, (Iterator[Int], SpatialEntity)), Double](_._1))
 
                 val localBudget: Int = ((sourceSize*budget)/sourceCount).toInt
                 val k = localBudget / p._2._2.size
                 var minW = 10000d
+
                 target
                     .foreach {e2 =>
                         val frequencies = e2.index(thetaXY, filteringFunction)
@@ -57,21 +56,21 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
                                 val w = getWeight(f, e1, e2)
                                 wSum += w
                                 // keep the top-K for each target entity
-                                if (innerPQ.size < k) {
+                                if (entityPQ.size < k) {
                                     if(w < minW) minW = w
-                                    innerPQ.enqueue((w, i))
+                                    entityPQ.enqueue((w, i))
                                 }
                                 else if(w > minW) {
-                                    innerPQ.dequeue()
-                                    innerPQ.enqueue((w, i))
-                                    minW = innerPQ.head._1
+                                    entityPQ.dequeue()
+                                    entityPQ.enqueue((w, i))
+                                    minW = entityPQ.head._1
                                 }
                             }
-                        if (innerPQ.nonEmpty) {
-                            val weight = wSum / innerPQ.length
-                            val topK = innerPQ.dequeueAll.map(_._2).reverse.toIterator
+                        if (entityPQ.nonEmpty) {
+                            val weight = wSum / entityPQ.length
+                            val topK = entityPQ.dequeueAll.map(_._2).reverse.toIterator
                             partitionPQ.enqueue((weight, (topK, e2)))
-                            innerPQ.clear()
+                            entityPQ.clear()
                         }
                     }
 
@@ -119,7 +118,7 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
                                     minW = innerPQ.head._1
                                 }
                             }
-                        if (innerPQ.nonEmpty) {
+                          if (innerPQ.nonEmpty) {
                             val weight = wSum / innerPQ.length
                             val topK = innerPQ.dequeueAll.map(_._2).reverse.toIterator
                             partitionPQ.enqueue((weight, (topK, e2)))

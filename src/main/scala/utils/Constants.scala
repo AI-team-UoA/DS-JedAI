@@ -121,7 +121,7 @@ object Constants {
 		val BLOCK_CENTRIC: Constants.MatchingAlgorithm.Value = Value("BLOCK_CENTRIC")
 		val COMPARISON_CENTRIC: Constants.MatchingAlgorithm.Value = Value("COMPARISON_CENTRIC")
 		val ΕΝΤΙΤΥ_CENTRIC: Constants.MatchingAlgorithm.Value = Value("ENTITY_CENTRIC")
-		val ITERATIVE_ΕΝΤΙΤΥ_CENTRIC: Constants.MatchingAlgorithm.Value = Value("ITERATIVE_ENTITY_CENTRIC")
+		val TOPK: Constants.MatchingAlgorithm.Value = Value("TOPK")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
