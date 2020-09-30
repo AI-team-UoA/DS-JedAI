@@ -2,6 +2,7 @@ package experiments
 
 import java.util.Calendar
 
+import DataStructures.IM
 import EntityMatching.PartitionMatching.PartitionMatchingFactory
 import EntityMatching.SpaceStatsCounter
 import org.apache.log4j.{Level, LogManager, Logger}
@@ -104,7 +105,7 @@ object IntersectionMatrixExp {
                 totalIntersects + totalOverlaps + totalTouches + totalWithin
             log.info("DS-JEDAI: Total Intersecting Pairs: " + intersectingPairs)
             log.info("DS-JEDAI: Interlinked Geometries: " + interlinkedGeometries)
-
+    
             log.info("DS-JEDAI: CONTAINS: " + totalContains)
             log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
             log.info("DS-JEDAI: COVERS: " + totalCovers)
@@ -123,11 +124,15 @@ object IntersectionMatrixExp {
             var counter: Double = 0
             var auc: Double = 0
             var interlinkedGeometries: Double = 0
-            pm.getWeightedDE9IM.map(p  => (p._1, p._2.relate)).sortByKey(ascending = false).map(_._2).toLocalIterator.foreach{ r =>
-               if (r) interlinkedGeometries += 1
-               auc += interlinkedGeometries
-               counter += 1
-            }
+            pm.getWeightedDE9IM
+                .map(p  => (p._1, p._2.relate))
+                .takeOrdered(budget)(Ordering.by[(Double, Boolean), Double](_._1).reverse)
+                .map(_._2)
+                .foreach{ r =>
+                   if (r) interlinkedGeometries += 1
+                   auc += interlinkedGeometries
+                   counter += 1
+                }
             log.info("DS-JEDAI: Total Intersecting Pairs: " + counter)
             log.info("DS-JEDAI: Interlinked Geometries: " + interlinkedGeometries)
             log.info("DS-JEDAI: AUC: " + auc/interlinkedGeometries/counter)
