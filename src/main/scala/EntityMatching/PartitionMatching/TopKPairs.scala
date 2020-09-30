@@ -26,8 +26,10 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spa
 
         val orderingInt = Ordering.by[(Double, Int), Double](_._1).reverse
         val orderingPair = Ordering.by[(Double, (Int, Int)), Double](_._1).reverse
+
         val sourceMinWeightPQ: Array[Double] = Array.fill(source.length)(0d)
         val sourcePQ: Array[MinMaxPriorityQueue[(Double, Int)]] = new Array(source.length)
+
         val targetPQ: MinMaxPriorityQueue[(Double, Int)] = MinMaxPriorityQueue.orderedBy(orderingInt).maximumSize(k+1).create()
         var minW = 0d
 
@@ -58,7 +60,7 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spa
                         if (sourceMinWeightPQ(i) == 0)
                             sourcePQ(i) = MinMaxPriorityQueue.orderedBy(orderingInt).maximumSize(k+1).create()
                         if(sourceMinWeightPQ(i) < w) {
-                            sourcePQ(i).add((w, i))
+                            sourcePQ(i).add((w, j))
                             if (sourcePQ(i).size > k)
                                 sourceMinWeightPQ(i) = sourcePQ(i).pollLast()._1
                         }
