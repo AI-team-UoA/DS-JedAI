@@ -4,7 +4,7 @@ source:
   geometryField: "WKT"
 
 target:
-  path: "/home/gmandi/Documents/Extreme-Earth/Datasets/polar-uc/IceMonitoring/s1_images_2K.csv"
+  path: "/home/gmandi/Documents/Extreme-Earth/Datasets/polar-uc/IceMonitoring/s1_images_20K.csv"
   realIdField: "id"
   geometryField: "WKT"
 
@@ -12,10 +12,11 @@ relation: "intersects"
 
 configurations:
   blockingAlg: "RADON"
+  partitions: "10"
   spatialPartition: "false"
   theta_measure: "avg2"
-  matchingAlg: "SPATIAL"
+  matchingAlg: "RECIPROCAL_TOPK"
   weighting_strategy: "CBS"
   budget: "1000000"
-  gridType: "KDBTREE"
+  gridType: "QUADTREE"
   partitionBy: "source"
