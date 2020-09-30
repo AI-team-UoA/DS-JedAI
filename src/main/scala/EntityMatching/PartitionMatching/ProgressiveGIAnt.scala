@@ -14,8 +14,8 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 
-case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
-                                           thetaXY: (Double, Double), ws: WeightStrategy, budget: Long, sourceCount: Long) extends ProgressiveTrait {
+case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
+                            thetaXY: (Double, Double), ws: WeightStrategy, budget: Long, sourceCount: Long) extends ProgressiveTrait {
 
     /**
      * First index source and then for each entity of target, find its comparisons from source's index.
@@ -110,17 +110,17 @@ case class ComparisonCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[Spatia
 /**
  * auxiliary constructor
  */
-object ComparisonCentricPrioritization {
+object ProgressiveGIAnt {
 
     def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption, ws: WeightStrategy,
-              budget: Long): ComparisonCentricPrioritization ={
+              budget: Long): ProgressiveGIAnt ={
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.getSourceCount
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
 
         val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
-        ComparisonCentricPrioritization(joinedRDD, thetaXY, ws, budget, sourceCount)
+        ProgressiveGIAnt(joinedRDD, thetaXY, ws, budget, sourceCount)
     }
 
 }

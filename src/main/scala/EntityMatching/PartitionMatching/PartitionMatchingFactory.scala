@@ -20,18 +20,21 @@ object PartitionMatchingFactory {
         val ws: WeightStrategy = if(WeightStrategy.exists(wsArg.toString)) WeightStrategy.withName(wsArg) else conf.getWeightingScheme
 
         algorithm match {
-            case MatchingAlgorithm.COMPARISON_CENTRIC =>
-                log.info("Matching Algorithm: " + MatchingAlgorithm.COMPARISON_CENTRIC)
-                ComparisonCentricPrioritization(source, target, theta_msr, ws, budget)
+            case MatchingAlgorithm.PROGRESSIVE_GIANT =>
+                log.info("Matching Algorithm: " + MatchingAlgorithm.PROGRESSIVE_GIANT)
+                ProgressiveGIAnt(source, target, theta_msr, ws, budget)
             case MatchingAlgorithm.ΕΝΤΙΤΥ_CENTRIC =>
                 log.info("Matching Algorithm: " + MatchingAlgorithm.ΕΝΤΙΤΥ_CENTRIC)
                 EntityCentricPrioritization(source, target, theta_msr, ws, budget)
             case MatchingAlgorithm.TOPK =>
                 log.info("Matching Algorithm: " + MatchingAlgorithm.TOPK)
                 TopKPairs(source, target, theta_msr, ws, budget)
+            case MatchingAlgorithm.RECIPROCAL_TOPK =>
+                log.info("Matching Algorithm: " + MatchingAlgorithm.RECIPROCAL_TOPK)
+                ReciprocalTopK(source, target, theta_msr, ws, budget)
             case _ =>
-                log.info("Matching Algorithm: " + MatchingAlgorithm.SPATIAL)
-                PartitionMatching(source, target, theta_msr)
+                log.info("Matching Algorithm: " + MatchingAlgorithm.GIANT)
+                GIAnt(source, target, theta_msr)
         }
     }
 
@@ -44,12 +47,15 @@ object PartitionMatchingFactory {
         val ws:WeightStrategy = if(WeightStrategy.exists(wsArg.toString)) WeightStrategy.withName(wsArg) else conf.getWeightingScheme
 
         algorithm match {
-            case MatchingAlgorithm.COMPARISON_CENTRIC =>
-                log.info("Matching Algorithm: " + MatchingAlgorithm.COMPARISON_CENTRIC)
-                ComparisonCentricPrioritization(source, target, theta_msr, ws, budget)
+            case MatchingAlgorithm.PROGRESSIVE_GIANT =>
+                log.info("Matching Algorithm: " + MatchingAlgorithm.PROGRESSIVE_GIANT)
+                ProgressiveGIAnt(source, target, theta_msr, ws, budget)
             case MatchingAlgorithm.ΕΝΤΙΤΥ_CENTRIC =>
                 log.info("Matching Algorithm: " + MatchingAlgorithm.ΕΝΤΙΤΥ_CENTRIC)
                 EntityCentricPrioritization(source, target, theta_msr, ws, budget)
+            case MatchingAlgorithm.RECIPROCAL_TOPK =>
+                log.info("Matching Algorithm: " + MatchingAlgorithm.RECIPROCAL_TOPK)
+                ReciprocalTopK(source, target, theta_msr, ws, budget)
             case MatchingAlgorithm.TOPK =>
                 log.info("Matching Algorithm: " + MatchingAlgorithm.TOPK)
                 TopKPairs(source, target, theta_msr, ws, budget)

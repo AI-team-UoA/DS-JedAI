@@ -15,8 +15,8 @@ object LightMatchingFactory {
         val ws = conf.getWeightingScheme
         val theta_msr = conf.getTheta
         algorithm match {
-            case MatchingAlgorithm.COMPARISON_CENTRIC =>
-                log.info("Matching Algorithm: " + MatchingAlgorithm.COMPARISON_CENTRIC)
+            case MatchingAlgorithm.PROGRESSIVE_GIANT =>
+                log.info("Matching Algorithm: " + MatchingAlgorithm.PROGRESSIVE_GIANT)
                 ComparisonCentricPrioritization(source, target, theta_msr, ws)
             case MatchingAlgorithm.ΕΝΤΙΤΥ_CENTRIC =>
                 log.info("Matching Algorithm: " + MatchingAlgorithm.ΕΝΤΙΤΥ_CENTRIC)

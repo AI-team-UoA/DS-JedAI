@@ -2,7 +2,7 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.PartitionMatching.{IndexBasedMatching, PartitionMatching}
+import EntityMatching.PartitionMatching.{IndexBasedMatching, GIAnt}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.apache.spark.serializer.KryoSerializer
@@ -105,7 +105,7 @@ object RepartitionExp {
         val overloadedTarget = targetRDD.mapPartitions(ti => Iterator((TaskContext.getPartitionId(), ti))).filter{ case (pid, _) => overloadedPartitionIds.contains(pid) }.flatMap(_._2)
         log.info("DS-JEDAI: Overloaded partitions: " + overloadedPartitionIds.size)
 
-        val pm = PartitionMatching(balancedSource, balancedTarget, conf.getTheta)
+        val pm = GIAnt(balancedSource, balancedTarget, conf.getTheta)
         val ibm = IndexBasedMatching(overloadedSource, overloadedTarget, Utils.getTheta)
         val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
         totalOverlaps, totalTouches, totalWithin, intersectingPairs, interlinkedGeometries) = pm.countRelations + ibm.countRelationsBlocking
