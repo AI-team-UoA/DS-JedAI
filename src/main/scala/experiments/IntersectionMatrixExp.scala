@@ -2,7 +2,6 @@ package experiments
 
 import java.util.Calendar
 
-import DataStructures.IM
 import EntityMatching.PartitionMatching.PartitionMatchingFactory
 import EntityMatching.SpaceStatsCounter
 import org.apache.log4j.{Level, LogManager, Logger}
@@ -11,7 +10,8 @@ import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import utils.Constants.WeightStrategy
+import utils.Constants.MatchingAlgorithm.MatchingAlgorithm
+import utils.Constants.{MatchingAlgorithm, WeightStrategy}
 import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Readers.SpatialReader
 import utils.{ConfigurationParser, Utils}
@@ -48,8 +48,10 @@ object IntersectionMatrixExp {
                     nextOption(map ++ Map("partitions" -> value), tail)
                 case ("-b" | "-budget") :: value :: tail =>
                     nextOption(map ++ Map("budget" -> value), tail)
-                case ("-ws" | "-ws") :: value :: tail =>
+                case "-ws" :: value :: tail =>
                     nextOption(map ++ Map("ws" -> value), tail)
+                case "-ma" :: value :: tail =>
+                    nextOption(map ++ Map("ma" -> value), tail)
                 case _ :: tail =>
                     log.warn("DS-JEDAI: Unrecognized argument")
                     nextOption(map, tail)
@@ -73,7 +75,8 @@ object IntersectionMatrixExp {
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
 
         val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
-        val ws: WeightStrategy = if (options.contains("ws")) WeightStrategy.withName(options("ws").toString) else conf.getWeightingScheme
+        val ws: String = if (options.contains("ws")) options("ws").toString else conf.getWeightingScheme.toString
+        val ma: String = if (options.contains("ma")) options("ma").toString else conf.getMatchingAlgorithm.toString
         log.info("DS-JEDAI: Input Budget: " + budget)
         log.info("DS-JEDAI: Weighting Strategy: " + ws.toString)
 
@@ -97,7 +100,7 @@ object IntersectionMatrixExp {
 
         val de9im_startTime = Calendar.getInstance().getTimeInMillis
         if (!options.contains("auc")) {
-            val pm = PartitionMatchingFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD, budget, ws.toString)
+            val pm = PartitionMatchingFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD, budget, ws, ma)
             val (totalContains, totalCoveredBy, totalCovers,totalCrosses, totalEquals, totalIntersects,
             totalOverlaps, totalTouches, totalWithin,intersectingPairs, interlinkedGeometries) = pm.countRelations
 
@@ -120,7 +123,7 @@ object IntersectionMatrixExp {
             log.info("DS-JEDAI: Only DE-9IM Time: " + (de9im_endTime - de9im_startTime) / 1000.0)
         }
         else{
-            val pm = PartitionMatchingFactory.getProgressiveAlgorithm(conf, sourceRDD, targetRDD, budget, ws.toString)
+            val pm = PartitionMatchingFactory.getProgressiveAlgorithm(conf, sourceRDD, targetRDD, budget, ws, ma)
             var counter: Double = 0
             var auc: Double = 0
             var interlinkedGeometries: Double = 0
