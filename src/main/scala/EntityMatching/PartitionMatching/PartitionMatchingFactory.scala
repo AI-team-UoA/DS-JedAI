@@ -42,7 +42,7 @@ object PartitionMatchingFactory {
 
     def getProgressiveAlgorithm(conf: Configuration, source: RDD[SpatialEntity], target: RDD[SpatialEntity], budgetArg: Int = -1,  wsArg: String = "", ma: String = ""): ProgressiveTrait ={
 
-        val algorithm = conf.getMatchingAlgorithm
+        val algorithm = if(MatchingAlgorithm.exists(ma)) MatchingAlgorithm.withName(ma) else conf.getMatchingAlgorithm
         val theta_msr = conf.getTheta
         val budget = if(budgetArg > 0) budgetArg else conf.getBudget
         val ws:WeightStrategy = if(WeightStrategy.exists(wsArg.toString)) WeightStrategy.withName(wsArg) else conf.getWeightingScheme
