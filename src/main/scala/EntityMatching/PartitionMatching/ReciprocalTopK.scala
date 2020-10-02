@@ -22,11 +22,27 @@ case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterabl
         val sourceIndex = index(source)
         val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
 
-        val localBudget: Int = ((source.length * budget) / sourceCount).toInt
-        val k = math.ceil(localBudget / (source.length + target.length)).toInt * 2
-
         val orderingInt = Ordering.by[(Double, Int), Double](_._1).reverse
         val orderingPair = Ordering.by[(Double, (Int, Int)), Double](_._1).reverse
+
+        // for each target entity, find the frequencies of intersections with source entities
+        val targetFrequencies = target
+            .zipWithIndex
+            .map { case (e2, j) =>
+                val frequencies = e2.index(thetaXY, filteringFunction)
+                    .flatMap(c => sourceIndex.get(c))
+                    .groupBy(identity)
+                    .mapValues(_.length)
+                    .filter { case (i, _) => source(i).partitionRF(e2.mbb, thetaXY, partition) && source(i).testMBB(e2, Relation.INTERSECTS, Relation.TOUCHES) }
+
+                (j, frequencies)
+            }
+            .filter(_._2.nonEmpty)
+
+        // initialize PQ and compute budget based on the n.o. intersecting targets
+        // (avoid the entities that don't intersect, so we do not compute the top-k for those )
+        val localBudget: Int = ((source.length * budget) / sourceCount).toInt
+        val k = (math.ceil(localBudget / (source.length + targetFrequencies.length)).toInt + 1) * 2 // +1 to avoid k=0
 
         val sourceMinWeightPQ: Array[Double] = Array.fill(source.length)(0d)
         val sourcePQ: Array[MinMaxPriorityQueue[(Double, Int)]] = new Array(source.length)
@@ -37,18 +53,13 @@ case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterabl
 
         val partitionPQ: MinMaxPriorityQueue[(Double, (Int, Int))] = MinMaxPriorityQueue.orderedBy(orderingPair).maximumSize(localBudget + 1).create()
         var partitionMinWeight = 0d
-        target
-            .zipWithIndex
-            .foreach { case (e2, j) =>
-                val frequencies = e2.index(thetaXY, filteringFunction)
-                    .flatMap(c => sourceIndex.get(c))
-                    .groupBy(identity)
-                    .mapValues(_.length)
 
+        targetFrequencies
+            .foreach { case (j, frequencies) =>
                 frequencies
-                    .filter { case (i, _) => source(i).partitionRF(e2.mbb, thetaXY, partition) && source(i).testMBB(e2, Relation.INTERSECTS, Relation.TOUCHES) }
                     .foreach { case (i, f) =>
                         val e1 = source(i)
+                        val e2 = target(j)
                         val w = getWeight(f, e1, e2)
 
                         // set top-K for each target entity
