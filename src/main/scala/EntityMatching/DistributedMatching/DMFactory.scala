@@ -1,19 +1,17 @@
-package EntityMatching.PartitionMatching
+package EntityMatching.DistributedMatching
 
 import DataStructures.SpatialEntity
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import utils.Constants.{MatchingAlgorithm, WeightStrategy}
 import utils.Configuration
-import utils.Constants.MatchingAlgorithm.MatchingAlgorithm
 import utils.Constants.WeightStrategy.WeightStrategy
 
-object PartitionMatchingFactory {
-
+object DMFactory {
 
     val log: Logger = LogManager.getRootLogger
 
-    def getMatchingAlgorithm(conf: Configuration, source: RDD[SpatialEntity], target: RDD[SpatialEntity], budgetArg: Int = -1, wsArg: String = "", ma: String = ""): PartitionMatchingTrait ={
+    def getMatchingAlgorithm(conf: Configuration, source: RDD[SpatialEntity], target: RDD[SpatialEntity], budgetArg: Int = -1, wsArg: String = "", ma: String = ""): DMTrait ={
 
         val algorithm = if(MatchingAlgorithm.exists(ma)) MatchingAlgorithm.withName(ma) else conf.getMatchingAlgorithm
         val theta_msr = conf.getTheta
@@ -40,7 +38,7 @@ object PartitionMatchingFactory {
     }
 
 
-    def getProgressiveAlgorithm(conf: Configuration, source: RDD[SpatialEntity], target: RDD[SpatialEntity], budgetArg: Int = -1,  wsArg: String = "", ma: String = ""): ProgressiveTrait ={
+    def getProgressiveAlgorithm(conf: Configuration, source: RDD[SpatialEntity], target: RDD[SpatialEntity], budgetArg: Int = -1,  wsArg: String = "", ma: String = ""): DMProgressiveTrait ={
 
         val algorithm = if(MatchingAlgorithm.exists(ma)) MatchingAlgorithm.withName(ma) else conf.getMatchingAlgorithm
         val theta_msr = conf.getTheta

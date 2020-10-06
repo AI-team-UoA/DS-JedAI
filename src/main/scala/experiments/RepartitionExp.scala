@@ -2,15 +2,13 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.PartitionMatching.{IndexBasedMatching, GIAnt}
+import EntityMatching.DistributedMatching.{IndexBasedMatching, GIAnt}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import utils.Constants.WeightStrategy
-import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Readers.SpatialReader
 import utils.{ConfigurationParser, Utils}
 
@@ -37,7 +35,6 @@ object RepartitionExp {
         val spark: SparkSession = SparkSession.builder().getOrCreate()
 
         // Parsing the input arguments
-        @scala.annotation.tailrec
         def nextOption(map: OptionMap, list: List[String]): OptionMap = {
             list match {
                 case Nil => map
@@ -53,7 +50,7 @@ object RepartitionExp {
                     nextOption(map ++ Map("partitions" -> value), tail)
                 case ("-b" | "-budget") :: value :: tail =>
                     nextOption(map ++ Map("budget" -> value), tail)
-                case ("-ws" | "-ws") :: value :: tail =>
+                case "-ws" :: value :: tail =>
                     nextOption(map ++ Map("ws" -> value), tail)
                 case _ :: tail =>
                     log.warn("DS-JEDAI: Unrecognized argument")
@@ -64,6 +61,7 @@ object RepartitionExp {
         val arglist = args.toList
         type OptionMap = Map[String, String]
         val options = nextOption(Map(), arglist)
+
         if (!options.contains("conf")) {
             log.error("DS-JEDAI: No configuration file!")
             System.exit(1)
@@ -74,7 +72,7 @@ object RepartitionExp {
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
 
         val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
-        val ws: WeightStrategy = if (options.contains("ws")) WeightStrategy.withName(options("ws").toString) else conf.getWeightingScheme
+        val ws: String = if (options.contains("ws")) options("ws").toString else conf.getWeightingScheme.toString
         log.info("DS-JEDAI: Input Budget: " + budget)
         log.info("DS-JEDAI: Weighting Strategy: " + ws.toString)
 

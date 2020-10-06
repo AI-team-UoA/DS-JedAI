@@ -1,4 +1,4 @@
-package EntityMatching.LightAlgorithms
+package EntityMatching.SemiDistributedMatching
 
 import DataStructures.SpatialEntity
 import org.apache.log4j.{LogManager, Logger}
@@ -6,11 +6,11 @@ import org.apache.spark.rdd.RDD
 import utils.Constants.{BlockingAlgorithm, MatchingAlgorithm}
 import utils.Configuration
 
-object LightMatchingFactory {
+object SDMFactory {
 
     val log: Logger = LogManager.getRootLogger
 
-    def getMatchingAlgorithm(conf: Configuration, source: RDD[SpatialEntity], target: RDD[SpatialEntity]): LightMatchingTrait = {
+    def getMatchingAlgorithm(conf: Configuration, source: RDD[SpatialEntity], target: RDD[SpatialEntity]): SDMTrait = {
         val algorithm = conf.getMatchingAlgorithm
         val ws = conf.getWeightingScheme
         val theta_msr = conf.getTheta

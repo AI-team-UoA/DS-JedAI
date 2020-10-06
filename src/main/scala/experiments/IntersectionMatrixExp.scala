@@ -2,7 +2,7 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.PartitionMatching.PartitionMatchingFactory
+import EntityMatching.DistributedMatching.DMFactory
 import EntityMatching.SpaceStatsCounter
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -10,9 +10,6 @@ import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import utils.Constants.MatchingAlgorithm.MatchingAlgorithm
-import utils.Constants.{MatchingAlgorithm, WeightStrategy}
-import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Readers.SpatialReader
 import utils.{ConfigurationParser, Utils}
 
@@ -63,8 +60,6 @@ object IntersectionMatrixExp {
         val options = nextOption(Map(), arglist)
         val stats = options.contains("stats")
 
-        val sampleFraction = if (options.contains("fraction")) options("fraction").toDouble else -1d
-
         if (!options.contains("conf")) {
             log.error("DS-JEDAI: No configuration file!")
             System.exit(1)
@@ -100,7 +95,7 @@ object IntersectionMatrixExp {
 
         val de9im_startTime = Calendar.getInstance().getTimeInMillis
         if (!options.contains("auc")) {
-            val pm = PartitionMatchingFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD, budget, ws, ma)
+            val pm = DMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD, budget, ws, ma)
             val (totalContains, totalCoveredBy, totalCovers,totalCrosses, totalEquals, totalIntersects,
             totalOverlaps, totalTouches, totalWithin,intersectingPairs, interlinkedGeometries) = pm.countRelations
 
@@ -123,7 +118,7 @@ object IntersectionMatrixExp {
             log.info("DS-JEDAI: Only DE-9IM Time: " + (de9im_endTime - de9im_startTime) / 1000.0)
         }
         else{
-            val pm = PartitionMatchingFactory.getProgressiveAlgorithm(conf, sourceRDD, targetRDD, budget, ws, ma)
+            val pm = DMFactory.getProgressiveAlgorithm(conf, sourceRDD, targetRDD, budget, ws, ma)
             var counter: Double = 0
             var auc: Double = 0
             var interlinkedGeometries: Double = 0

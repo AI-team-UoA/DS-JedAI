@@ -1,7 +1,7 @@
 package EntityMatching.BlockBasedAlgorithms
 
 import DataStructures.Block
-import EntityMatching.PartitionMatching.PartitionMatchingFactory.log
+import EntityMatching.DistributedMatching.DMFactory.log
 import utils.Constants.{BlockingAlgorithm, MatchingAlgorithm}
 //, ComparisonCentricPrioritization, EntityCentricPrioritization}
 import org.apache.spark.rdd.RDD

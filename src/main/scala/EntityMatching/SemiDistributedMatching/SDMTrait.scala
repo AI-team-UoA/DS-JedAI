@@ -1,4 +1,4 @@
-package EntityMatching.LightAlgorithms
+package EntityMatching.SemiDistributedMatching
 
 import DataStructures.{IM, SpatialEntity}
 import org.apache.commons.math3.stat.inference.ChiSquareTest
@@ -11,7 +11,7 @@ import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.math.log10
 
-trait LightMatchingTrait {
+trait SDMTrait {
 
     val source: RDD[SpatialEntity]
     val target: ArrayBuffer[SpatialEntity]

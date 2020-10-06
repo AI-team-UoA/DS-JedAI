@@ -1,4 +1,4 @@
-package EntityMatching.LightAlgorithms
+package EntityMatching.SemiDistributedMatching
 
 import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.SparkContext
@@ -13,7 +13,7 @@ import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 
-case class ComparisonCentricPrioritization(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double), ws: WeightStrategy) extends LightMatchingTrait{
+case class ComparisonCentricPrioritization(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double), ws: WeightStrategy) extends SDMTrait{
 
 
     def matchTargetData(relation: Relation, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)] = {

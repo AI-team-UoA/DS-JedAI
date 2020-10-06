@@ -1,4 +1,4 @@
-package EntityMatching.PartitionMatching
+package EntityMatching.DistributedMatching
 
 import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.TaskContext
@@ -7,12 +7,12 @@ import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Constants.WeightStrategy.WeightStrategy
-import utils.Utils
 import utils.Readers.SpatialReader
+import utils.Utils
 
 
-case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Iterable[SpatialEntity]))],
-                 thetaXY: (Double, Double), ws: WeightStrategy)  extends  PartitionMatchingTrait {
+case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
+                 thetaXY: (Double, Double), ws: WeightStrategy) extends DMTrait {
 
     /**
      * First index the source and then use the index to find the comparisons with target's entities.
@@ -84,7 +84,6 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Iterable[Spatia
                 }
             }
             .sample(withReplacement = false, frac)
-
     }
 }
 
@@ -95,12 +94,10 @@ object GIAnt{
 
     def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption): GIAnt ={
         val thetaXY = Utils.getTheta
-        val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
-        val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
+        val sourcePartitions = source.mapPartitions(seIter => Iterator((TaskContext.getPartitionId(), seIter.toIterable)))
+        val targetPartitions = target.mapPartitions(seIter => Iterator((TaskContext.getPartitionId(), seIter.toIterable)))
 
-        val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
-
-        // Utils.printPartition(joinedRDD)
+        val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner).map(p => (p._1, (p._2._1.flatten, p._2._2.flatten)))
         GIAnt(joinedRDD, thetaXY, null)
     }
 }

@@ -1,4 +1,4 @@
-package EntityMatching.PartitionMatching
+package EntityMatching.DistributedMatching
 
 import DataStructures.{IM, SpatialEntity}
 import org.apache.commons.math3.stat.inference.ChiSquareTest
@@ -8,7 +8,7 @@ import utils.Constants.Relation.Relation
 
 import scala.math.{ceil, floor}
 
-trait ProgressiveTrait extends PartitionMatchingTrait{
+trait DMProgressiveTrait extends DMTrait{
     val budget: Long
 
     def apply(relation: Relation): RDD[(String, String)] = {
@@ -60,7 +60,6 @@ trait ProgressiveTrait extends PartitionMatchingTrait{
                 frequency.toDouble
         }
     }
-
 
     def getDE9IM: RDD[IM]
 

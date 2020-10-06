@@ -2,7 +2,7 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.LightAlgorithms.LightMatchingFactory
+import EntityMatching.SemiDistributedMatching.SDMFactory
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
@@ -75,7 +75,7 @@ object LightExp {
 
         Utils(sourceRDD.map(_.mbb), sourceCount, conf.getTheta)
 
-        val imRDD = LightMatchingFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).applyDE9IM(0).persist(StorageLevel.MEMORY_AND_DISK)
+        val imRDD = SDMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).applyDE9IM(0).persist(StorageLevel.MEMORY_AND_DISK)
 
         log.info("DS-JEDAI: CONTAINS: " + imRDD.filter(_.isContains).count())
         log.info("DS-JEDAI: COVERED BY: " + imRDD.filter(_.isCoveredBy).count())

@@ -1,4 +1,4 @@
-package EntityMatching.LightAlgorithms
+package EntityMatching.SemiDistributedMatching
 
 import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.SparkContext
@@ -20,7 +20,7 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
  * @param target the collected dataset
  * @param thetaXY theta values
  */
-case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double) ) extends LightMatchingTrait {
+case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double) ) extends SDMTrait {
 
 
 

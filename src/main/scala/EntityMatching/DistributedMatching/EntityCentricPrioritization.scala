@@ -1,4 +1,4 @@
-package EntityMatching.PartitionMatching
+package EntityMatching.DistributedMatching
 
 import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.TaskContext
@@ -14,7 +14,7 @@ import scala.collection.mutable.ListBuffer
 
 case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
                                        thetaXY: (Double, Double), ws: WeightStrategy, budget: Long, sourceCount: Long)
-   extends ProgressiveTrait {
+   extends DMProgressiveTrait {
 
 
     /**
@@ -139,10 +139,10 @@ object EntityCentricPrioritization{
 
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.getSourceCount
-        val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
-        val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
+        val sourcePartitions = source.mapPartitions(seIter => Iterator((TaskContext.getPartitionId(), seIter.toIterable)))
+        val targetPartitions = target.mapPartitions(seIter => Iterator((TaskContext.getPartitionId(), seIter.toIterable)))
 
-        val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
+        val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner).map(p => (p._1, (p._2._1.flatten, p._2._2.flatten)))
         EntityCentricPrioritization(joinedRDD, thetaXY, ws, budget, sourceCount)
     }
 

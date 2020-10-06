@@ -1,4 +1,4 @@
-package EntityMatching.PartitionMatching
+package EntityMatching.DistributedMatching
 
 import DataStructures.{IM, MBB, SpatialEntity}
 import com.google.common.collect.MinMaxPriorityQueue
@@ -14,7 +14,7 @@ import scala.collection.mutable
 import scala.collection.JavaConverters._
 
 case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
-                     thetaXY: (Double, Double), ws: WeightStrategy, budget: Long, sourceCount: Long) extends ProgressiveTrait {
+                     thetaXY: (Double, Double), ws: WeightStrategy, budget: Long, sourceCount: Long) extends DMProgressiveTrait {
 
 
     def compute(source: Array[SpatialEntity], target: Array[SpatialEntity], partition: MBB): MinMaxPriorityQueue[(Double, (Int, Int))] = {
@@ -155,10 +155,10 @@ object TopKPairs{
               ws: WeightStrategy, budget: Long): TopKPairs ={
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.getSourceCount
-        val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
-        val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
+        val sourcePartitions = source.mapPartitions(seIter => Iterator((TaskContext.getPartitionId(), seIter.toIterable)))
+        val targetPartitions = target.mapPartitions(seIter => Iterator((TaskContext.getPartitionId(), seIter.toIterable)))
 
-        val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
+        val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner).map(p => (p._1, (p._2._1.flatten, p._2._2.flatten)))
         TopKPairs(joinedRDD, thetaXY, ws, budget, sourceCount)
     }
 }

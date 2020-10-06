@@ -1,49 +1,57 @@
-package EntityMatching.PartitionMatching
+package EntityMatching.DistributedMatching
 
-import DataStructures.{IM, MBB, SpatialEntity}
-import org.apache.spark.TaskContext
+import DataStructures.{IM, MBB, SpatialEntity, SpatialIndex}
 import org.apache.spark.rdd.RDD
-import utils.Constants.Relation
+import utils.Constants.Relation.Relation
+import utils.Constants.WeightStrategy
+import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
 
-import scala.collection.mutable.ListBuffer
 
-case class IndexBasedMatching(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaXY: (Double, Double))  {
+trait DMTrait {
+
+    val orderByWeight: Ordering[(Double, (SpatialEntity, SpatialEntity))] = Ordering.by[(Double, (SpatialEntity, SpatialEntity)), Double](_._1).reverse
+
+    val joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))]
+    val thetaXY: (Double, Double)
+    val ws: WeightStrategy
 
     val partitionsZones: Array[MBB] = Utils.getZones
-    val filteringFunction: ((SpatialEntity, Int), (SpatialEntity, Int), (Int, Int)) => Boolean =
-        (e1: (SpatialEntity, Int), e2: (SpatialEntity, Int), c: (Int, Int)) =>
-        e1._2 == e2._2 && e1._1.testMBB(e2._1, Relation.INTERSECTS, Relation.TOUCHES) &&
-            e1._1.referencePointFiltering(e2._1, c, thetaXY, Some(partitionsZones(e1._2)))
+    val spaceEdges: MBB = Utils.getSpaceEdges
+
+    val totalBlocks: Double = if (ws == WeightStrategy.ECBS || ws == WeightStrategy.PEARSON_X2){
+        val globalMinX = joinedRDD.flatMap(p => p._2._1.map(_.mbb.minX/thetaXY._1)).min()
+        val globalMaxX = joinedRDD.flatMap(p => p._2._1.map(_.mbb.maxX/thetaXY._1)).max()
+        val globalMinY = joinedRDD.flatMap(p => p._2._1.map(_.mbb.minY/thetaXY._2)).min()
+        val globalMaxY = joinedRDD.flatMap(p => p._2._1.map(_.mbb.maxY/thetaXY._2)).max()
+        (globalMaxX - globalMinX + 1) * (globalMaxY - globalMinY + 1)
+    } else -1
+
+
+    /**
+     * index a list of spatial entities
+     *
+     * @param entities list of spatial entities
+     * @return a SpatialIndex
+     */
+    def index(entities: Array[SpatialEntity]): SpatialIndex = {
+        val spatialIndex = new SpatialIndex()
+        entities.zipWithIndex.foreach { case (se, index) =>
+            val indices: Array[(Int, Int)] = se.index(thetaXY)
+            indices.foreach(i => spatialIndex.insert(i, index))
+        }
+        spatialIndex
+    }
 
     implicit class TuppleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
         def +(p: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
             (p._1 + t._1, p._2 + t._2, p._3 +t._3, p._4+t._4, p._5+t._5, p._6+t._6, p._7+t._7, p._8+t._8, p._9+t._9, p._10+t._10, p._11+t._11)
     }
 
-    def getDE9IM: RDD[IM] = {
-        val indexedSource = source
-            .map(se => (se.index(thetaXY), (se, TaskContext.getPartitionId())))
-            .flatMap{case (indices, (se, pid)) => indices.map(i => (i, ListBuffer((se, pid))))}
-            .reduceByKey(_ ++ _)
-        val partitioner = indexedSource.partitioner.get
-
-        val indexedTarget = target
-            .map(se => (se.index(thetaXY), (se, TaskContext.getPartitionId())))
-            .flatMap{case (indices, (se, pid)) => indices.map(i => (i, ListBuffer((se, pid))))}
-            .reduceByKey(partitioner, _ ++ _)
-
-        indexedSource.leftOuterJoin(indexedTarget, partitioner)
-            .filter(_._2._2.isDefined)
-            .flatMap { case (c: (Int, Int), (s: ListBuffer[(SpatialEntity, Int)], optT: Option[ListBuffer[(SpatialEntity, Int)]])) =>
-                for (e1 <- s; e2 <- optT.get; if filteringFunction(e1, e2, c)) yield IM(e1._1, e2._1)
-            }
-    }
-
-    def countRelationsBlocking: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = {
+    def countRelations: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = {
         getDE9IM
             .mapPartitions { imIterator =>
-                var totalContains = 0
+                var totalContains: Int = 0
                 var totalCoveredBy = 0
                 var totalCovers = 0
                 var totalCrosses = 0
@@ -75,8 +83,12 @@ case class IndexBasedMatching(source:RDD[SpatialEntity], target:RDD[SpatialEntit
                     totalOverlaps, totalTouches, totalWithin,
                     intersectingPairs, interlinkedGeometries))
             }
-            .treeReduce { case(t1, t2) => t1 + t2}
+            .treeReduce { case (im1, im2) => im1 + im2}
     }
 
+    def apply(relation: Relation): RDD[(String, String)]
 
+    def getDE9IM: RDD[IM]
 }
+
+

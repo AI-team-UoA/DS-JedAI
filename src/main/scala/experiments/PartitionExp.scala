@@ -2,7 +2,7 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.PartitionMatching.PartitionMatchingFactory
+import EntityMatching.DistributedMatching.DMFactory
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
@@ -96,7 +96,7 @@ object PartitionExp {
 //            else (sourceRDD, targetRDD, conf.getRelation)
 
         val matching_startTime = Calendar.getInstance().getTimeInMillis
-        val matches = PartitionMatchingFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).apply(conf.getRelation)
+        val matches = DMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).apply(conf.getRelation)
 
         log.info("DS-JEDAI: Matches: " + matches.count())
         val matching_endTime = Calendar.getInstance().getTimeInMillis
