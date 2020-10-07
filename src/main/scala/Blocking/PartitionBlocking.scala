@@ -64,7 +64,7 @@ case class PartitionBlocking(source: RDD[SpatialEntity], target: RDD[SpatialEnti
         spatialEntitiesRDD.mapPartitions { seIter =>
             val pid = TaskContext.getPartitionId()
             val acceptedBlocks = acceptedBlocksBD.value
-            val blocks: Iterator[(Array[(Int, Int)], SpatialEntity)] =
+            val blocks: Iterator[(IndexedSeq[(Int, Int)], SpatialEntity)] =
                 if (acceptedBlocks.nonEmpty)
                     seIter.map(se => (se.index(thetaXY).filter(acceptedBlocks.contains), se)) // todo check iterator!
                 else

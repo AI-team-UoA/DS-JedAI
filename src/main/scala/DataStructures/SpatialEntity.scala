@@ -53,7 +53,7 @@ case class SpatialEntity(id: Int, originalID: String = "", geometry: Geometry, m
      * @param filter filter the blocks based on this function
      * @return the coordinates of the blocks
      */
-    def index(thetaXY: (Double, Double), filter: ((Int, Int)) => Boolean = (_:(Int,Int)) => true): Array[(Int, Int)] = {
+    def index(thetaXY: (Double, Double), filter: ((Int, Int)) => Boolean = (_:(Int,Int)) => true): IndexedSeq[(Int, Int)] = {
         val (thetaX, thetaY) = thetaXY
 
         if (mbb.minX == 0 && mbb.maxX == 0 && mbb.minY == 0 && mbb.maxY == 0)
@@ -63,7 +63,7 @@ case class SpatialEntity(id: Int, originalID: String = "", geometry: Geometry, m
         val maxY = math.ceil(mbb.maxY / thetaY).toInt
         val minY = math.floor(mbb.minY / thetaY).toInt
 
-        (for (x <- minX to maxX; y <- minY to maxY; if filter((x, y))) yield (x, y)).toArray
+        for (x <- minX to maxX; y <- minY to maxY; if filter((x, y))) yield (x, y)
     }
 
     def getIntersectionMatrix(t: SpatialEntity): IntersectionMatrix = geometry.relate(t.geometry)

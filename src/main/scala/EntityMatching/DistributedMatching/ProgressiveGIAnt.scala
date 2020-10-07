@@ -83,8 +83,8 @@ case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Itera
                 // weight and put the comparisons in a PQ
                 target
                     .map(e2 => (e2, e2.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))))
-                    .filter(_._2.length > 0)
-                    .foreach { case(e2: SpatialEntity, sIndices:  Array[((Int, Int), ListBuffer[Int])]) =>
+                    .filter(_._2.nonEmpty)
+                    .foreach { case(e2: SpatialEntity, sIndices:  IndexedSeq[((Int, Int), ListBuffer[Int])]) =>
 
                         val frequencies = sIndices.flatMap(_._2).groupBy(identity).mapValues(_.length)
                         frequencies

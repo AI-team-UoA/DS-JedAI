@@ -88,7 +88,7 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
     def index(entities: Array[SpatialEntity]): SpatialIndex = {
         val spatialIndex = new SpatialIndex()
         entities.zipWithIndex.foreach { case (se, index) =>
-            val indices: Array[(Int, Int)] = se.index(thetaXY)
+            val indices: IndexedSeq[(Int, Int)] = se.index(thetaXY)
             indices.foreach(i => spatialIndex.insert(i, index))
         }
         spatialIndex

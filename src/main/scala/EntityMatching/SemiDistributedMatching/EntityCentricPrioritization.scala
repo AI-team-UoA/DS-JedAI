@@ -36,7 +36,7 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
                             targetEntities.map { e2ID =>
                                 val e2 = targetBD.value(e2ID - idStart)
                                 val e2Blocks = e2.index(thetaXY)
-                                val w = getWeight(totalBlocks, coords, e2Blocks, ws)
+                                val w = getWeight(totalBlocks, coords.toArray, e2Blocks.toArray, ws)
                                 (w, e2ID)
                             }
                         }
@@ -81,7 +81,7 @@ case class EntityCentricPrioritization(source: RDD[SpatialEntity], target: Array
                             targetEntities.map { e2ID =>
                                 val e2 = targetBD.value(e2ID - idStart)
                                 val e2Blocks = e2.index(thetaXY)
-                                val w = getWeight(totalBlocks, coords, e2Blocks, ws)
+                                val w = getWeight(totalBlocks, coords.toArray, e2Blocks.toArray, ws)
                                 (w, e2ID)
                             }
                         }

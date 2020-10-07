@@ -98,7 +98,7 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
                 var minW = 10000d
                 target
                     .foreach {e2 =>
-                        val sIndices:Array[((Int, Int), ListBuffer[Int])] = e2.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))
+                        val sIndices:IndexedSeq[((Int, Int), ListBuffer[Int])] = e2.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))
                         val frequencies = sIndices.flatMap(_._2).groupBy(identity).mapValues(_.length)
                         var wSum = 0d
                         frequencies
