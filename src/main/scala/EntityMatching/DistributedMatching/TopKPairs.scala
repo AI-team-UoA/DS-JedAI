@@ -4,11 +4,10 @@ import DataStructures.{IM, MBB, SpatialEntity}
 import com.google.common.collect.MinMaxPriorityQueue
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
+import org.datasyslab.geospark.spatialPartitioning.SpatialPartitioner
 import utils.Constants.Relation
-import utils.Constants.ThetaOption.ThetaOption
 import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
-import utils.Readers.SpatialReader
 
 import scala.collection.mutable
 import scala.collection.JavaConverters._
@@ -134,7 +133,13 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spa
             val source: Array[SpatialEntity] = p._2._1.toArray
             val target: Array[SpatialEntity] = p._2._2.toArray
 
-            compute(source, target, partition).iterator().asScala.map{ case(_, (i, j)) =>  IM(source(i), target(j))}
+            val pq = compute(source, target, partition)
+            if (!pq.isEmpty)
+                Iterator.continually{
+                    val (i, j) = pq.removeFirst()._2
+                    IM(source(i), target(j))
+                }.takeWhile(_ => !pq.isEmpty)
+            else Iterator()
         }
 
     def getWeightedDE9IM: RDD[(Double, IM)] = joinedRDD.filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
@@ -144,21 +149,26 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spa
             val source: Array[SpatialEntity] = p._2._1.toArray
             val target: Array[SpatialEntity] = p._2._2.toArray
 
-            compute(source, target, partition).iterator().asScala.map{ case(w, (i, j)) =>  (w, IM(source(i), target(j)))}
+            val pq = compute(source, target, partition)
+            if (!pq.isEmpty)
+                    Iterator.continually{
+                    val (w, (i, j)) = pq.removeFirst()
+                    (w, IM(source(i), target(j)))
+                }.takeWhile(_ => !pq.isEmpty)
+            else Iterator()
         }
 
 }
 
 object TopKPairs{
 
-    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption,
-              ws: WeightStrategy, budget: Long): TopKPairs ={
+    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], ws: WeightStrategy, budget: Long, partitioner: SpatialPartitioner): TopKPairs ={
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.getSourceCount
         val sourcePartitions = source.mapPartitions(seIter => Iterator((TaskContext.getPartitionId(), seIter.toIterable)))
         val targetPartitions = target.mapPartitions(seIter => Iterator((TaskContext.getPartitionId(), seIter.toIterable)))
 
-        val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner).map(p => (p._1, (p._2._1.flatten, p._2._2.flatten)))
+        val joinedRDD = sourcePartitions.cogroup(targetPartitions, partitioner).map(p => (p._1, (p._2._1.flatten, p._2._2.flatten)))
         TopKPairs(joinedRDD, thetaXY, ws, budget, sourceCount)
     }
 }
