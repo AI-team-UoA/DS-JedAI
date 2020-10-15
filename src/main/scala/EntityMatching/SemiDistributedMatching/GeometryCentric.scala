@@ -34,7 +34,7 @@ case class GeometryCentric(source: RDD[SpatialEntity], target: Array[SpatialEnti
      * @param relations examined relation
      * @return a PQ with the comparisons of the overall partition
      */
-    def compute(source: Array[SpatialEntity], target: Array[SpatialEntity], targetIndex: mutable.HashMap[(Int, Int), ListBuffer[Int]],
+    private def compute(source: Array[SpatialEntity], target: Array[SpatialEntity], targetIndex: mutable.HashMap[(Int, Int), ListBuffer[Int]],
                 relations: Relation*): MinMaxPriorityQueue[(Double, (Int, Int))]={
 
         // estimate local budget and K
@@ -116,11 +116,12 @@ case class GeometryCentric(source: RDD[SpatialEntity], target: Array[SpatialEnti
             val source = sourceIter.toArray
             val target = targetBD.value
             val pq = compute(source, target, targetIndexBD.value, relation)
-
-            Iterator.continually{pq.removeFirst()._2}
-                .filter{case (i,j) => source(i).relate(target(j), relation)}
-                .map{ case(i, j) => (source(i).originalID, target(j).originalID)}
-                .takeWhile(_ => !pq.isEmpty)
+            if (!pq.isEmpty)
+                Iterator.continually{pq.removeFirst()._2}
+                    .filter{case (i,j) => source(i).relate(target(j), relation)}
+                    .map{ case(i, j) => (source(i).originalID, target(j).originalID)}
+                    .takeWhile(_ => !pq.isEmpty)
+            else Iterator()
         }
     }
 
@@ -139,13 +140,14 @@ case class GeometryCentric(source: RDD[SpatialEntity], target: Array[SpatialEnti
         source.mapPartitions { sourceIter =>
             val source = sourceIter.toArray
             val pq = compute(source, targetBD.value, targetIndexBD.value, Relation.INTERSECTS, Relation.TOUCHES)
-
-            Iterator.continually{
-                val (i, j) = pq.removeFirst()._2
-                val e1 = source(i)
-                val e2 = targetBD.value(j)
-                IM(e1, e2)
-            }.takeWhile(_ => !pq.isEmpty)
+            if (!pq.isEmpty)
+                Iterator.continually{
+                    val (i, j) = pq.removeFirst()._2
+                    val e1 = source(i)
+                    val e2 = targetBD.value(j)
+                    IM(e1, e2)
+                }.takeWhile(_ => !pq.isEmpty)
+            else Iterator()
         }
     }
 

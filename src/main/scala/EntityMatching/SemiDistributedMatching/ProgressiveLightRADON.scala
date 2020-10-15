@@ -1,9 +1,9 @@
 package EntityMatching.SemiDistributedMatching
 
 import DataStructures.{IM, SpatialEntity}
-import com.google.common.collect.MinMaxPriorityQueue
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
+import org.spark_project.guava.collect.MinMaxPriorityQueue
 import utils.Constants.Relation.Relation
 import utils.Constants._
 import utils.Constants.WeightStrategy.WeightStrategy
@@ -26,7 +26,7 @@ case class ProgressiveLightRADON(source: RDD[SpatialEntity], target: Array[Spati
      * @param relations the relation the MBBs must hold
      * @return a PQ of weighted comparisons
      */
-    def compute(source: Array[SpatialEntity], target: Array[SpatialEntity], targetIndex: mutable.HashMap[(Int, Int), ListBuffer[Int]],
+    private def compute(source: Array[SpatialEntity], target: Array[SpatialEntity], targetIndex: mutable.HashMap[(Int, Int), ListBuffer[Int]],
                 relations: Relation*): MinMaxPriorityQueue[(Double, (Int, Int))] ={
 
         // to avoid redundant comparisons
@@ -107,7 +107,7 @@ case class ProgressiveLightRADON(source: RDD[SpatialEntity], target: Array[Spati
             Iterator.continually {
                 val (i, j) = pq.removeFirst()._2
                 val e1 = source(i)
-                val e2 = targetBD.value(j)
+                val e2 = target(j)
                 IM(e1, e2)
             }.takeWhile(_ => !pq.isEmpty)
         }

@@ -17,8 +17,8 @@ import utils.{ConfigurationParser, Utils}
 object MultiExp {
 
     def main(args: Array[String]): Unit = {
-        Logger.getLogger("org").setLevel(Level.ERROR)
-        Logger.getLogger("akka").setLevel(Level.ERROR)
+        Logger.getLogger("org").setLevel(Level.INFO)
+        Logger.getLogger("akka").setLevel(Level.INFO)
         val log = LogManager.getRootLogger
         log.setLevel(Level.INFO)
 
@@ -65,31 +65,29 @@ object MultiExp {
 
         // setting SpatialReader
         SpatialReader.setPartitions(partitions)
-        SpatialReader.noConsecutiveID()
         SpatialReader.setGridType(conf.getGridType)
         val startTime = Calendar.getInstance().getTimeInMillis
 
         val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
             .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
-        val sourceCount = sourceRDD.count() //.map( _.originalID).countApproxDistinct()
-        log.info("DS-JEDAI: Approximation of distinct profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
-
-        Utils(sourceRDD.map(_.mbb), sourceCount, conf.getTheta)
+        Utils(sourceRDD.map(_.mbb), conf.getTheta)
+        Utils.getTheta
         val readTime = Calendar.getInstance()
-        log.info("DS-JEDAI: Reading input dataset took: " + (readTime.getTimeInMillis - startTime) / 1000.0)
+        val initialOverheard = (readTime.getTimeInMillis - startTime) / 1000.0
 
         val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
+        val partitioner = SpatialReader.spatialPartitioner
 
-        val algorithms = Array("TOPK", "RECIPROCAL_TOPK")
+        val algorithms = Array("PROGRESSIVE_GIANT")
         val budgets = Array(10000000, 30000000, 50000000)
         val weightingSchemes = Array("JS", "CBS", "PEARSON_X2")
 
         for (ma <- algorithms; budget <- budgets; ws <- weightingSchemes) {
             log.info("DS-JEDAI: Input Budget: " + budget)
             log.info("DS-JEDAI: Weighting Strategy: " + ws)
-            val de9im_startTime = Calendar.getInstance().getTimeInMillis
             if (!options.contains("auc")) {
-                val pm = DMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD, budget, ws, ma)
+                val de9im_startTime = Calendar.getInstance().getTimeInMillis
+                val pm = DMFactory.getProgressiveAlgorithm(conf, sourceRDD, targetRDD, partitioner, budget, ws, ma)
                 val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
                 totalOverlaps, totalTouches, totalWithin, intersectingPairs, interlinkedGeometries) = pm.countRelations
 
@@ -109,10 +107,10 @@ object MultiExp {
                 log.info("DS-JEDAI: WITHIN: " + totalWithin)
                 log.info("DS-JEDAI: Total Top Relations: " + totalRelations)
                 val de9im_endTime = Calendar.getInstance().getTimeInMillis
-                log.info("DS-JEDAI: Only DE-9IM Time: " + (de9im_endTime - de9im_startTime) / 1000.0)
+                log.info("DS-JEDAI: Only DE-9IM Time: " + (((de9im_endTime - de9im_startTime) / 1000.0) + initialOverheard))
             }
             else {
-                val pm = DMFactory.getProgressiveAlgorithm(conf, sourceRDD, targetRDD, budget, ws, ma)
+                val pm = DMFactory.getProgressiveAlgorithm(conf, sourceRDD, targetRDD, partitioner, budget, ws, ma)
                 var counter: Double = 0
                 var auc: Double = 0
                 var interlinkedGeometries: Double = 0
@@ -129,11 +127,9 @@ object MultiExp {
                 log.info("DS-JEDAI: Interlinked Geometries: " + interlinkedGeometries)
                 log.info("DS-JEDAI: AUC: " + auc / interlinkedGeometries / counter)
             }
-
-            val endTime = Calendar.getInstance()
-            log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime) / 1000.0 + "\n\n\n")
-
         }
+        val endTime = Calendar.getInstance()
+        log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime) / 1000.0)
     }
 }
 

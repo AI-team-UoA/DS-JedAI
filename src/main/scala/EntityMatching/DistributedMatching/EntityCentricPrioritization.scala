@@ -3,11 +3,11 @@ package EntityMatching.DistributedMatching
 import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
+import org.datasyslab.geospark.spatialPartitioning.SpatialPartitioner
 import utils.Constants.Relation
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
-import utils.Readers.SpatialReader
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -134,7 +134,7 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
 
 object EntityCentricPrioritization{
 
-    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption, ws: WeightStrategy, budget: Long)
+    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], ws: WeightStrategy, budget: Long, partitioner: SpatialPartitioner)
     : EntityCentricPrioritization ={
 
         val thetaXY = Utils.getTheta
@@ -142,7 +142,7 @@ object EntityCentricPrioritization{
         val sourcePartitions = source.mapPartitions(seIter => Iterator((TaskContext.getPartitionId(), seIter.toIterable)))
         val targetPartitions = target.mapPartitions(seIter => Iterator((TaskContext.getPartitionId(), seIter.toIterable)))
 
-        val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner).map(p => (p._1, (p._2._1.flatten, p._2._2.flatten)))
+        val joinedRDD = sourcePartitions.cogroup(targetPartitions, partitioner).map(p => (p._1, (p._2._1.flatten, p._2._2.flatten)))
         EntityCentricPrioritization(joinedRDD, thetaXY, ws, budget, sourceCount)
     }
 

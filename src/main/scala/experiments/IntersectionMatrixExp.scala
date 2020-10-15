@@ -3,7 +3,6 @@ package experiments
 import java.util.Calendar
 
 import EntityMatching.DistributedMatching.DMFactory
-import EntityMatching.SpaceStatsCounter
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
@@ -68,7 +67,6 @@ object IntersectionMatrixExp {
         val conf_path = options("conf")
         val conf = ConfigurationParser.parse(conf_path)
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
-
         val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
         val ws: String = if (options.contains("ws")) options("ws").toString else conf.getWeightingScheme.toString
         val ma: String = if (options.contains("ma")) options("ma").toString else conf.getMatchingAlgorithm.toString
@@ -77,25 +75,22 @@ object IntersectionMatrixExp {
 
         // setting SpatialReader
         SpatialReader.setPartitions(partitions)
-        SpatialReader.noConsecutiveID()
         SpatialReader.setGridType(conf.getGridType)
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
-                        .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
-        val sourceCount = sourceRDD.count()//.map( _.originalID).countApproxDistinct()
-        log.info("DS-JEDAI: Approximation of distinct profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
+        val sourceRDD = SpatialReader
+            .load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
+            .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
+        Utils(sourceRDD.map(_.mbb), conf.getTheta)
 
-        Utils(sourceRDD.map(_.mbb), sourceCount, conf.getTheta)
+        val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
+        val partitioner = SpatialReader.spatialPartitioner
         val readTime = Calendar.getInstance()
         log.info("DS-JEDAI: Reading input dataset took: " + (readTime.getTimeInMillis - startTime) / 1000.0)
 
-        val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
-        if(stats) SpaceStatsCounter(sourceRDD, targetRDD, conf.getTheta).printSpaceInfo()
-
         val de9im_startTime = Calendar.getInstance().getTimeInMillis
         if (!options.contains("auc")) {
-            val pm = DMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD, budget, ws, ma)
+            val pm = DMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD, Some(partitioner), budget, ws, ma)
             val (totalContains, totalCoveredBy, totalCovers,totalCrosses, totalEquals, totalIntersects,
             totalOverlaps, totalTouches, totalWithin,intersectingPairs, interlinkedGeometries) = pm.countRelations
 
@@ -118,7 +113,7 @@ object IntersectionMatrixExp {
             log.info("DS-JEDAI: Only DE-9IM Time: " + (de9im_endTime - de9im_startTime) / 1000.0)
         }
         else{
-            val pm = DMFactory.getProgressiveAlgorithm(conf, sourceRDD, targetRDD, budget, ws, ma)
+            val pm = DMFactory.getProgressiveAlgorithm(conf, sourceRDD, targetRDD, partitioner, budget, ws, ma)
             var counter: Double = 0
             var auc: Double = 0
             var interlinkedGeometries: Double = 0

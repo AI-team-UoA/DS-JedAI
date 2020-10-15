@@ -22,16 +22,14 @@ import scala.reflect.ClassTag
 object Utils {
 
 	val spark: SparkSession = SparkSession.builder().getOrCreate()
-	var sourceCount: Long = -1
 	val log: Logger = LogManager.getRootLogger
 	var thetaOption: ThetaOption = _
 	var source: RDD[MBB] = _
-	//var target: RDD[MBB] = _
+	lazy val sourceCount: Long = source.count()
 	lazy val thetaXY: (Double, Double) = initTheta()
 
-	def apply(sourceRDD: RDD[MBB], count: Long= -1, thetaOpt: ThetaOption = Constants.ThetaOption.AVG_x2): Unit ={
+	def apply(sourceRDD: RDD[MBB], thetaOpt: ThetaOption = Constants.ThetaOption.AVG_x2): Unit ={
 		source = sourceRDD
-		sourceCount = if (count > 0) count else sourceRDD.count()
 		thetaOption = thetaOpt
 	}
 
@@ -87,17 +85,6 @@ object Utils {
 	 * Compute the Estimation of the Total Hyper-volume
 	 *
 	 * @param seRDD Spatial Entities
-	 * @return Estimation of the Total Hyper-volume
-	 */
-//	def getETH(seRDD: RDD[MBB]): Double ={
-//		getETH(seRDD, seRDD.count())
-//	}
-
-
-	/**
-	 * Compute the Estimation of the Total Hyper-volume
-	 *
-	 * @param seRDD Spatial Entities
 	 * @param count number of the entities
 	 * @return Estimation of the Total Hyper-volume
 	 */
@@ -110,13 +97,6 @@ object Utils {
 		val eth = count * ( (denom * coords_sum._1) * (denom * coords_sum._2) )
 		eth
 	}
-
-	/**
-	 * tells whether to swap the two RDD. Source must be the RDD  with the smallest ETH
-	 *
-	 * @return whether to swap
-	 */
-	//def toSwap: Boolean = getETH(target, targetCount) < getETH(source, sourceCount)
 
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
 	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
@@ -142,33 +122,21 @@ object Utils {
 			case ThetaOption.MIN =>
 				// need filtering because there are cases where the geometries are perpendicular to the axes
 				// hence its width or height is equal to 0.0
-				//val union = source.union(target)
 				val thetaX = source.map(mbb => mbb.maxX - mbb.minX).filter(_ != 0.0d).min
 				val thetaY = source.map(mbb => mbb.maxY - mbb.minY).filter(_ != 0.0d).min
 				(thetaX, thetaY)
 			case ThetaOption.MAX =>
-				//val union = source.union(target)
 				val thetaX = source.map(mbb => mbb.maxX - mbb.minX).max
 				val thetaY = source.map(mbb => mbb.maxY - mbb.minY).max
 				(thetaX, thetaY)
 			case ThetaOption.AVG =>
-				//val union = source.union(target)
-				//val total = sourceCount + targetCount
 				val thetaX = source.map(mbb => mbb.maxX - mbb.minX).sum() / sourceCount
 				val thetaY = source.map(mbb => mbb.maxY - mbb.minY).sum() / sourceCount
 
 				(thetaX, thetaY)
 			case ThetaOption.AVG_x2 =>
-
 				val thetaXs = source.map(mbb => mbb.maxX - mbb.minX).sum() / sourceCount
 				val thetaYs = source.map(mbb => mbb.maxY - mbb.minY).sum() / sourceCount
-
-//				val thetaXt = target.map(mbb => mbb.maxX - mbb.minX).sum() / targetCount
-//				val thetaYt = target.map(mbb => mbb.maxY - mbb.minY).sum() / targetCount
-
-//				val thetaX = 0.5 * (thetaXs + thetaXt)
-//				val thetaY = 0.5 * (thetaYs + thetaYt)
-
 				val thetaX = 0.5 * thetaXs
 				val thetaY = 0.5 * thetaYs
 

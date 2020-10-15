@@ -40,7 +40,7 @@ case class Configuration(source: Dataset, target:Dataset, relation: String, var 
 
 	def getSpatialPartitioning: Boolean = configurations.getOrElse(YamlConfiguration.CONF_SPATIAL_PARTITION, "false").toBoolean
 
-	def getMatchingAlgorithm: MatchingAlgorithm = MatchingAlgorithm.withName(configurations.getOrElse(YamlConfiguration.CONF_MATCHING_ALG, "SPATIAL"))
+	def getMatchingAlgorithm: MatchingAlgorithm = MatchingAlgorithm.withName(configurations.getOrElse(YamlConfiguration.CONF_MATCHING_ALG, "GIANT"))
 
 	def getBlockingAlgorithm: BlockingAlgorithm = BlockingAlgorithm.withName(configurations.getOrElse(YamlConfiguration.CONF_BLOCK_ALG, "RADON"))
 

@@ -78,16 +78,13 @@ object RepartitionExp {
 
         // setting SpatialReader
         SpatialReader.setPartitions(partitions)
-        SpatialReader.noConsecutiveID()
         SpatialReader.setGridType(conf.getGridType)
         val startTime = Calendar.getInstance().getTimeInMillis
 
         val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
             .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
-        val sourceCount = sourceRDD.count()
-        log.info("DS-JEDAI: Approximation of distinct profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
 
-        Utils(sourceRDD.map(_.mbb), sourceCount, conf.getTheta)
+        Utils(sourceRDD.map(_.mbb), conf.getTheta)
         val readTime = Calendar.getInstance()
         log.info("DS-JEDAI: Reading input dataset took: " + (readTime.getTimeInMillis - startTime) / 1000.0)
 
@@ -103,7 +100,7 @@ object RepartitionExp {
         val overloadedTarget = targetRDD.mapPartitions(ti => Iterator((TaskContext.getPartitionId(), ti))).filter{ case (pid, _) => overloadedPartitionIds.contains(pid) }.flatMap(_._2)
         log.info("DS-JEDAI: Overloaded partitions: " + overloadedPartitionIds.size)
 
-        val pm = GIAnt(balancedSource, balancedTarget, conf.getTheta)
+        val pm = GIAnt(balancedSource, balancedTarget)
         val ibm = IndexBasedMatching(overloadedSource, overloadedTarget, Utils.getTheta)
         val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
         totalOverlaps, totalTouches, totalWithin, intersectingPairs, interlinkedGeometries) = pm.countRelations + ibm.countRelationsBlocking

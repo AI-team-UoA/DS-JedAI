@@ -83,7 +83,7 @@ trait DMTrait {
                     totalOverlaps, totalTouches, totalWithin,
                     intersectingPairs, interlinkedGeometries))
             }
-            .treeReduce { case (im1, im2) => im1 + im2}
+            .treeReduce({ case (im1, im2) => im1 + im2}, 4)
     }
 
     def apply(relation: Relation): RDD[(String, String)]

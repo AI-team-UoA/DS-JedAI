@@ -1,6 +1,6 @@
 package utils.Readers
 
-import DataStructures.{KeyValue, SpatialEntity}
+import DataStructures.SpatialEntity
 import com.vividsolutions.jts.geom.Geometry
 import com.vividsolutions.jts.io.WKTReader
 import org.apache.spark.rdd.RDD
@@ -38,11 +38,10 @@ object CSVReader extends TReader {
                     }
             }
             .filter(!_._1.isEmpty)
-            .zipWithIndex()
             .map {
-                case((geometry, row), id) =>
+                case(geometry, row) =>
                     val originalID: String = row.getAs(realIdField).toString
-                    SpatialEntity(id.toInt, originalID, geometry)
+                    SpatialEntity(originalID, geometry)
             }
         SpatialEntities.filter(!_.geometry.isEmpty)
     }

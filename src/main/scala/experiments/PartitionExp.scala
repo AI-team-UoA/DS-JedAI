@@ -57,44 +57,13 @@ object PartitionExp {
         val partitions: Int = conf.getPartitions
 
         SpatialReader.setPartitions(partitions)
-        SpatialReader.noConsecutiveID()
         SpatialReader.setGridType(conf.getGridType)
-
-        // loading source and target, its very important the big dataset to be partitioned first as it will set the partitioner
-//        val (sourceRDD, targetRDD) = if (conf.partitionBySource){
-//            val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
-//                .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
-//
-//            val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
-//                .setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK)
-//            (sourceRDD, targetRDD)
-//        }
-//        else {
-//            val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
-//                .setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK)
-//
-//            val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
-//                .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
-//            (sourceRDD, targetRDD)
-//        }
 
         val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
                         .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
         val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
 
-//        val distinctSourceMBB = sourceRDD.map(se => (se.originalID, se.mbb)).distinct().map(_._2).setName("distinctSourceMBB").cache()
-//        val sourceCount = distinctSourceMBB.count().toInt
-//        log.info("DS-JEDAI: Number of distinct profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions + " partitions")
-//
-//        val distinctTargetMBB = targetRDD.map(se => (se.originalID, se.mbb)).distinct().map(_._2).setName("distinctTargetMBB").cache()
-//        val targetCount = distinctTargetMBB.count().toInt
-//        log.info("DS-JEDAI: Number of distinct profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions + " partitions")
-
-        Utils(sourceRDD.map(_.mbb), sourceRDD.count(), conf.getTheta)
-//        val (source, target, relation) = (sourceRDD, targetRDD, conf.getRelation)
-//            if (Utils.toSwap) (targetRDD, sourceRDD, Relation.swap(conf.getRelation))
-//            else (sourceRDD, targetRDD, conf.getRelation)
-
+        Utils(sourceRDD.map(_.mbb), conf.getTheta)
         val matching_startTime = Calendar.getInstance().getTimeInMillis
         val matches = DMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).apply(conf.getRelation)
 

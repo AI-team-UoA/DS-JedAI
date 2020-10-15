@@ -114,14 +114,6 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
         "(" + minX.toString  + ", " + maxX.toString +"), ("+ minY.toString  + ", " + maxY.toString +")"
 
     /**
-     * check if mbb crosses meridian
-     * @return whether crosses meridian
-     */
-    def crossesMeridian: Boolean ={
-        (minX < Constants.MAX_LONG && maxX > Constants.MAX_LONG) || (minX < Constants.MIN_LONG && maxX > Constants.MIN_LONG)
-    }
-
-    /**
      * Split mbb into two mbbs west and east of meridian
      * @return two mbbs west and east of meridian
      */

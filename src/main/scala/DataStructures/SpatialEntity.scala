@@ -8,7 +8,7 @@ import utils.Constants.Relation.Relation
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-case class SpatialEntity(id: Int, originalID: String = "", geometry: Geometry, mbb: MBB, crossesMeridian: Boolean){
+case class SpatialEntity(originalID: String = "", geometry: Geometry, mbb: MBB){
 
     /**
      * Find the relation with another SpatialEntity
@@ -75,21 +75,19 @@ case class SpatialEntity(id: Int, originalID: String = "", geometry: Geometry, m
  */
 object SpatialEntity {
 
-    def apply(id: Int, originalID: String, wkt: String): SpatialEntity ={
+    def apply(originalID: String, wkt: String): SpatialEntity ={
         val wktReader = new WKTReader()
         val geometry: Geometry = wktReader.read(wkt)
         val mbb = MBB(geometry)
-        val crossesMeridian =  mbb.crossesMeridian
 
-        SpatialEntity(id, originalID, geometry, mbb, crossesMeridian)
+        SpatialEntity(originalID, geometry, mbb)
     }
 
-    def apply(id: Int, originalID: String, geom: Geometry): SpatialEntity ={
+    def apply(originalID: String, geom: Geometry): SpatialEntity ={
         val geometry: Geometry = geom
         val mbb = MBB(geometry)
-        val crossesMeridian =  mbb.crossesMeridian
 
-        SpatialEntity(id, originalID, geometry, mbb, crossesMeridian)
+        SpatialEntity(originalID, geometry, mbb)
     }
 
 }

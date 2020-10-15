@@ -11,12 +11,8 @@ target:
 relation: "intersects"
 
 configurations:
-  blockingAlg: "RADON"
-  partitions: "10"
-  spatialPartition: "false"
+  partitions: "40"
   theta_measure: "avg2"
-  matchingAlg: "RECIPROCAL_TOPK"
-  weighting_strategy: "CBS"
-  budget: "1000000"
+  matchingAlg: "PROGRESSIVE_LIGHT_RADON"
   gridType: "QUADTREE"
   partitionBy: "source"
