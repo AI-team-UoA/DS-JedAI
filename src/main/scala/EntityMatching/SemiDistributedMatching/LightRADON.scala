@@ -4,80 +4,80 @@ import DataStructures.{IM, SpatialEntity}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
-import utils.Constants.ThetaOption
-import utils.Constants.ThetaOption.ThetaOption
 import utils.{Constants, Utils}
 
 import scala.collection.mutable
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.ListBuffer
 
 
 /**
- * A blocking and Matching algorithm. Similar to RADON but the target dataset is
+ * A Matching algorithm. Similar to RADON but the target dataset is
  * collected and brodcasted during the matching procedure.
  *
  * @param source the distributed dataset (source)
  * @param target the collected dataset
  * @param thetaXY theta values
  */
-case class LightRADON(source: RDD[SpatialEntity], target: ArrayBuffer[SpatialEntity], thetaXY: (Double, Double) ) extends SDMTrait {
-
-
+case class LightRADON(source: RDD[SpatialEntity], target: Array[SpatialEntity], thetaXY: (Double, Double), budget: Long) extends SDMTrait {
 
        /**
-     * Get the matching pairs of the datasets. Broadcast the blocks hashmap and the collected dataset.
-     * Then index the distributed dataset and after obtaining their blocks, get the respective
-     * entities of the broadcasted dataset of the same block and perform the comparisons.
-     * First test their MBBs and then their geometries
-     *
-     * @param relation the examined relation
-     * @param idStart target ids starting value
-     * @param targetBlocksMap HashMap of targets blocks
-     * @return an RDD of matches
+        * Get the matching pairs which the relation holds.
+        * Broadcast target's index and the collected dataset.
+        * Then index the distributed dataset and compare the entities with common blocks
+        * and intersecting MBBs. To avoid duplicate comparisons maintain a Set with the
+        * compared entities.
+        *
+        * @param relation the testing relation
+        * @param targetIndex HashMap of targets blocks
+        * @return an RDD of matches
      */
-   def matchTargetData(relation: Relation, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)] = {
+   def matchTarget(relation: Relation, targetIndex: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)] = {
        val sc = SparkContext.getOrCreate()
-       val blocksMapBD = sc.broadcast(targetBlocksMap)
-       val collectedBD = sc.broadcast(target)
+       val targetIndexBD = sc.broadcast(targetIndex)
+       val targetBD = sc.broadcast(target)
 
        source
-           .map(se => (se, se.index(thetaXY)))
-           .flatMap { case (se, blocksArray) =>
+           .flatMap { e1 =>
+               val sourceIndices = e1.index(thetaXY)
                val compared = mutable.HashSet[Int]()
-               val blocksMap = blocksMapBD.value
-               blocksArray
-                   .filter(blocksMap.contains)
+               val index = targetIndexBD.value
+               sourceIndices
+                   .filter(index.contains)
                    .flatMap { block =>
-                       val entitiesIDs = blocksMap(block).filter(id => !compared.contains(id))
+                       val entitiesIDs = index(block).filter(i => !compared.contains(i))
                        compared ++= entitiesIDs
                        entitiesIDs
-                           .map(id => collectedBD.value(id - idStart))
-                           .filter(tse => se.testMBB(tse, relation))
-                           .filter(tse => se.relate(tse, relation))
-                           .map(tse => (se.originalID, tse.originalID))
+                           .map(i => targetBD.value(i))
+                           .filter(e2 => e1.testMBB(e2, relation) && e1.relate(e2, relation))
+                           .map(e2 => (e1.originalID, e2.originalID))
                    }
            }
    }
 
-   def getDE9IM(idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[IM] = {
+    /**
+     * Similar to matchTarget, but returns the intersection matrices (DE-9IM)
+     * @param targetIndex HashMap of targets blocks
+     * @return an RDD of Intersection Matrices
+     */
+   def getDE9IM(targetIndex: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[IM] = {
        val sc = SparkContext.getOrCreate()
-       val blocksMapBD = sc.broadcast(targetBlocksMap)
-       val collectedBD = sc.broadcast(target)
+       val targetIndexBD = sc.broadcast(targetIndex)
+       val targetBD = sc.broadcast(target)
 
        source
-           .map(se => (se, se.index(thetaXY)))
-           .flatMap { case (se, blocksArray) =>
+           .flatMap { e1 =>
+               val sourceIndices = e1.index(thetaXY)
                val compared = mutable.HashSet[Int]()
-               val blocksMap = blocksMapBD.value
-               blocksArray
-                   .filter(blocksMap.contains)
+               val index = targetIndexBD.value
+               sourceIndices
+                   .filter(index.contains)
                    .flatMap { block =>
-                       val entitiesIDs = blocksMap(block).filter(id => !compared.contains(id))
+                       val entitiesIDs = index(block).filter(i => !compared.contains(i))
                        compared ++= entitiesIDs
                        entitiesIDs
-                           .map(id => collectedBD.value(id - idStart))
-                           .filter(tse => se.testMBB(tse, Constants.Relation.INTERSECTS))
-                           .map(tse => IM(se, tse))
+                           .map(i => targetBD.value(i))
+                           .filter(e2 => e1.testMBB(e2, Constants.Relation.INTERSECTS, Constants.Relation.TOUCHES))
+                           .map(e2 => IM(e1, e2))
                    }
            }
    }
@@ -91,12 +91,11 @@ object LightRADON {
      *
      * @param source source RDD
      * @param target target RDD which will be collected
-     * @param thetaOption theta measure
      * @return LightRADON instance
      */
-    def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaOption: ThetaOption = ThetaOption.NO_USE): LightRADON ={
+    def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], budget: Long): LightRADON ={
         val thetaXY = Utils.getTheta
-        LightRADON(source, target.sortBy(_.id).collect().to[ArrayBuffer], thetaXY)
+        LightRADON(source, target.collect(), thetaXY, budget)
     }
 
 }

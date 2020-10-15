@@ -1,5 +1,7 @@
 package utils
 
+import utils.Constants.BlockingAlgorithm.Value
+
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
@@ -107,7 +109,6 @@ object Constants {
 		type BlockingAlgorithm = Value
 		val RADON: BlockingAlgorithm.Value = Value("RADON")
 		val STATIC_BLOCKING: BlockingAlgorithm.Value = Value("STATIC_BLOCKING")
-		val LIGHT_RADON: BlockingAlgorithm.Value = Value("LIGHT_RADON")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
@@ -120,9 +121,15 @@ object Constants {
 		val GIANT: Constants.MatchingAlgorithm.Value = Value("GIANT")
 		val BLOCK_CENTRIC: Constants.MatchingAlgorithm.Value = Value("BLOCK_CENTRIC")
 		val PROGRESSIVE_GIANT: Constants.MatchingAlgorithm.Value = Value("PROGRESSIVE_GIANT")
-		val ΕΝΤΙΤΥ_CENTRIC: Constants.MatchingAlgorithm.Value = Value("ENTITY_CENTRIC")
+		val GEOMETRY_CENTRIC: Constants.MatchingAlgorithm.Value = Value("GEOMETRY_CENTRIC")
+		val ITERATIVE_GEOMETRY_CENTRIC: Constants.MatchingAlgorithm.Value = Value("ITERATIVE_GEOMETRY_CENTRIC")
+
 		val TOPK: Constants.MatchingAlgorithm.Value = Value("TOPK")
 		val RECIPROCAL_TOPK: Constants.MatchingAlgorithm.Value = Value("RECIPROCAL_TOPK")
+
+		val LIGHT_RADON: Constants.MatchingAlgorithm.Value = Value("LIGHT_RADON")
+		val PROGRESSIVE_LIGHT_RADON: Constants.MatchingAlgorithm.Value = Value("PROGRESSIVE_LIGHT_RADON")
+
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}

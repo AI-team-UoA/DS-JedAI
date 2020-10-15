@@ -8,7 +8,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
-import utils.Readers.Reader
+import utils.Readers.{Reader, SpatialReader}
 import utils.{ConfigurationParser, Utils}
 
 
@@ -45,6 +45,14 @@ object LightExp {
                 case Nil => map
                 case ("-c" | "-conf") :: value :: tail =>
                     nextOption(map ++ Map("conf" -> value), tail)
+                case ("-p" | "-partitions") :: value :: tail =>
+                    nextOption(map ++ Map("partitions" -> value), tail)
+                case ("-b" | "-budget") :: value :: tail =>
+                    nextOption(map ++ Map("budget" -> value), tail)
+                case "-ws" :: value :: tail =>
+                    nextOption(map ++ Map("ws" -> value), tail)
+                case "-ma" :: value :: tail =>
+                    nextOption(map ++ Map("ma" -> value), tail)
                 case _ :: tail =>
                     log.warn("DS-JEDAI: Unrecognized argument")
                     nextOption(map, tail)
@@ -62,30 +70,44 @@ object LightExp {
 
         val conf_path = options("conf")
         val conf = ConfigurationParser.parse(conf_path)
-        val partitions: Int = conf.getPartitions
+        val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
+        val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
+        val ws: String = if (options.contains("ws")) options("ws").toString else conf.getWeightingScheme.toString
+        val ma: String = if (options.contains("ma")) options("ma").toString else conf.getMatchingAlgorithm.toString
+        log.info("DS-JEDAI: Input Budget: " + budget)
+        log.info("DS-JEDAI: Weighting Strategy: " + ws.toString)
+
+        // setting SpatialReader
+        SpatialReader.setPartitions(partitions)
+        SpatialReader.setGridType(conf.getGridType)
 
         val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, conf)
-        val sourceCount = sourceRDD.setName("SourceRDD").cache().count()
+        val sourceCount = sourceRDD.setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
         log.info("DS-JEDAI: Number of ptofiles of Source: " + sourceCount)
 
         // Loading Target
         val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, conf)
-        val targetCount = targetRDD.setName("TargetRDD").cache().count()
-        log.info("DS-JEDAI: Number of ptofiles of Target: " + targetCount)
+        Utils(sourceRDD.map(_.mbb), conf.getTheta)
 
-        Utils(sourceRDD.map(_.mbb), sourceCount, conf.getTheta)
+        val sma = SDMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD, budget, ws, ma)
+        val (totalContains, totalCoveredBy, totalCovers,totalCrosses, totalEquals, totalIntersects,
+        totalOverlaps, totalTouches, totalWithin,intersectingPairs, interlinkedGeometries) = sma.countRelations
 
-        val imRDD = SDMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).applyDE9IM(0).persist(StorageLevel.MEMORY_AND_DISK)
+        val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
+            totalIntersects + totalOverlaps + totalTouches + totalWithin
+        log.info("DS-JEDAI: Total Intersecting Pairs: " + intersectingPairs)
+        log.info("DS-JEDAI: Interlinked Geometries: " + interlinkedGeometries)
 
-        log.info("DS-JEDAI: CONTAINS: " + imRDD.filter(_.isContains).count())
-        log.info("DS-JEDAI: COVERED BY: " + imRDD.filter(_.isCoveredBy).count())
-        log.info("DS-JEDAI: COVERS: " + imRDD.filter(_.isCovers).count())
-        log.info("DS-JEDAI: CROSSES: " + imRDD.filter(_.isCrosses).count())
-        log.info("DS-JEDAI: EQUALS: " + imRDD.filter(_.isEquals).count())
-        log.info("DS-JEDAI: INTERSECTS: " + imRDD.filter(_.isIntersects).count())
-        log.info("DS-JEDAI: OVERLAPS: " + imRDD.filter(_.isOverlaps).count())
-        log.info("DS-JEDAI: TOUCHES: " + imRDD.filter(_.isTouches).count())
-        log.info("DS-JEDAI: WITHIN: " + imRDD.filter(_.isWithin).count())
+        log.info("DS-JEDAI: CONTAINS: " + totalContains)
+        log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
+        log.info("DS-JEDAI: COVERS: " + totalCovers)
+        log.info("DS-JEDAI: CROSSES: " + totalCrosses)
+        log.info("DS-JEDAI: EQUALS: " + totalEquals)
+        log.info("DS-JEDAI: INTERSECTS: " + totalIntersects)
+        log.info("DS-JEDAI: OVERLAPS: " + totalOverlaps)
+        log.info("DS-JEDAI: TOUCHES: " + totalTouches)
+        log.info("DS-JEDAI: WITHIN: " + totalWithin)
+        log.info("DS-JEDAI: Total Top Relations: " + totalRelations)
 
 
         //log.info("DS-JEDAI: Matches: " + matches.count)

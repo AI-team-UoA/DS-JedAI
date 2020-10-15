@@ -8,35 +8,27 @@ import utils.Constants.WeightStrategy
 import utils.Constants.WeightStrategy.WeightStrategy
 
 import scala.collection.mutable
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.ListBuffer
 import scala.math.log10
 
 trait SDMTrait {
-
+    val budget: Long
     val source: RDD[SpatialEntity]
-    val target: ArrayBuffer[SpatialEntity]
+    val target: Array[SpatialEntity]
     val thetaXY: (Double, Double)
-
-    def matchTargetData(relation: Relation, idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)]
-
-    def getDE9IM(idStart: Int, targetBlocksMap: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[IM]
 
     /**
      * start LightRADON algorithm
-     * @param idStart target's id starting value
      * @param relation the examined relation
      * @return an RDD of matches
      */
-    def apply(idStart: Int, relation: Relation): RDD[(String, String)] = {
-        val blocksMap = indexTarget()
-        matchTargetData(relation, idStart, blocksMap)
-    }
+    def apply(relation: Relation): RDD[(String, String)] = matchTarget(relation, indexTarget())
 
+    def applyDE9IM: RDD[IM] = getDE9IM(indexTarget())
 
-    def applyDE9IM(idStart: Int):RDD[IM] = {
-        val blocksMap = indexTarget()
-        getDE9IM(idStart, blocksMap)
-    }
+    def matchTarget(relation: Relation, targetIndex: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)]
+
+    def getDE9IM(targetIndex: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[IM]
 
 
     /**
@@ -46,24 +38,21 @@ trait SDMTrait {
      *         lists of Spatial Entities ids as values
      */
     def indexTarget():mutable.HashMap[(Int, Int), ListBuffer[Int]] = {
-        var blocksMap = mutable.HashMap[(Int, Int), ListBuffer[Int]]()
-        for (se <- target) {
-            val seID = se.id
+        val index = mutable.HashMap[(Int, Int), ListBuffer[Int]]()
+        for ((se, i) <- target.zipWithIndex) {
             val blocksIter = se.index(thetaXY)
             blocksIter.foreach {
                 blockCoords =>
-                    if (blocksMap.contains(blockCoords))
-                        blocksMap(blockCoords).append(seID)
-                    else blocksMap += (blockCoords -> ListBuffer(seID))
+                    if (index.contains(blockCoords))
+                        index(blockCoords).append(i)
+                    else index += (blockCoords -> ListBuffer(i))
             }
         }
-        blocksMap
+        index
     }
 
 
-
-
-    def getWeight(totalBlocks: Int, e1Blocks: Array[(Int, Int)], e2Blocks: Array[(Int, Int)], ws: WeightStrategy = WeightStrategy.CBS): Double ={
+    def getWeight(totalBlocks: Int, e1Blocks: IndexedSeq[(Int, Int)], e2Blocks: IndexedSeq[(Int, Int)], ws: WeightStrategy = WeightStrategy.CBS): Double ={
         val commonBlocks = e1Blocks.intersect(e2Blocks).length
         ws match {
             case WeightStrategy.ECBS =>
@@ -81,6 +70,49 @@ trait SDMTrait {
         }
     }
 
+
+    implicit class TuppleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
+        def +(p: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
+            (p._1 + t._1, p._2 + t._2, p._3 +t._3, p._4+t._4, p._5+t._5, p._6+t._6, p._7+t._7, p._8+t._8, p._9+t._9, p._10+t._10, p._11+t._11)
+    }
+
+    def countRelations: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = {
+        applyDE9IM
+            .mapPartitions { imIterator =>
+                var totalContains: Int = 0
+                var totalCoveredBy = 0
+                var totalCovers = 0
+                var totalCrosses = 0
+                var totalEquals = 0
+                var totalIntersects = 0
+                var totalOverlaps = 0
+                var totalTouches = 0
+                var totalWithin = 0
+                var intersectingPairs = 0
+                var interlinkedGeometries = 0
+                imIterator.foreach { im =>
+                    intersectingPairs += 1
+                    if (im.relate) {
+                        interlinkedGeometries += 1
+                        if (im.isContains) totalContains += 1
+                        if (im.isCoveredBy) totalCoveredBy += 1
+                        if (im.isCovers) totalCovers += 1
+                        if (im.isCrosses) totalCrosses += 1
+                        if (im.isEquals) totalEquals += 1
+                        if (im.isIntersects) totalIntersects += 1
+                        if (im.isOverlaps) totalOverlaps += 1
+                        if (im.isTouches) totalTouches += 1
+                        if (im.isWithin) totalWithin += 1
+                    }
+                }
+
+                Iterator((totalContains, totalCoveredBy, totalCovers,
+                    totalCrosses, totalEquals, totalIntersects,
+                    totalOverlaps, totalTouches, totalWithin,
+                    intersectingPairs, interlinkedGeometries))
+            }
+            .treeReduce({ case (im1, im2) => im1 + im2}, 4)
+    }
 
 
 }
