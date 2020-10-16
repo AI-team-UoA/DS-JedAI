@@ -46,20 +46,6 @@ object Utils {
 	def cantorPairing(a: Long, b: Long): Long =  (((a + b) * (a + b + 1))/2) + b
 
 	/**
-	 * Bijective cantor pairing. CantorPairing(x, y) == CantorPairing(y, x)
-	 *
-	 * @param x integer
-	 * @param y integer
-	 * @return the unique mapping of the integers
-	 */
-	def bijectivePairing(x: Long, y: Long): Long ={
-		if (x < y)
-			cantorPairing(y, x)
-		else
-			cantorPairing(y, x)
-	}
-
-	/**
 	 * Apply cantor pairing for negative integers
 	 *
 	 * @param x integer
@@ -73,13 +59,6 @@ object Utils {
 		cantorPairing(a, b)
 	}
 
-	def inversePairing(z: Long): (Double, Double) ={
-		val x = (-1 + math.sqrt(1 + 8 * z))/2
-		val floorX = math.floor(x)
-		val a = z - (floorX*(1+floorX))/2
-		val b = (floorX*(3+floorX)/2) - z
-		(a,b)
-	}
 
 	/**
 	 * Compute the Estimation of the Total Hyper-volume

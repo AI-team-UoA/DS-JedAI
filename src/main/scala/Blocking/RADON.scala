@@ -7,7 +7,7 @@ import org.apache.spark.rdd.RDD
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Utils
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.ListBuffer
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
@@ -30,17 +30,20 @@ case class RADON(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY
 	 * @param acceptedBlocks the accepted blocks that the set can be indexed to
 	 * @return an Array of block ids for each spatial entity
 	 */
-	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), ArrayBuffer[SpatialEntity])] ={
+	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[SpatialEntity])] ={
 		val acceptedBlocksBD = SparkContext.getOrCreate().broadcast(acceptedBlocks)
 		broadcastMap += ("acceptedBlocks" -> acceptedBlocksBD.asInstanceOf[Broadcast[Any]])
-		spatialEntitiesRDD.mapPartitions { seIter =>
-			val acceptedBlocks = acceptedBlocksBD.value
-			if (acceptedBlocks.nonEmpty)
-				seIter.map(se => (se.index(thetaXY, acceptedBlocks.contains), se))
-			else
-				seIter.map(se => (se.index(thetaXY), se))
-		}
-		.flatMap(b => b._1.map(id => (id, ArrayBuffer[SpatialEntity](b._2) ))).reduceByKey(_ ++ _ )
+		spatialEntitiesRDD
+			.mapPartitions { seIter =>
+				val acceptedBlocks = acceptedBlocksBD.value
+				if (acceptedBlocks.nonEmpty)
+					seIter.map(se => (se.index(thetaXY, acceptedBlocks.contains), se))
+				else
+					seIter.map(se => (se.index(thetaXY), se))
+			}
+			.flatMap(b => b._1.map(id => (id, ListBuffer(b._2))))
+			.reduceByKey(_ ++ _ )
+    		.map(p => (p._1, p._2.to[Array]))
 	}
 
 	/**

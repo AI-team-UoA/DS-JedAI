@@ -1,13 +1,14 @@
 package EntityMatching.BlockBasedAlgorithms
 
-import DataStructures.Block
-import breeze.linalg.{DenseVector, SparseVector}
-import org.apache.spark.SparkContext
-import org.apache.spark.broadcast.Broadcast
+import DataStructures.{Block, SpatialEntity}
+import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightStrategy
 import utils.Constants.WeightStrategy.WeightStrategy
+import utils.Utils
+
+import scala.math.{ceil, floor, max, min}
 
 
 /**
@@ -17,92 +18,36 @@ import utils.Constants.WeightStrategy.WeightStrategy
 case class BlockCentricPrioritization(blocks: RDD[Block], d: (Int, Int), totalBlocks: Long,
                                       ws: WeightStrategy) extends BlockMatchingTrait  {
 
-
-    var commonBlocksSMBD: Broadcast[Array[SparseVector[Int]]] = _
-    var entitiesBlocksBD: Broadcast[(DenseVector[Int], DenseVector[Int])] = _
-    var arcsWeightsBD:  Broadcast[Array[SparseVector[Double]]] = _
+    val thetaXY: (Double, Double) = Utils.getTheta
 
     /**
-     * Construct and broadcast an array of sparse vectors containing the no common blocks
-     * per pair of entities. The rows indicate the source entities and the columns indicate
-     * target's entities
+     * Weight a comparison
      *
-     * @param sc Spark context
+     * @param e1        Spatial entity
+     * @param e2        Spatial entity
+     * @return weight
      */
-    def setCommonBlocks(sc: SparkContext): Unit ={
-        val commonBlocksSM:Array[SparseVector[Int]] = blocks.flatMap{
-            b =>
-                val sIdDs = b.getSourceIDs
-                val tIDs = b.getTargetIDs.to[Array]
-                val (minS, maxS) = (sIdDs.min, sIdDs.max)
-                val sourceSet = sIdDs.toSet
-                val onesSV = new SparseVector[Int](tIDs, Array.fill(tIDs.length)(1), d._2)
-                val zerosSV = SparseVector.zeros[Int](d._2)
+    def getWeight(e1: SpatialEntity, e2: SpatialEntity): Double = {
+        val e1Blocks = (ceil(e1.mbb.maxX/thetaXY._1).toInt - floor(e1.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e1.mbb.maxY/thetaXY._2).toInt - floor(e1.mbb.minY/thetaXY._2).toInt + 1).toDouble
+        val e2Blocks = (ceil(e2.mbb.maxX/thetaXY._1).toInt - floor(e2.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e2.mbb.maxY/thetaXY._2).toInt - floor(e2.mbb.minY/thetaXY._2).toInt + 1).toDouble
+        val cb = (min(ceil(e1.mbb.maxX/thetaXY._1), ceil(e2.mbb.maxX/thetaXY._1)).toInt - max(floor(e1.mbb.minX/thetaXY._1), floor(e2.mbb.minX/thetaXY._1)).toInt + 1) *
+            (min(ceil(e1.mbb.maxY/thetaXY._2), ceil(e2.mbb.maxY/thetaXY._2)).toInt - max(floor(e1.mbb.minY/thetaXY._2), floor(e2.mbb.minY/thetaXY._2)).toInt + 1)
 
-                (minS to maxS).map(id => if (sourceSet.contains(id)) (id, onesSV)  else (id, zerosSV) )
-        }
-        .reduceByKey( _ + _ )
-        .map(_._2)
-        .collect()
-
-        commonBlocksSMBD = sc.broadcast(commonBlocksSM)
-    }
-
-
-    /**
-     * Construct and broadcast dense vectors where each value indicates the
-     * no block the respective entity of the index is inside.
-     * @param sc Spark context
-     */
-    def setEntitiesBlocks(sc: SparkContext): Unit ={
-        val entitiesBlocks = blocks.map {
-            b =>
-                val sourceBlocks = DenseVector.zeros[Int](d._1)
-                val targetBlocks = DenseVector.zeros[Int](d._2)
-                b.getSourceIDs.foreach(i => sourceBlocks.update(i, sourceBlocks(i) + 1))
-                b.getTargetIDs.foreach(j => targetBlocks.update(j, targetBlocks(j) + 1))
-                (sourceBlocks, targetBlocks)
-        }
-            .reduce((a, b) => (a._1 + b._1, a._2 + b._2))
-        entitiesBlocksBD = sc.broadcast(entitiesBlocks)
-    }
-
-    /**
-     * set ARCS weights
-     */
-    def setARCSWeights(sc: SparkContext): Unit ={
-        val arcsWeights = blocks.flatMap{
-            b =>
-                val w = 1d / b.getTotalComparisons
-                val sIdDs = b.getSourceIDs
-                val tIDs = b.getTargetIDs.to[Array]
-                val (minS, maxS) = (sIdDs.min, sIdDs.max)
-                val sourceSet = sIdDs.toSet
-                val sv = new SparseVector[Double](tIDs, Array.fill(tIDs.length)(w), d._2)
-                val zerosSV = SparseVector.zeros[Double](d._2)
-
-                (minS to maxS).map(id => if (sourceSet.contains(id)) (id, sv)  else (id, zerosSV) )
-        }
-        .reduceByKey( _ + _ )
-        .map(_._2)
-        .collect()
-
-        arcsWeightsBD = sc.broadcast(arcsWeights)
-    }
-
-    /**
-     * Initialize all auxiliary structures based on weighting scheme
-     */
-    def init(): Unit ={
-        val sc: SparkContext = SparkContext.getOrCreate()
         ws match {
-            case WeightStrategy.ARCS =>
-                setARCSWeights(sc)
-            case WeightStrategy.ECBS | WeightStrategy.JS =>
-                setCommonBlocks(sc)
-                setEntitiesBlocks(sc)
-            case WeightStrategy.CBS =>
-               setCommonBlocks(sc)
+            case WeightStrategy.ECBS =>
+                cb * math.log10(totalBlocks / e1Blocks) * math.log10(totalBlocks / e2Blocks)
+
+            case WeightStrategy.JS =>
+                cb / (e1Blocks + e2Blocks - cb)
+
+            case WeightStrategy.PEARSON_X2 =>
+                val v1: Array[Long] = Array[Long](cb, (e2Blocks - cb).toLong)
+                val v2: Array[Long] = Array[Long]((e1Blocks - cb).toLong, (totalBlocks - (v1(0) + v1(1) + (e1Blocks - cb))).toLong)
+                val chiTest = new ChiSquareTest()
+                chiTest.chiSquare(Array(v1, v2))
+
+            case WeightStrategy.CBS | _ =>
+                cb.toDouble
         }
     }
 
@@ -114,43 +59,13 @@ case class BlockCentricPrioritization(blocks: RDD[Block], d: (Int, Int), totalBl
      * @return an RDD containing the IDs of the matches
      */
     def apply(relation: Relation): RDD[(String, String)] ={
-        init()
-        // TODO normalize weights
         blocks.flatMap(b => b.getFilteredComparisons(relation))
-            .map(c => (getWeights(c.entity1.id, c.entity2.id), c))
+            .map(c => (getWeight(c._1, c._2), c))
             .sortByKey(ascending = false)
             .map(_._2)
-            .filter(c => c.entity1.relate(c.entity2, relation))
-            .map(c => (c.entity1.originalID, c.entity2.originalID))
+            .filter(c => c._1.relate(c._2, relation))
+            .map(c => (c._1.originalID, c._2.originalID))
     }
-
-
-    /**
-     * Weight the comparisons of blocks and clean the duplicate comparisons.
-     * The accepted weighing strategies are CBS(default), ECBS, ARCS and JS
-     *
-     * @return the weighted comparisons of each block
-     */
-    def getWeights(e1: Int, e2: Int): Double ={
-
-        ws match {
-            case WeightStrategy.ARCS =>
-                arcsWeightsBD.value(e1)(e2)
-            case WeightStrategy.ECBS =>
-                val e1Blocks = entitiesBlocksBD.value._1(e1)
-                val e2Blocks = entitiesBlocksBD.value._2(e2)
-                val cb = commonBlocksSMBD.value(e1)(e2)
-                cb * math.log10(totalBlocks / e1Blocks) * math.log10(totalBlocks/e2Blocks)
-            case WeightStrategy.JS =>
-                val e1Blocks = entitiesBlocksBD.value._1(e1)
-                val e2Blocks = entitiesBlocksBD.value._2(e2)
-                val cb = commonBlocksSMBD.value(e1)(e2)
-                cb / (e1Blocks + e2Blocks - cb)
-            case WeightStrategy.CBS | _ =>
-                commonBlocksSMBD.value(e1)(e2)
-        }
-    }
-
 }
 
 object BlockCentricPrioritization {

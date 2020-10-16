@@ -7,7 +7,6 @@ import org.apache.spark.rdd.RDD
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Utils
 
-import scala.collection.mutable.ArrayBuffer
 
 case class PartitionBlocking(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY: (Double,Double))
     extends  Blocking with Serializable {
@@ -58,7 +57,7 @@ case class PartitionBlocking(source: RDD[SpatialEntity], target: RDD[SpatialEnti
      * @param acceptedBlocks the accepted blocks that the set can be indexed to
      * @return an Array of block ids for each spatial entity
      */
-    def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), ArrayBuffer[SpatialEntity])] ={
+    def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[SpatialEntity])] ={
         val acceptedBlocksBD = SparkContext.getOrCreate().broadcast(acceptedBlocks)
         broadcastMap += ("acceptedBlocks" -> acceptedBlocksBD.asInstanceOf[Broadcast[Any]])
         spatialEntitiesRDD.mapPartitions { seIter =>
@@ -75,7 +74,7 @@ case class PartitionBlocking(source: RDD[SpatialEntity], target: RDD[SpatialEnti
                 .map(b => (b._1.filter(zoneCheck(pid, _)), b._2))
                 .flatMap(b => b._1.map(id => (id, Array[SpatialEntity](b._2))))
                 .groupBy(_._1)
-                .map(p => (p._1, p._2.flatMap(ar => ar._2).to[ArrayBuffer]))
+                .map(p => (p._1, p._2.flatMap(ar => ar._2)))
                 .toIterator
         }
     }
@@ -90,7 +89,7 @@ case class PartitionBlocking(source: RDD[SpatialEntity], target: RDD[SpatialEnti
         val sourceBlocks: Set[(Int, Int)] = sourceIndex.map(b => Set(b._1)).reduce(_++_)
         val targetIndex = index(target, sourceBlocks)
 
-        val blocksIndex: RDD[((Int, Int), (Option[ArrayBuffer[SpatialEntity]], ArrayBuffer[SpatialEntity]))] =
+        val blocksIndex: RDD[((Int, Int), (Option[Array[SpatialEntity]], Array[SpatialEntity]))] =
             targetIndex.rightOuterJoin(sourceIndex) // right outer join, in order to shuffle the small dataset
         // construct blocks from indexes
         blocksIndex

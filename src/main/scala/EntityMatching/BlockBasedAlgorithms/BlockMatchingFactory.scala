@@ -3,9 +3,8 @@ package EntityMatching.BlockBasedAlgorithms
 import DataStructures.Block
 import EntityMatching.DistributedMatching.DMFactory.log
 import utils.Constants.{BlockingAlgorithm, MatchingAlgorithm}
-//, ComparisonCentricPrioritization, EntityCentricPrioritization}
 import org.apache.spark.rdd.RDD
-import utils.{Configuration, Constants}
+import utils.Configuration
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)

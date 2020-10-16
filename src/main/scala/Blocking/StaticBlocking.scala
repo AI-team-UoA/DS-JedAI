@@ -7,7 +7,7 @@ import org.apache.spark.rdd.RDD
 import utils.Constants.ThetaOption.ThetaOption
 import utils.{Constants, Utils}
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.ListBuffer
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
@@ -16,7 +16,7 @@ case class StaticBlocking (source: RDD[SpatialEntity], target: RDD[SpatialEntity
 						   blockingParameter: Double, distance: Double) extends  Blocking with Serializable {
 
 
-	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), ArrayBuffer[SpatialEntity])] = {
+	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[SpatialEntity])] = {
 
 		val acceptedBlocksBD = SparkContext.getOrCreate().broadcast(acceptedBlocks)
 		broadcastMap += ("acceptedBlocks" -> acceptedBlocksBD.asInstanceOf[Broadcast[Any]])
@@ -32,7 +32,6 @@ case class StaticBlocking (source: RDD[SpatialEntity], target: RDD[SpatialEntity
 				val minLongBlock = (envelope.getMinX*blockingParameter).toInt
 				val maxLongBlock = (envelope.getMaxX*blockingParameter).toInt
 
-				//TODO: crosses meridian case
 				val blockIDs =
 					if (acceptedBlocksBD.value.nonEmpty)
 						for(x <- minLongBlock to maxLongBlock; y <- minLatBlock to maxLatBlock;  if acceptedBlocksBD.value.contains((x, y))) yield (x, y)
@@ -41,7 +40,7 @@ case class StaticBlocking (source: RDD[SpatialEntity], target: RDD[SpatialEntity
 
 				(blockIDs, se)
 		}
-		blocks.flatMap(p => p._1.map(blockID => (blockID, ArrayBuffer(p._2)))).reduceByKey(_++_)
+		blocks.flatMap(p => p._1.map(blockID => (blockID, ListBuffer(p._2)))).reduceByKey(_++_).map(p => (p._1, p._2.toArray))
 	}
 }
 

@@ -1,10 +1,9 @@
 package Blocking
 
-import DataStructures.{Block, LightBlock, SpatialEntity}
+import DataStructures.{Block, SpatialEntity}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
-import scala.collection.mutable.ArrayBuffer
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
@@ -17,7 +16,7 @@ trait 	Blocking {
 	var broadcastMap: Map[String, Broadcast[Any]] = Map()
 
 
-	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), ArrayBuffer[SpatialEntity])]
+	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[SpatialEntity])]
 
 
 	/**
@@ -29,7 +28,7 @@ trait 	Blocking {
 		val sourceBlocks: Set[(Int, Int)] = sourceIndex.map(b => Set(b._1)).reduce(_++_)
 		val targetIndex = index(target, sourceBlocks)
 
-		val blocksIndex: RDD[((Int, Int), (Option[ArrayBuffer[SpatialEntity]], ArrayBuffer[SpatialEntity]))] =
+		val blocksIndex: RDD[((Int, Int), (Option[Array[SpatialEntity]], Array[SpatialEntity]))] =
 			targetIndex.rightOuterJoin(sourceIndex) // right outer join, in order to shuffle the small dataset
 
 		// construct blocks from indexes
@@ -42,7 +41,5 @@ trait 	Blocking {
 				Block(blockCoords, sourceIndex, targetIndex)
 			}
 	}
-
-	def apply(liTarget: Boolean = true): RDD[LightBlock] = {null}
 
 }
