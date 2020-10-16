@@ -6,7 +6,7 @@ import org.apache.spark.rdd.RDD
 import utils.Constants.{Relation, WeightStrategy}
 import utils.Constants.Relation.Relation
 
-import scala.math.{ceil, floor}
+import scala.math.{ceil, floor, max, min}
 
 trait DMProgressiveTrait extends DMTrait{
     val budget: Long
@@ -29,35 +29,31 @@ trait DMProgressiveTrait extends DMTrait{
     /**
      * Weight a comparison
      *
-     * @param frequency common blocks of e1 and e2
      * @param e1        Spatial entity
      * @param e2        Spatial entity
      * @return weight
      */
-    def getWeight(frequency: Int, e1: SpatialEntity, e2: SpatialEntity): Double = {
+    def getWeight(e1: SpatialEntity, e2: SpatialEntity): Double = {
+        val e1Blocks = (ceil(e1.mbb.maxX/thetaXY._1).toInt - floor(e1.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e1.mbb.maxY/thetaXY._2).toInt - floor(e1.mbb.minY/thetaXY._2).toInt + 1).toDouble
+        val e2Blocks = (ceil(e2.mbb.maxX/thetaXY._1).toInt - floor(e2.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e2.mbb.maxY/thetaXY._2).toInt - floor(e2.mbb.minY/thetaXY._2).toInt + 1).toDouble
+        val cb = (min(ceil(e1.mbb.maxX/thetaXY._1), ceil(e2.mbb.maxX/thetaXY._1)).toInt - max(floor(e1.mbb.minX/thetaXY._1), floor(e2.mbb.minX/thetaXY._1)).toInt + 1) *
+            (min(ceil(e1.mbb.maxY/thetaXY._2), ceil(e2.mbb.maxY/thetaXY._2)).toInt - max(floor(e1.mbb.minY/thetaXY._2), floor(e2.mbb.minY/thetaXY._2)).toInt + 1)
+
         ws match {
             case WeightStrategy.ECBS =>
-                val e1Blocks = (ceil(e1.mbb.maxX/thetaXY._1).toInt - floor(e1.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e1.mbb.maxY/thetaXY._2).toInt - floor(e1.mbb.minY/thetaXY._2).toInt + 1).toDouble
-                val e2Blocks = (ceil(e2.mbb.maxX/thetaXY._1).toInt - floor(e2.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e2.mbb.maxY/thetaXY._2).toInt - floor(e2.mbb.minY/thetaXY._2).toInt + 1).toDouble
-                frequency * math.log10(totalBlocks / e1Blocks) * math.log10(totalBlocks / e2Blocks)
+                cb * math.log10(totalBlocks / e1Blocks) * math.log10(totalBlocks / e2Blocks)
 
             case WeightStrategy.JS =>
-                val e1Blocks = (ceil(e1.mbb.maxX/thetaXY._1).toInt - floor(e1.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e1.mbb.maxY/thetaXY._2).toInt - floor(e1.mbb.minY/thetaXY._2).toInt + 1).toDouble
-                val e2Blocks = (ceil(e2.mbb.maxX/thetaXY._1).toInt - floor(e2.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e2.mbb.maxY/thetaXY._2).toInt - floor(e2.mbb.minY/thetaXY._2).toInt + 1).toDouble
-                frequency / (e1Blocks + e2Blocks - frequency)
+                cb / (e1Blocks + e2Blocks - cb)
 
             case WeightStrategy.PEARSON_X2 =>
-                val e1Blocks = (ceil(e1.mbb.maxX/thetaXY._1).toInt - floor(e1.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e1.mbb.maxY/thetaXY._2).toInt - floor(e1.mbb.minY/thetaXY._2).toInt + 1).toDouble
-                val e2Blocks = (ceil(e2.mbb.maxX/thetaXY._1).toInt - floor(e2.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e2.mbb.maxY/thetaXY._2).toInt - floor(e2.mbb.minY/thetaXY._2).toInt + 1).toDouble
-
-                val v1: Array[Long] = Array[Long](frequency, (e2Blocks - frequency).toLong)
-                val v2: Array[Long] = Array[Long]((e1Blocks - frequency).toLong, (totalBlocks - (v1(0) + v1(1) + (e1Blocks - frequency))).toLong)
-
+                val v1: Array[Long] = Array[Long](cb, (e2Blocks - cb).toLong)
+                val v2: Array[Long] = Array[Long]((e1Blocks - cb).toLong, (totalBlocks - (v1(0) + v1(1) + (e1Blocks - cb))).toLong)
                 val chiTest = new ChiSquareTest()
                 chiTest.chiSquare(Array(v1, v2))
 
             case WeightStrategy.CBS | _ =>
-                frequency.toDouble
+                cb.toDouble
         }
     }
 

@@ -5,12 +5,10 @@ import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.datasyslab.geospark.spatialPartitioning.SpatialPartitioner
 import utils.Constants.Relation
-import utils.Constants.ThetaOption.ThetaOption
 import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
 
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
                                        thetaXY: (Double, Double), ws: WeightStrategy, budget: Long, sourceCount: Long)
@@ -31,10 +29,13 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
                 val pid = p._1
                 val partition = partitionsZones(pid)
                 val source: Array[SpatialEntity] = p._2._1.toArray
-                val target: Iterator[SpatialEntity] = p._2._2.toIterator
+                val target: Array[SpatialEntity] = p._2._2.toArray
                 val sourceIndex = index(source)
                 val sourceSize = source.length
-                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
+                val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
+                val filterRedundantComparisons = (i: Int, j: Int) => source(i).partitionRF(target(j).mbb, thetaXY, partition) &&
+                    source(i).testMBB(target(j), Relation.INTERSECTS)
+
                 val entityPQ = mutable.PriorityQueue[(Double, Int)]()(Ordering.by[(Double, Int), Double](_._1).reverse)
                 val partitionPQ = mutable.PriorityQueue[(Double, (Iterator[Int], SpatialEntity))]()(Ordering.by[(Double, (Iterator[Int], SpatialEntity)), Double](_._1))
 
@@ -43,28 +44,29 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
                 var minW = 10000d
 
                 target
-                    .foreach {e2 =>
-                        val frequencies = e2.index(thetaXY, filteringFunction)
-                            .flatMap(c => sourceIndex.get(c))
-                            .groupBy(identity)
-                            .mapValues(_.length)
+                    .indices
+                    .foreach {j =>
                         var wSum = 0d
-                        frequencies
-                            .filter{ case(i, _) => source(i).partitionRF(e2.mbb, thetaXY, partition) && source(i).testMBB(e2, Relation.INTERSECTS, Relation.TOUCHES) }
-                            .foreach{ case(i, f) =>
-                                val e1 = source(i)
-                                val w = getWeight(f, e1, e2)
-                                wSum += w
-                                // keep the top-K for each target entity
-                                if (entityPQ.size < k) {
-                                    if(w < minW) minW = w
-                                    entityPQ.enqueue((w, i))
-                                }
-                                else if(w > minW) {
-                                    entityPQ.dequeue()
-                                    entityPQ.enqueue((w, i))
-                                    minW = entityPQ.head._1
-                                }
+                        val e2 = target(j)
+                        e2.index(thetaXY, filterIndices)
+                            .foreach { c =>
+                                sourceIndex.get(c)
+                                    .filter(i => filterRedundantComparisons(i, j))
+                                    .foreach { i =>
+                                        val e1 = source(i)
+                                        val w = getWeight(e1, e2)
+                                        wSum += w
+                                        // keep the top-K for each target entity
+                                        if (entityPQ.size < k) {
+                                            if (w < minW) minW = w
+                                            entityPQ.enqueue((w, i))
+                                        }
+                                        else if (w > minW) {
+                                            entityPQ.dequeue()
+                                            entityPQ.enqueue((w, i))
+                                            minW = entityPQ.head._1
+                                        }
+                                    }
                             }
                         if (entityPQ.nonEmpty) {
                             val weight = wSum / entityPQ.length
@@ -86,10 +88,13 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
                 val pid = p._1
                 val partition = partitionsZones(pid)
                 val source: Array[SpatialEntity] = p._2._1.toArray
-                val target: Iterator[SpatialEntity] = p._2._2.toIterator
+                val target: Array[SpatialEntity] = p._2._2.toArray
                 val sourceIndex = index(source)
                 val sourceSize = source.length
-                val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
+                val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
+                val filterRedundantComparisons = (i: Int, j: Int) => source(i).partitionRF(target(j).mbb, thetaXY, partition) &&
+                    source(i).testMBB(target(j), Relation.INTERSECTS)
+
                 val innerPQ = mutable.PriorityQueue[(Double, Int)]()(Ordering.by[(Double, Int), Double](_._1).reverse)
                 val partitionPQ = mutable.PriorityQueue[(Double, (Iterator[Int], SpatialEntity))]()(Ordering.by[(Double, (Iterator[Int], SpatialEntity)), Double](_._1))
 
@@ -97,25 +102,28 @@ case class EntityCentricPrioritization(joinedRDD: RDD[(Int, (Iterable[SpatialEnt
                 val k = localBudget / p._2._2.size
                 var minW = 10000d
                 target
-                    .foreach {e2 =>
-                        val sIndices:IndexedSeq[((Int, Int), ListBuffer[Int])] = e2.index(thetaXY, filteringFunction).map(c => (c, sourceIndex.get(c)))
-                        val frequencies = sIndices.flatMap(_._2).groupBy(identity).mapValues(_.length)
+                    .indices
+                    .foreach {j =>
                         var wSum = 0d
-                        frequencies
-                            .filter{ case(i, _) => source(i).partitionRF(e2.mbb, thetaXY, partition) && source(i).testMBB(e2, Relation.INTERSECTS, Relation.TOUCHES) }
-                            .foreach{ case(i, f) =>
-                                val e1 = source(i)
-                                val w = getWeight(f, e1, e2)
-                                wSum += w
-                                // keep the top-K for each target entity
-                                if (innerPQ.size < k) {
-                                    if(w < minW) minW = w
-                                    innerPQ.enqueue((w, i))
-                                }
-                                else if(w > minW) {
-                                    innerPQ.dequeue()
-                                    innerPQ.enqueue((w, i))
-                                    minW = innerPQ.head._1
+                        val e2 = target(j)
+                        e2.index(thetaXY, filterIndices)
+                            .foreach { c =>
+                                sourceIndex.get(c)
+                                    .filter(i => filterRedundantComparisons(i, j))
+                                    .foreach { i =>
+                                        val e1 = source(i)
+                                        val w = getWeight(e1, e2)
+                                    wSum += w
+                                    // keep the top-K for each target entity
+                                    if (innerPQ.size < k) {
+                                        if(w < minW) minW = w
+                                        innerPQ.enqueue((w, i))
+                                    }
+                                    else if(w > minW) {
+                                        innerPQ.dequeue()
+                                        innerPQ.enqueue((w, i))
+                                        minW = innerPQ.head._1
+                                    }
                                 }
                             }
                           if (innerPQ.nonEmpty) {

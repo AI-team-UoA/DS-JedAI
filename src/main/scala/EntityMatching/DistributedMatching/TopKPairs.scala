@@ -1,10 +1,10 @@
 package EntityMatching.DistributedMatching
 
 import DataStructures.{IM, MBB, SpatialEntity}
-import com.google.common.collect.MinMaxPriorityQueue
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.datasyslab.geospark.spatialPartitioning.SpatialPartitioner
+import org.spark_project.guava.collect.MinMaxPriorityQueue
 import utils.Constants.Relation
 import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
@@ -18,29 +18,17 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spa
 
     def compute(source: Array[SpatialEntity], target: Array[SpatialEntity], partition: MBB): MinMaxPriorityQueue[(Double, (Int, Int))] = {
         val sourceIndex = index(source)
-        val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
+        val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
+        val filterRedundantComparisons = (i: Int, j: Int) => source(i).partitionRF(target(j).mbb, thetaXY, partition) &&
+            source(i).testMBB(target(j), Relation.INTERSECTS)
 
         val orderingInt = Ordering.by[(Double, Int), Double](_._1).reverse
         val orderingPair = Ordering.by[(Double, (Int, Int)), Double](_._1).reverse
 
-        // for each target entity, find the frequencies of intersections with source entities
-        val targetFrequencies = target
-            .zipWithIndex
-            .map { case (e2, j) =>
-                val frequencies = e2.index(thetaXY, filteringFunction)
-                    .flatMap(c => sourceIndex.get(c))
-                    .groupBy(identity)
-                    .mapValues(_.length)
-                    .filter { case (i, _) => source(i).partitionRF(e2.mbb, thetaXY, partition) && source(i).testMBB(e2, Relation.INTERSECTS, Relation.TOUCHES) }
-
-                (j, frequencies)
-            }
-            .filter(_._2.nonEmpty)
-
         // initialize PQ and compute budget based on the n.o. intersecting targets
         // (avoid the entities that don't intersect, so we do not compute the top-k for those )
         val localBudget: Int = ((source.length * budget) / sourceCount).toInt
-        val k = (math.ceil(localBudget / (source.length + targetFrequencies.length)).toInt + 1) * 2 // +1 to avoid k=0
+        val k = (math.ceil(localBudget / (source.length + target.length)).toInt + 1) * 2 // +1 to avoid k=0
 
         val sourceMinWeightPQ: Array[Double] = Array.fill(source.length)(0d)
         val sourcePQ: Array[MinMaxPriorityQueue[(Double, Int)]] = new Array(source.length)
@@ -51,31 +39,34 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spa
         val partitionPQ: MinMaxPriorityQueue[(Double, (Int, Int))] = MinMaxPriorityQueue.orderedBy(orderingPair).maximumSize(localBudget + 1).create()
         var partitionMinWeight = 0d
 
-        targetFrequencies
-            .foreach { case (j, frequencies) =>
-                frequencies
-                    .foreach { case (i, f) =>
-                        val e1 = source(i)
-                        val e2 = target(j)
-                        val w = getWeight(f, e1, e2)
+        target.indices
+                .foreach{j =>
+                    val e2 = target(j)
+                    e2.index(thetaXY, filterIndices)
+                        .foreach{ c =>
+                            sourceIndex.get(c)
+                                .filter(i => filterRedundantComparisons(i, j))
+                                .foreach { i =>
+                                    val e1 = source(i)
+                                    val w = getWeight(e1, e2)
 
-                        // set top-K for each target entity
-                        if (minW < w) {
-                            targetPQ.add((w, i))
-                            if (targetPQ.size > k)
-                                minW = targetPQ.pollLast()._1
+                                    // set top-K for each target entity
+                                    if (minW < w) {
+                                        targetPQ.add((w, i))
+                                        if (targetPQ.size > k)
+                                            minW = targetPQ.pollLast()._1
+                                    }
+
+                                    // update source entities' top-K
+                                    if (sourceMinWeightPQ(i) == 0)
+                                        sourcePQ(i) = MinMaxPriorityQueue.orderedBy(orderingInt).maximumSize(k + 1).create()
+                                    if (sourceMinWeightPQ(i) < w) {
+                                        sourcePQ(i).add((w, j))
+                                        if (sourcePQ(i).size > k)
+                                            sourceMinWeightPQ(i) = sourcePQ(i).pollLast()._1
+                                    }
+                            }
                         }
-
-                        // update source entities' top-K
-                        if (sourceMinWeightPQ(i) == 0)
-                            sourcePQ(i) = MinMaxPriorityQueue.orderedBy(orderingInt).maximumSize(k + 1).create()
-                        if (sourceMinWeightPQ(i) < w) {
-                            sourcePQ(i).add((w, j))
-                            if (sourcePQ(i).size > k)
-                                sourceMinWeightPQ(i) = sourcePQ(i).pollLast()._1
-                        }
-                    }
-
 
                 // add target's pairs in partition's PQ
                 if (!targetPQ.isEmpty) {

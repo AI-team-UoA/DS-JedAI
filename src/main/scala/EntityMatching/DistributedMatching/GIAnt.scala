@@ -58,7 +58,7 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spatial
                     .index(thetaXY, filteringFunction)
                     .view
                     .flatMap(c => sourceIndex.get(c).map(i => (c, i)))
-                    .filter{case(c, i) => source(i).testMBB(targetSE, Relation.INTERSECTS, Relation.TOUCHES) &&
+                    .filter{case(c, i) => source(i).testMBB(targetSE, Relation.INTERSECTS) &&
                                            source(i).referencePointFiltering(targetSE, c, thetaXY, Some(partition))}
                     .map(_._2)
                     .map(i => IM(source(i), targetSE))
@@ -81,7 +81,7 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spatial
                     targetSE
                         .index(thetaXY, filteringFunction)
                         .flatMap(c => sourceIndex.get(c).map(j => (c, source(j))))
-                        .filter { case (c, se) => se.testMBB(targetSE, Relation.INTERSECTS, Relation.TOUCHES) &&
+                        .filter { case (c, se) => se.testMBB(targetSE, Relation.INTERSECTS) &&
                                                 se.referencePointFiltering(targetSE, c, thetaXY, Some(partition)) }
                         .map(se => (se._2, targetSE))
                 }
