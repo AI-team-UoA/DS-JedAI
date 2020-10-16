@@ -1,7 +1,6 @@
 package DataStructures
 
 import com.vividsolutions.jts.geom.{Coordinate, Envelope, Geometry, GeometryFactory}
-import utils.Constants
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 import math._
@@ -113,25 +112,6 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
     override def toString: String =
         "(" + minX.toString  + ", " + maxX.toString +"), ("+ minY.toString  + ", " + maxY.toString +")"
 
-    /**
-     * Split mbb into two mbbs west and east of meridian
-     * @return two mbbs west and east of meridian
-     */
-    def splitOnMeridian: (MBB, MBB) ={
-        if (minX < Constants.MIN_LONG && maxX > Constants.MIN_LONG){
-            val easternMBB: MBB = MBB(minX, Constants.MIN_LONG, maxY, minY)
-            val westernMBB: MBB = MBB(Constants.MIN_LONG, maxX, maxY, minY)
-
-            (westernMBB, easternMBB)
-        }
-        else if (minX < Constants.MAX_LONG && maxX >Constants.MAX_LONG) {
-            val easternMBB: MBB = MBB(maxX, Constants.MAX_LONG, maxY, minY)
-            val westernMBB: MBB = MBB(Constants.MAX_LONG, minX, maxY, minY)
-
-            (westernMBB, easternMBB)
-        }
-        else (null, null)
-    }
 
     /**
      * check if the mbb is equal to the given one

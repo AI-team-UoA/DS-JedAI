@@ -13,7 +13,7 @@ case class IndexBasedMatching(source:RDD[SpatialEntity], target:RDD[SpatialEntit
     val partitionsZones: Array[MBB] = Utils.getZones
     val filteringFunction: ((SpatialEntity, Int), (SpatialEntity, Int), (Int, Int)) => Boolean =
         (e1: (SpatialEntity, Int), e2: (SpatialEntity, Int), c: (Int, Int)) =>
-        e1._2 == e2._2 && e1._1.testMBB(e2._1, Relation.INTERSECTS, Relation.TOUCHES) &&
+        e1._2 == e2._2 && e1._1.testMBB(e2._1, Relation.INTERSECTS) &&
             e1._1.referencePointFiltering(e2._1, c, thetaXY, Some(partitionsZones(e1._2)))
 
     implicit class TuppleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
