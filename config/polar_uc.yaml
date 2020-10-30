@@ -15,4 +15,4 @@ configurations:
   theta_measure: "avg2"
   matchingAlg: "PROGRESSIVE_LIGHT_RADON"
   gridType: "QUADTREE"
-  partitionBy: "source"
+  weighting_strategy: "JS"
