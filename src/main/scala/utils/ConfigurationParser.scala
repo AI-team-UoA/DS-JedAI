@@ -1,26 +1,24 @@
 package utils
 
-import net.jcazevedo.moultingyaml.DefaultYamlProtocol
-import net.jcazevedo.moultingyaml._
+import net.jcazevedo.moultingyaml.{DefaultYamlProtocol, _}
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.SparkContext
-import utils.Constants.MatchingAlgorithm.MatchingAlgorithm
 import utils.Constants.BlockingAlgorithm.BlockingAlgorithm
 import utils.Constants.GridType.GridType
+import utils.Constants.MatchingAlgorithm.MatchingAlgorithm
 import utils.Constants.Relation.Relation
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Constants.WeightStrategy.WeightStrategy
-import utils.Constants.{BlockingAlgorithm, GridType, MatchingAlgorithm, Relation, ThetaOption, WeightStrategy, YamlConfiguration}
-
-import scala.io.Source
+import utils.Constants._
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 
-case class Dataset(path: String, realIdField: String, geometryField: String)
+// TODO add headers field
+case class DatasetConfigurations(path: String, realIdField: String, geometryField: String)
 
-case class Configuration(source: Dataset, target:Dataset, relation: String, var configurations: Map[String, String]){
+case class Configuration(source: DatasetConfigurations, target:DatasetConfigurations, relation: String, var configurations: Map[String, String]){
 
 	def getSource: String = source.path
 
@@ -54,7 +52,7 @@ case class Configuration(source: Dataset, target:Dataset, relation: String, var 
 }
 
 object ConfigurationYAML extends DefaultYamlProtocol {
-	implicit val DatasetFormat = yamlFormat3(Dataset)
+	implicit val DatasetFormat = yamlFormat3(DatasetConfigurations)
 	implicit val ConfigurationFormat = yamlFormat4(Configuration)
 }
 

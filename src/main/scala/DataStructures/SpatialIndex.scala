@@ -1,8 +1,7 @@
 package DataStructures
 
-import scala.collection.mutable
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
-import scala.collection.Set
+import scala.collection.{Set, mutable}
+import scala.collection.mutable.ListBuffer
 
 class SpatialIndex(){
 
@@ -13,7 +12,7 @@ class SpatialIndex(){
             if (index(c._1).contains(c._2))
                 index(c._1)(c._2).append(i)
             else
-                index(c._1).put(c._2, ListBuffer(i))
+                index(c._1).put(c._2, ListBuffer[Int](i))
         else {
             val l = ListBuffer[Int](i)
             val h = mutable.HashMap[Int, ListBuffer[Int]]()
@@ -26,12 +25,13 @@ class SpatialIndex(){
 
     def get(c:(Int, Int)): ListBuffer[Int] = index(c._1)(c._2)
 
-    def asKeys: mutable.HashMap[Int, Set[Int]] =
-       index.map(i => i._1 -> i._2.keySet)
+    def asKeys: mutable.HashMap[Int, Set[Int]] = index.map(i => i._1 -> i._2.keySet)
 
-    def getIndices: ListBuffer[(Int, Int)] ={
-        val indices = ListBuffer[(Int, Int)]()
-        index.foreach{ case(i1, indicesSet) => indicesSet.keysIterator.foreach(i2 => indices.append((i1, i2)))}
-        indices
+    def getIndices: Seq[(Int, Int)] = index.iterator.flatMap{ case (i, map) => map.keysIterator.map(j => (i, j))}.toSeq
+
+    def clear(): Unit ={
+        index.valuesIterator.foreach{ m => m.clear()}
+        index.clear()
     }
+
 }

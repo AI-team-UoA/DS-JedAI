@@ -46,18 +46,17 @@ case class SpatialEntity(originalID: String = "", geometry: Geometry, mbb: MBB){
     }
 
 
-        /**
+    /**
      * Get the blocks of the spatial entity
      *
      * @param thetaXY coordinated are adjusted to the selected theta
      * @param filter filter the blocks based on this function
      * @return the coordinates of the blocks
      */
-    def index(thetaXY: (Double, Double), filter: ((Int, Int)) => Boolean = (_:(Int,Int)) => true): IndexedSeq[(Int, Int)] = {
+    def index(thetaXY: (Double, Double), filter: ((Int, Int)) => Boolean = (_:(Int,Int)) => true): Seq[(Int, Int)] = {
         val (thetaX, thetaY) = thetaXY
 
-        if (mbb.minX == 0 && mbb.maxX == 0 && mbb.minY == 0 && mbb.maxY == 0)
-            Array((0,0))
+        if (mbb.minX == 0 && mbb.maxX == 0 && mbb.minY == 0 && mbb.maxY == 0) Seq((0, 0))
         val maxX = math.ceil(mbb.maxX / thetaX).toInt
         val minX = math.floor(mbb.minX / thetaX).toInt
         val maxY = math.ceil(mbb.maxY / thetaY).toInt
