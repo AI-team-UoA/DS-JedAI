@@ -2,18 +2,18 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.DistributedMatching.{IndexBasedMatching, GIAnt}
+import EntityMatching.DistributedMatching.{GIAnt, IndexBasedMatching}
 import org.apache.log4j.{Level, LogManager, Logger}
-import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import utils.Readers.SpatialReader
 import utils.{ConfigurationParser, Utils}
 
 
-object RepartitionExp {
+object WellBalancedExp {
 
     implicit class TuppleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
         def +(p: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int))
@@ -75,22 +75,26 @@ object RepartitionExp {
         val ws: String = if (options.contains("ws")) options("ws").toString else conf.getWeightingScheme.toString
         log.info("DS-JEDAI: Input Budget: " + budget)
         log.info("DS-JEDAI: Weighting Strategy: " + ws.toString)
-
-        // setting SpatialReader
-        SpatialReader.setPartitions(partitions)
-        SpatialReader.setGridType(conf.getGridType)
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
-            .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
 
-        Utils(sourceRDD.map(_.mbb), conf.getTheta)
-        val readTime = Calendar.getInstance()
-        log.info("DS-JEDAI: Reading input dataset took: " + (readTime.getTimeInMillis - startTime) / 1000.0)
+        // setting SpatialReader
+//        SpatialReader.setPartitions(partitions)
+//        SpatialReader.setGridType(conf.getGridType)
+//        val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
+//            .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
+//        Utils(sourceRDD.map(_.mbb), conf.getTheta)
+//        val readTime = Calendar.getInstance()
+//        log.info("DS-JEDAI: Reading input dataset took: " + (readTime.getTimeInMillis - startTime) / 1000.0)
+//        val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
 
-        val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
+        val reader = SpatialReader(conf.source, partitions)
+        val sourceRDD = reader.load2PartitionedRDD()
+        sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
+        Utils(sourceRDD.map(_._2.mbb), conf.getTheta, reader.partitionsZones)
 
-        val de9im_startTime = Calendar.getInstance().getTimeInMillis
+        val targetRDD = reader.load2PartitionedRDD(conf.target)
+        val partitioner = reader.partitioner
 
         val partitionEntitiesAVG = sourceRDD.mapPartitions(si => Iterator(si.toArray.length)).sum()/sourceRDD.getNumPartitions
         val balancedSource = sourceRDD.mapPartitions(si => Iterator(si.toArray)).filter(_.length < partitionEntitiesAVG*3).flatMap(_.toIterator)
@@ -100,8 +104,11 @@ object RepartitionExp {
         val overloadedTarget = targetRDD.mapPartitions(ti => Iterator((TaskContext.getPartitionId(), ti))).filter{ case (pid, _) => overloadedPartitionIds.contains(pid) }.flatMap(_._2)
         log.info("DS-JEDAI: Overloaded partitions: " + overloadedPartitionIds.size)
 
-        val pm = GIAnt(balancedSource, balancedTarget)
-        val ibm = IndexBasedMatching(overloadedSource, overloadedTarget, Utils.getTheta)
+        val de9im_startTime = Calendar.getInstance().getTimeInMillis
+
+        val pm = GIAnt(balancedSource, balancedTarget, partitioner)
+
+        val ibm = IndexBasedMatching(overloadedSource.map(_._2), overloadedTarget.map(_._2), Utils.getTheta)
         val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
         totalOverlaps, totalTouches, totalWithin, intersectingPairs, interlinkedGeometries) = pm.countRelations + ibm.countRelationsBlocking
 

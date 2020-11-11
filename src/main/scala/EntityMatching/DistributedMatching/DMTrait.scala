@@ -1,6 +1,7 @@
 package EntityMatching.DistributedMatching
 
 import DataStructures.{IM, MBB, SpatialEntity, SpatialIndex}
+import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightStrategy
@@ -16,10 +17,10 @@ trait DMTrait {
     val thetaXY: (Double, Double)
     val ws: WeightStrategy
 
-    val partitionsZones: Array[MBB] = Utils.getZones
-    val spaceEdges: MBB = Utils.getSpaceEdges
+    val partitionsZones: Array[MBB] = SparkContext.getOrCreate().broadcast(Utils.getZones).value
+    val spaceEdges: MBB = SparkContext.getOrCreate().broadcast(Utils.getSpaceEdges).value
 
-    val totalBlocks: Double = if (ws == WeightStrategy.ECBS || ws == WeightStrategy.PEARSON_X2){
+    lazy val totalBlocks: Double = if (ws == WeightStrategy.ECBS || ws == WeightStrategy.PEARSON_X2){
         val globalMinX = joinedRDD.flatMap(p => p._2._1.map(_.mbb.minX/thetaXY._1)).min()
         val globalMaxX = joinedRDD.flatMap(p => p._2._1.map(_.mbb.maxX/thetaXY._1)).max()
         val globalMinY = joinedRDD.flatMap(p => p._2._1.map(_.mbb.minY/thetaXY._2)).min()
@@ -36,14 +37,14 @@ trait DMTrait {
      */
     def index(entities: Array[SpatialEntity]): SpatialIndex = {
         val spatialIndex = new SpatialIndex()
-        entities.zipWithIndex.foreach { case (se, index) =>
-            val indices: IndexedSeq[(Int, Int)] = se.index(thetaXY)
-            indices.foreach(i => spatialIndex.insert(i, index))
+        entities.zipWithIndex.foreach { case (se, i) =>
+            val indices: Seq[(Int, Int)] = se.index(thetaXY)
+            indices.foreach(c => spatialIndex.insert(c, i))
         }
         spatialIndex
     }
 
-    implicit class TuppleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
+    implicit class TupleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
         def +(p: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
             (p._1 + t._1, p._2 + t._2, p._3 +t._3, p._4+t._4, p._5+t._5, p._6+t._6, p._7+t._7, p._8+t._8, p._9+t._9, p._10+t._10, p._11+t._11)
     }

@@ -1,58 +1,68 @@
 package utils.Readers
 
 import DataStructures.{MBB, SpatialEntity}
-import com.vividsolutions.jts.geom.{Envelope, Geometry, GeometryCollection}
+import com.vividsolutions.jts.geom.{Geometry, GeometryCollection}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.functions.col
+import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 import org.datasyslab.geospark.enums.GridType
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import org.datasyslab.geospark.spatialPartitioning.SpatialPartitioner
 import org.datasyslab.geospark.spatialRDD.SpatialRDD
 import org.datasyslab.geosparksql.utils.{Adapter, GeoSparkSQLRegistrator}
-import org.apache.spark.sql.functions.monotonically_increasing_id
-import org.datasyslab.geospark.spatialPartitioning.quadtree.QuadRectangle
-import utils.Constants
-import org.apache.spark.sql.functions.col
+import utils.{Constants, DatasetConfigurations}
 
-object SpatialReader extends TReader {
+import scala.collection.JavaConverters._
 
-    var spatialPartitioner: SpatialPartitioner = _
-    var partitionsZones: Array[MBB] = Array()
-    var partitions: Int = 0
-    var gridType: GridType = _
+case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: Constants.GridType.GridType = Constants.GridType.QUADTREE) {
 
-    def setPartitions(p: Int): Unit = partitions = p
-    def setGridType(gt: Constants.GridType.GridType): Unit = {
-        gt match {
-            case Constants.GridType.KDBTREE =>
-                gridType = GridType.KDBTREE
-            case Constants.GridType.QUADTREE =>
-                gridType = GridType.QUADTREE
-        }
+    lazy val gridType: GridType = gt match {
+        case Constants.GridType.KDBTREE => GridType.KDBTREE
+        case Constants.GridType.QUADTREE => GridType.QUADTREE
     }
 
-    def load(filepath: String, realIdField: String, geometryField: String): RDD[SpatialEntity] ={
-        val extension = filepath.toString.split("\\.").last
+    lazy val spatialRDD: SpatialRDD[Geometry] = load(sourceDc)
+
+    lazy val spatialPartitioner: SpatialPartitioner = getSpatialPartitioner(spatialRDD)
+
+    val partitioner = new HashPartitioner(partitions)
+
+    lazy val partitionsZones: Array[MBB] = gridType match {
+        case GridType.QUADTREE =>
+            spatialRDD.partitionTree.getLeafZones.asScala.map(qr => MBB(qr.getEnvelope)).toArray
+        case GridType.KDBTREE =>
+            spatialRDD.getPartitioner.getGrids.asScala.map(e => MBB(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY)).toArray
+        }
+
+    def expandGeometryCollection(geom: Geometry): Seq[Geometry] = {
+        if (geom.getGeometryType == "GeometryCollection") {
+            val gc = geom.asInstanceOf[GeometryCollection]
+            for (n <- 0 until gc.getNumGeometries) yield gc.getGeometryN(n)
+        }
+        else Seq(geom)
+    }
+
+    def load(dc: DatasetConfigurations): SpatialRDD[Geometry] ={
+        val extension = dc.path.toString.split("\\.").last
         extension match {
             case "csv" =>
-                loadCSV(filepath, realIdField, geometryField, header = true )
+                loadCSV(dc.path, dc.realIdField, dc.geometryField, header = true )
             case "tsv" =>
-                loadTSV(filepath, realIdField, geometryField, header = true )
+                loadTSV(dc.path, dc.realIdField, dc.geometryField, header = true )
             case _ =>
                 null
         }
     }
 
-    def loadCSV(filepath: String, realIdField: String, geometryField: String, header: Boolean): RDD[SpatialEntity] =
+    def loadCSV(filepath: String, realIdField: String, geometryField: String, header: Boolean):SpatialRDD[Geometry] =
         load(filepath, realIdField, geometryField, ",", header)
 
-    def loadTSV(filepath: String, realIdField: String, geometryField: String, header: Boolean): RDD[SpatialEntity] =
+    def loadTSV(filepath: String, realIdField: String, geometryField: String, header: Boolean): SpatialRDD[Geometry] =
         load(filepath, realIdField, geometryField, "\t", header)
 
-    def load(filepath: String, realIdField: String, geometryField: String, delimiter: String, header: Boolean): RDD[SpatialEntity] ={
-
+    def load(filepath: String, realIdField: String, geometryField: String, delimiter: String, header: Boolean): SpatialRDD[Geometry] ={
         val conf = new SparkConf()
         conf.set("spark.serializer", classOf[KryoSerializer].getName)
         conf.set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
@@ -69,53 +79,36 @@ object SpatialReader extends TReader {
             .filter(col(realIdField).isNotNull)
             .filter(col(geometryField).isNotNull)
 
-        //val newSchema = StructType(inputDF.schema.fields ++ Array(StructField("ROW_ID", LongType, nullable = false)))
-
-        // Zip on RDD level
-        //val rddWithId = inputDF.rdd.zipWithUniqueId()
-        // Convert back to DataFrame
-        //val dfZippedWithId =  spark.createDataFrame(rddWithId.map{ case (row, index) => Row.fromSeq(row.toSeq ++ Array(index))}, newSchema)
-        //val df = inputDF.withColumn("ROW_ID", monotonically_increasing_id())
         inputDF.createOrReplaceTempView("GEOMETRIES")
 
         val geometryQuery = """SELECT ST_GeomFromWKT(GEOMETRIES.""" + geometryField + """) AS WKT,  GEOMETRIES.""" + realIdField + """ AS REAL_ID FROM GEOMETRIES""".stripMargin
         val spatialDF = spark.sql(geometryQuery)
         val srdd = new SpatialRDD[Geometry]
         srdd.rawSpatialRDD = Adapter.toRdd(spatialDF)
-
-        SpatialRDD2SeRDD(srdd)
+        srdd
     }
 
 
-    def SpatialRDD2SeRDD(srdd: SpatialRDD[Geometry]): RDD[SpatialEntity] = {
+    def getSpatialPartitioner(srdd: SpatialRDD[Geometry]): SpatialPartitioner ={
         srdd.analyze()
-        if (spatialPartitioner == null) {
-            if (partitions > 0) srdd.spatialPartitioning(gridType, partitions) else srdd.spatialPartitioning(gridType)
-            spatialPartitioner = srdd.getPartitioner
-            partitionsZones =
-                if (gridType == GridType.QUADTREE) {
-                    val zones = srdd.partitionTree.getLeafZones
-                    zones.toArray(Array.ofDim[QuadRectangle](zones.size())).map(qr => MBB(qr.getEnvelope))
-                } else{
-                    val gridList = srdd.getPartitioner.getGrids
-                    val gridArray = gridList.toArray(Array.ofDim[Envelope](gridList.size))
-                    gridArray.map(e => MBB(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY))
-                }
-        }
-        else
-            srdd.spatialPartitioning(spatialPartitioner)
+        if (partitions > 0) srdd.spatialPartitioning(gridType, partitions) else srdd.spatialPartitioning(gridType)
+        srdd.getPartitioner
+    }
 
-        srdd.spatialPartitionedRDD.rdd
+
+    def load2PartitionedRDD(dc: DatasetConfigurations = sourceDc): RDD[(Int, SpatialEntity)] = {
+        val srdd = if (dc == sourceDc) spatialRDD else load(dc)
+        val sp = SparkContext.getOrCreate().broadcast(spatialPartitioner)
+        srdd.rawSpatialRDD.rdd
             .flatMap{ geom =>
                 val ids = geom.getUserData.asInstanceOf[String].split("\t")
                 val realID = ids(0)
-                if (geom.getGeometryType == "GeometryCollection") {
-                    val gc = geom.asInstanceOf[GeometryCollection]
-                    for (n <- 0 until  geom.asInstanceOf[GeometryCollection].getNumGeometries) yield (gc.getGeometryN(n), realID)
-                }
-                else Seq((geom, realID))
+                expandGeometryCollection(geom).map((_, realID))
             }
             .filter{case (g, _) => !g.isEmpty && g.isValid}
             .map{ case(g, realId) =>  SpatialEntity(realId, g.asInstanceOf[Geometry])}
+            .flatMap(se => sp.value.placeObject(se.geometry).asScala.map(i => (i._1.toInt, se)))
+            .partitionBy(partitioner)
     }
+
 }

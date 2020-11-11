@@ -2,9 +2,8 @@ package EntityMatching.DistributedMatching
 
 
 import DataStructures.{IM, MBB, SpatialEntity}
-import org.apache.spark.TaskContext
+import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
-import org.datasyslab.geospark.spatialPartitioning.SpatialPartitioner
 import org.spark_project.guava.collect.MinMaxPriorityQueue
 import utils.Constants.Relation
 import utils.Constants.WeightStrategy.WeightStrategy
@@ -121,13 +120,10 @@ case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Itera
  */
 object ProgressiveGIAnt {
 
-    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], ws: WeightStrategy, budget: Long, partitioner: SpatialPartitioner): ProgressiveGIAnt ={
+    def apply(source:RDD[(Int, SpatialEntity)], target:RDD[(Int, SpatialEntity)], ws: WeightStrategy, budget: Long, partitioner: Partitioner): ProgressiveGIAnt ={
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.getSourceCount
-        val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
-        val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
-
-        val joinedRDD = sourcePartitions.cogroup(targetPartitions, partitioner)
+        val joinedRDD = source.cogroup(target, partitioner)
         ProgressiveGIAnt(joinedRDD, thetaXY, ws, budget, sourceCount)
     }
 

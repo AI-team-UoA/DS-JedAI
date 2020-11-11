@@ -4,17 +4,16 @@ import java.util.Calendar
 
 import EntityMatching.DistributedMatching.DMFactory
 import org.apache.log4j.{Level, LogManager, Logger}
-import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.{SparkConf, SparkContext}
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import utils.Constants.Relation
-import utils.{ConfigurationParser, Utils}
 import utils.Readers.SpatialReader
+import utils.{ConfigurationParser, Utils}
 
 
-object PartitionExp {
+object RelationExp {
 
     def main(args: Array[String]): Unit = {
         val startTime = Calendar.getInstance().getTimeInMillis
@@ -56,16 +55,16 @@ object PartitionExp {
         val conf = ConfigurationParser.parse(conf_path)
         val partitions: Int = conf.getPartitions
 
-        SpatialReader.setPartitions(partitions)
-        SpatialReader.setGridType(conf.getGridType)
+        val reader = SpatialReader(conf.source, partitions)
+        val sourceRDD = reader.load2PartitionedRDD()
+        sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
+        Utils(sourceRDD.map(_._2.mbb), conf.getTheta, reader.partitionsZones)
 
-        val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
-                        .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
-        val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
+        val targetRDD = reader.load2PartitionedRDD(conf.target)
+        val partitioner = reader.partitioner
 
-        Utils(sourceRDD.map(_.mbb), conf.getTheta)
         val matching_startTime = Calendar.getInstance().getTimeInMillis
-        val matches = DMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD).apply(conf.getRelation)
+        val matches = DMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD, partitioner).apply(conf.getRelation)
 
         log.info("DS-JEDAI: Matches: " + matches.count())
         val matching_endTime = Calendar.getInstance().getTimeInMillis

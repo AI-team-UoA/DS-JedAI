@@ -13,32 +13,19 @@ object Reader {
     def read(filepath: String, realID_field: String, geometryField: String, conf: Configuration): RDD[SpatialEntity] ={
         val extension = filepath.toString.split("\\.").last
         val partitions = conf.getPartitions
-        if (conf.getSpatialPartitioning){
-            SpatialReader.setPartitions(partitions)
-            SpatialReader.setGridType(conf.getGridType)
-            extension match{
-                case "csv" =>
-                    SpatialReader.loadCSV(filepath, realID_field, geometryField, header = true)
-                case "tsv" =>
-                    SpatialReader.loadTSV(filepath, realID_field, geometryField, header = true)
-            }
+        val rdd: RDD[SpatialEntity] = extension match {
+            case "csv" =>
+                CSVReader.loadCSV(filepath, realID_field, geometryField, header = true)
+            case "tsv" =>
+                CSVReader.loadTSV(filepath, realID_field, geometryField, header = true)
+            case "nt" =>
+                RDF_Reader.load(filepath, realID_field, geometryField)
+            case _ =>
+                log.error("DS-JEDAI: This filetype is not supported yet")
+                System.exit(1)
+                null
         }
-        else {
-            val rdd: RDD[SpatialEntity] = extension match {
-                case "csv" =>
-                    CSVReader.loadCSV(filepath, realID_field, geometryField, header = true)
-                case "tsv" =>
-                    CSVReader.loadTSV(filepath, realID_field, geometryField, header = true)
-                case "nt" =>
-                    RDF_Reader.load(filepath, realID_field, geometryField)
-                case _ =>
-                    log.error("DS-JEDAI: This filetype is not supported yet")
-                    System.exit(1)
-                    null
-            }
-            if (partitions > 0) rdd.repartition(partitions)
-            else rdd
-        }
-
+        if (partitions > 0) rdd.repartition(partitions)
+        else rdd
     }
 }

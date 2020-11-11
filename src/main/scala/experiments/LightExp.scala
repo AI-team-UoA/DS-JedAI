@@ -8,7 +8,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
-import utils.Readers.{Reader, SpatialReader}
+import utils.Readers.Reader
 import utils.{ConfigurationParser, Utils}
 
 
@@ -76,10 +76,6 @@ object LightExp {
         val ma: String = if (options.contains("ma")) options("ma").toString else conf.getMatchingAlgorithm.toString
         log.info("DS-JEDAI: Input Budget: " + budget)
         log.info("DS-JEDAI: Weighting Strategy: " + ws.toString)
-
-        // setting SpatialReader
-        SpatialReader.setPartitions(partitions)
-        SpatialReader.setGridType(conf.getGridType)
 
         val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, conf)
         val sourceCount = sourceRDD.setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)

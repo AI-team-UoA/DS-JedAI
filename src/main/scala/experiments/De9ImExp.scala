@@ -4,15 +4,15 @@ import java.util.Calendar
 
 import EntityMatching.DistributedMatching.DMFactory
 import org.apache.log4j.{Level, LogManager, Logger}
-import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.{SparkConf, SparkContext}
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import utils.Readers.SpatialReader
 import utils.{ConfigurationParser, Utils}
 
-object IntersectionMatrixExp {
+object De9ImExp {
 
     def main(args: Array[String]): Unit = {
         Logger.getLogger("org").setLevel(Level.ERROR)
@@ -72,25 +72,19 @@ object IntersectionMatrixExp {
         val ma: String = if (options.contains("ma")) options("ma").toString else conf.getMatchingAlgorithm.toString
         log.info("DS-JEDAI: Input Budget: " + budget)
         log.info("DS-JEDAI: Weighting Strategy: " + ws.toString)
-
-        // setting SpatialReader
-        SpatialReader.setPartitions(partitions)
-        SpatialReader.setGridType(conf.getGridType)
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        val sourceRDD = SpatialReader
-            .load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
-            .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
-        Utils(sourceRDD.map(_.mbb), conf.getTheta)
+        val reader = SpatialReader(conf.source, partitions)
+        val sourceRDD = reader.load2PartitionedRDD()
+        sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
+        Utils(sourceRDD.map(_._2.mbb), conf.getTheta, reader.partitionsZones)
 
-        val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
-        val partitioner = SpatialReader.spatialPartitioner
-        val readTime = Calendar.getInstance()
-        log.info("DS-JEDAI: Reading input dataset took: " + (readTime.getTimeInMillis - startTime) / 1000.0)
+        val targetRDD = reader.load2PartitionedRDD(conf.target)
+        val partitioner = reader.partitioner
 
         val de9im_startTime = Calendar.getInstance().getTimeInMillis
         if (!options.contains("auc")) {
-            val pm = DMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD, Some(partitioner), budget, ws, ma)
+            val pm = DMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD, partitioner, budget, ws, ma)
             val (totalContains, totalCoveredBy, totalCovers,totalCrosses, totalEquals, totalIntersects,
             totalOverlaps, totalTouches, totalWithin,intersectingPairs, interlinkedGeometries) = pm.countRelations
 

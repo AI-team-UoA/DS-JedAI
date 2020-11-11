@@ -11,7 +11,6 @@ import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructT
 import org.apache.spark.sql.{Encoder, Encoders, Row, SparkSession}
 import utils.Constants.ThetaOption
 import utils.Constants.ThetaOption.ThetaOption
-import utils.Readers.SpatialReader
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -25,12 +24,14 @@ object Utils {
 	val log: Logger = LogManager.getRootLogger
 	var thetaOption: ThetaOption = _
 	var source: RDD[MBB] = _
+	var partitionsZones: Array[MBB] = _
 	lazy val sourceCount: Long = source.count()
 	lazy val thetaXY: (Double, Double) = initTheta()
 
-	def apply(sourceRDD: RDD[MBB], thetaOpt: ThetaOption = Constants.ThetaOption.AVG_x2): Unit ={
+	def apply(sourceRDD: RDD[MBB], thetaOpt: ThetaOption = Constants.ThetaOption.AVG, pz: Array[MBB]=Array()): Unit ={
 		source = sourceRDD
 		thetaOption = thetaOpt
+		partitionsZones = pz
 	}
 
 	def getTheta: (Double, Double)= thetaXY
@@ -84,7 +85,7 @@ object Utils {
 	def export(rdd: RDD[SpatialEntity], path:String): Unit ={
 		val schema = StructType(
 			StructField("id", IntegerType, nullable = true) ::
-			StructField("wkt", StringType, nullable = true)  :: Nil
+			StructField("wkt", StringType, nullable = true) :: Nil
 		)
 		val rowRDD: RDD[Row] = rdd.map(s => new GenericRowWithSchema(Array(TaskContext.getPartitionId(), s.geometry.toText), schema))
 		val df = spark.createDataFrame(rowRDD, schema)
@@ -111,14 +112,12 @@ object Utils {
 			case ThetaOption.AVG =>
 				val thetaX = source.map(mbb => mbb.maxX - mbb.minX).sum() / sourceCount
 				val thetaY = source.map(mbb => mbb.maxY - mbb.minY).sum() / sourceCount
-
 				(thetaX, thetaY)
 			case ThetaOption.AVG_x2 =>
 				val thetaXs = source.map(mbb => mbb.maxX - mbb.minX).sum() / sourceCount
 				val thetaYs = source.map(mbb => mbb.maxY - mbb.minY).sum() / sourceCount
 				val thetaX = 0.5 * thetaXs
 				val thetaY = 0.5 * thetaYs
-
 				(thetaX, thetaY)
 			case _ =>
 				(1d, 1d)
@@ -126,20 +125,19 @@ object Utils {
 		(tx, ty)
 	}
 
-
+	// todo spaghetti code
 	def getZones: Array[MBB] ={
-		val partitionsZones = SpatialReader.partitionsZones
 		val (thetaX, thetaY) = thetaXY
 
-		val globalMinX = SpatialReader.partitionsZones.map(p => p.minX / thetaX).min
-		val globalMaxX = SpatialReader.partitionsZones.map(p => p.maxX / thetaX).max
-		val globalMinY = SpatialReader.partitionsZones.map(p => p.minY / thetaY).min
-		val globalMaxY = SpatialReader.partitionsZones.map(p => p.maxY / thetaY).max
+		val globalMinX = partitionsZones.map(p => p.minX / thetaX).min
+		val globalMaxX = partitionsZones.map(p => p.maxX / thetaX).max
+		val globalMinY = partitionsZones.map(p => p.minY / thetaY).min
+		val globalMaxY = partitionsZones.map(p => p.maxY / thetaY).max
 
-		val spaceMinX = math.floor(SpatialReader.partitionsZones.map(p => p.minX / thetaX).min).toInt - 1
-		val spaceMaxX = math.ceil(SpatialReader.partitionsZones.map(p => p.maxX / thetaX).max).toInt + 1
-		val spaceMinY = math.floor(SpatialReader.partitionsZones.map(p => p.minY / thetaY).min).toInt - 1
-		val spaceMaxY = math.ceil(SpatialReader.partitionsZones.map(p => p.maxY / thetaY).max).toInt + 1
+		val spaceMinX = math.floor(partitionsZones.map(p => p.minX / thetaX).min).toInt - 1
+		val spaceMaxX = math.ceil(partitionsZones.map(p => p.maxX / thetaX).max).toInt + 1
+		val spaceMinY = math.floor(partitionsZones.map(p => p.minY / thetaY).min).toInt - 1
+		val spaceMaxY = math.ceil(partitionsZones.map(p => p.maxY / thetaY).max).toInt + 1
 
 		partitionsZones.map(mbb => {
 			val minX = if (mbb.minX / thetaX == globalMinX) spaceMinX else mbb.minX / thetaX
@@ -153,10 +151,10 @@ object Utils {
 
 	def getSpaceEdges: MBB ={
 		val (thetaX, thetaY) = thetaXY
-		val minX = math.floor(SpatialReader.partitionsZones.map(p => p.minX / thetaX).min).toInt - 1
-		val maxX = math.ceil(SpatialReader.partitionsZones.map(p => p.maxX / thetaX).max).toInt + 1
-		val minY = math.floor(SpatialReader.partitionsZones.map(p => p.minY / thetaY).min).toInt - 1
-		val maxY = math.ceil(SpatialReader.partitionsZones.map(p => p.maxY / thetaY).max).toInt + 1
+		val minX = math.floor(partitionsZones.map(p => p.minX / thetaX).min).toInt - 1
+		val maxX = math.ceil(partitionsZones.map(p => p.maxX / thetaX).max).toInt + 1
+		val minY = math.floor(partitionsZones.map(p => p.minY / thetaY).min).toInt - 1
+		val maxY = math.ceil(partitionsZones.map(p => p.maxY / thetaY).max).toInt + 1
 		MBB(maxX, minX, maxY, minY)
 	}
 

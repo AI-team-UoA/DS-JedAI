@@ -2,15 +2,12 @@ package EntityMatching
 
 import DataStructures.{IM, MBB, SpatialEntity, SpatialIndex}
 import org.apache.log4j.{Level, LogManager}
-import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.storage.StorageLevel
+import org.apache.spark.{Partitioner, TaskContext}
 import utils.Constants.Relation
-import utils.Constants.ThetaOption.ThetaOption
-import utils.Readers.SpatialReader
 import utils.Utils
 
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.ListBuffer
 
 
 case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Iterable[SpatialEntity]))], thetaXY: (Double, Double)){
@@ -98,12 +95,12 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
 }
 object SpaceStatsCounter{
 
-    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaOption: ThetaOption): SpaceStatsCounter ={
+    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], partitioner: Partitioner): SpaceStatsCounter ={
         val thetaXY = Utils.getTheta
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))
 
-        val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner)
+        val joinedRDD = sourcePartitions.cogroup(targetPartitions, partitioner)
 
         SpaceStatsCounter(joinedRDD, thetaXY)
     }

@@ -1,16 +1,15 @@
 package EntityMatching.DistributedMatching
 
 import DataStructures.{IM, MBB, SpatialEntity}
-import org.apache.spark.TaskContext
+import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
-import org.datasyslab.geospark.spatialPartitioning.SpatialPartitioner
 import org.spark_project.guava.collect.MinMaxPriorityQueue
 import utils.Constants.Relation
 import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
 
-import scala.collection.mutable
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
                      thetaXY: (Double, Double), ws: WeightStrategy, budget: Long, sourceCount: Long) extends DMProgressiveTrait {
@@ -153,13 +152,10 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spa
 
 object TopKPairs{
 
-    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], ws: WeightStrategy, budget: Long, partitioner: SpatialPartitioner): TopKPairs ={
+    def apply(source:RDD[(Int, SpatialEntity)], target:RDD[(Int, SpatialEntity)], ws: WeightStrategy, budget: Long, partitioner: Partitioner): TopKPairs ={
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.getSourceCount
-        val sourcePartitions = source.mapPartitions(seIter => Iterator((TaskContext.getPartitionId(), seIter.toIterable)))
-        val targetPartitions = target.mapPartitions(seIter => Iterator((TaskContext.getPartitionId(), seIter.toIterable)))
-
-        val joinedRDD = sourcePartitions.cogroup(targetPartitions, partitioner).map(p => (p._1, (p._2._1.flatten, p._2._2.flatten)))
+        val joinedRDD = source.cogroup(target, partitioner)
         TopKPairs(joinedRDD, thetaXY, ws, budget, sourceCount)
     }
 }

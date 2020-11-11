@@ -52,7 +52,7 @@ trait SDMTrait {
     }
 
 
-    def getWeight(totalBlocks: Int, e1Blocks: IndexedSeq[(Int, Int)], e2Blocks: IndexedSeq[(Int, Int)], ws: WeightStrategy = WeightStrategy.CBS): Double ={
+    def getWeight(totalBlocks: Int, e1Blocks: Seq[(Int, Int)], e2Blocks: Seq[(Int, Int)], ws: WeightStrategy = WeightStrategy.CBS): Double ={
         val commonBlocks = e1Blocks.intersect(e2Blocks).length
         ws match {
             case WeightStrategy.ECBS =>

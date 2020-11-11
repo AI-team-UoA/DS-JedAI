@@ -1,12 +1,11 @@
 package EntityMatching.DistributedMatching
 
 import DataStructures.{IM, SpatialEntity}
-import org.apache.spark.TaskContext
+import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightStrategy.WeightStrategy
-import utils.Readers.SpatialReader
 import utils.Utils
 
 
@@ -40,28 +39,35 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spatial
                     .filter{ case (_, i) => source(i).relate(targetSE, relation)}
                     .map(_._2)
                     .map(i => (source(i).originalID, targetSE.originalID))
+                    .force
             }
         }
 
 
+    /**
+     * compute the Intersection Matrix of the input datasets
+     * @return an RDD of intersection matrix
+     */
     def getDE9IM: RDD[IM] ={
         joinedRDD.flatMap { p =>
             val pid = p._1
             val partition = partitionsZones(pid)
             val source: Array[SpatialEntity] = p._2._1.toArray
-            val target: Iterator[SpatialEntity] = p._2._2.toIterator
+            val target: Iterable[SpatialEntity] = p._2._2
             val sourceIndex = index(source)
             val filteringFunction = (b:(Int, Int)) => sourceIndex.contains(b)
 
-            target.flatMap { targetSE =>
+           target.flatMap { targetSE =>
                 targetSE
                     .index(thetaXY, filteringFunction)
                     .view
                     .flatMap(c => sourceIndex.get(c).map(i => (c, i)))
                     .filter{case(c, i) => source(i).testMBB(targetSE, Relation.INTERSECTS) &&
-                                           source(i).referencePointFiltering(targetSE, c, thetaXY, Some(partition))}
+                                          source(i).referencePointFiltering(targetSE, c, thetaXY, Some(partition))}
                     .map(_._2)
                     .map(i => IM(source(i), targetSE))
+                    .filter(_.relate)
+                    .force
             }
         }
     }
@@ -95,12 +101,9 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spatial
  */
 object GIAnt{
 
-    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity]): GIAnt ={
+    def apply(source:RDD[(Int, SpatialEntity)], target:RDD[(Int, SpatialEntity)], partitioner: Partitioner): GIAnt ={
         val thetaXY = Utils.getTheta
-        val sourcePartitions = source.mapPartitions(seIter => Iterator((TaskContext.getPartitionId(), seIter.toIterable)))
-        val targetPartitions = target.mapPartitions(seIter => Iterator((TaskContext.getPartitionId(), seIter.toIterable)))
-
-        val joinedRDD = sourcePartitions.cogroup(targetPartitions, SpatialReader.spatialPartitioner).map(p => (p._1, (p._2._1.flatten, p._2._2.flatten)))
+        val joinedRDD = source.cogroup(target, partitioner)
         GIAnt(joinedRDD, thetaXY, null)
     }
 }
