@@ -88,6 +88,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
             case Relation.TOUCHES => touches(mbb)
             case Relation.DISJOINT => disjoint(mbb)
             case Relation.EQUALS => equals(mbb)
+            case Relation.DE9IM => intersects(mbb)
             case _ => false
         }.reduce( _ || _)
 

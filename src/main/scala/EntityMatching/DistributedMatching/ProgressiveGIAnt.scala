@@ -1,7 +1,7 @@
 package EntityMatching.DistributedMatching
 
 
-import DataStructures.{IM, MBB, SpatialEntity}
+import DataStructures.{MBB, SpatialEntity}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import org.spark_project.guava.collect.MinMaxPriorityQueue
@@ -26,7 +26,7 @@ case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Itera
      * @param target target
      * @return a PQ with the top comparisons
      */
-    private def compute(partition: MBB, source: Array[SpatialEntity], target: Array[SpatialEntity]): MinMaxPriorityQueue[(Double, (Int, Int))] ={
+    def compute(source: Array[SpatialEntity], target: Array[SpatialEntity], partition: MBB): MinMaxPriorityQueue[(Double, (Int, Int))] ={
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
         val filterRedundantComparisons = (i: Int, j: Int) => source(i).partitionRF(target(j).mbb, thetaXY, partition) &&
@@ -60,57 +60,6 @@ case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Itera
         pq
     }
 
-    /**
-     *  Get the DE-9IM of the top most related entities based
-     *  on the input budget and the Weighting strategy
-     * @return an RDD of IM
-     */
-    def getDE9IM: RDD[IM] ={
-        joinedRDD.flatMap{ p =>
-            val pid = p._1
-            val partition = partitionsZones(pid)
-            val source = p._2._1.toArray
-            val target = p._2._2.toArray
-
-            val pq = compute(partition, source, target)
-            if (!pq.isEmpty)
-                Iterator.continually {
-                    val (i, j) = pq.removeFirst()._2
-                    val e1 = source(i)
-                    val e2 = target(j)
-                    IM(e1, e2)
-                }.takeWhile(_ => !pq.isEmpty)
-            else Iterator()
-        }
-    }
-
-
-    /**
-     * Get the DE-9IM of the top most related entities based
-     * on the input budget and the Weighting strategy
-     *
-     * @return RDD of weighted IM
-     */
-    def getWeightedDE9IM: RDD[(Double, IM)] ={
-        joinedRDD
-            .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
-            .flatMap { p =>
-                val pid = p._1
-                val partition = partitionsZones(pid)
-                val source = p._2._1.toArray
-                val target = p._2._2.toArray
-
-                val pq = compute(partition, source, target)
-                if (!pq.isEmpty)
-                    Iterator.continually {
-                        val (w, (i, j)) = pq.removeFirst()
-                        val e1 = source(i)
-                        val e2 = target(j)
-                        (w, IM(e1, e2))
-                    }.takeWhile(_ => !pq.isEmpty)
-                else Iterator()
-            }
-    }
 }
 
 

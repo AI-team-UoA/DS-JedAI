@@ -78,16 +78,6 @@ object WellBalancedExp {
         val startTime = Calendar.getInstance().getTimeInMillis
 
 
-        // setting SpatialReader
-//        SpatialReader.setPartitions(partitions)
-//        SpatialReader.setGridType(conf.getGridType)
-//        val sourceRDD = SpatialReader.load(conf.source.path, conf.source.realIdField, conf.source.geometryField)
-//            .setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
-//        Utils(sourceRDD.map(_.mbb), conf.getTheta)
-//        val readTime = Calendar.getInstance()
-//        log.info("DS-JEDAI: Reading input dataset took: " + (readTime.getTimeInMillis - startTime) / 1000.0)
-//        val targetRDD = SpatialReader.load(conf.target.path, conf.target.realIdField, conf.target.geometryField)
-
         val reader = SpatialReader(conf.source, partitions)
         val sourceRDD = reader.load2PartitionedRDD()
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
@@ -110,7 +100,7 @@ object WellBalancedExp {
 
         val ibm = IndexBasedMatching(overloadedSource.map(_._2), overloadedTarget.map(_._2), Utils.getTheta)
         val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-        totalOverlaps, totalTouches, totalWithin, intersectingPairs, interlinkedGeometries) = pm.countRelations + ibm.countRelationsBlocking
+        totalOverlaps, totalTouches, totalWithin, intersectingPairs, interlinkedGeometries) = pm.countAllRelations + ibm.countRelationsBlocking
 
         val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
             totalIntersects + totalOverlaps + totalTouches + totalWithin

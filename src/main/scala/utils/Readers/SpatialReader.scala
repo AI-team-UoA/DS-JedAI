@@ -1,7 +1,7 @@
 package utils.Readers
 
 import DataStructures.{MBB, SpatialEntity}
-import com.vividsolutions.jts.geom.{Geometry, GeometryCollection}
+import com.vividsolutions.jts.geom.Geometry
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
@@ -36,13 +36,6 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
             spatialRDD.getPartitioner.getGrids.asScala.map(e => MBB(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY)).toArray
         }
 
-    def expandGeometryCollection(geom: Geometry): Seq[Geometry] = {
-        if (geom.getGeometryType == "GeometryCollection") {
-            val gc = geom.asInstanceOf[GeometryCollection]
-            for (n <- 0 until gc.getNumGeometries) yield gc.getGeometryN(n)
-        }
-        else Seq(geom)
-    }
 
     def load(dc: DatasetConfigurations): SpatialRDD[Geometry] ={
         val extension = dc.path.toString.split("\\.").last
@@ -78,6 +71,7 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
             .load(filepath)
             .filter(col(realIdField).isNotNull)
             .filter(col(geometryField).isNotNull)
+            .filter(! col(geometryField).contains("EMPTY"))
 
         inputDF.createOrReplaceTempView("GEOMETRIES")
 
@@ -100,12 +94,12 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
         val srdd = if (dc == sourceDc) spatialRDD else load(dc)
         val sp = SparkContext.getOrCreate().broadcast(spatialPartitioner)
         srdd.rawSpatialRDD.rdd
-            .flatMap{ geom =>
+            .map{ geom =>
                 val ids = geom.getUserData.asInstanceOf[String].split("\t")
                 val realID = ids(0)
-                expandGeometryCollection(geom).map((_, realID))
+                (geom, realID)
             }
-            .filter{case (g, _) => !g.isEmpty && g.isValid}
+            .filter{case (g, _) => !g.isEmpty && g.isValid && g.getGeometryType != "GeometryCollection"}
             .map{ case(g, realId) =>  SpatialEntity(realId, g.asInstanceOf[Geometry])}
             .flatMap(se => sp.value.placeObject(se.geometry).asScala.map(i => (i._1.toInt, se)))
             .partitionBy(partitioner)

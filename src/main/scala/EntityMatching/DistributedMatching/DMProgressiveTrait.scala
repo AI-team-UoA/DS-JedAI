@@ -1,30 +1,16 @@
 package EntityMatching.DistributedMatching
 
-import DataStructures.{IM, SpatialEntity}
+import DataStructures.{IM, MBB, SpatialEntity}
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
-import utils.Constants.{Relation, WeightStrategy}
+import org.spark_project.guava.collect.MinMaxPriorityQueue
 import utils.Constants.Relation.Relation
+import utils.Constants.{Relation, WeightStrategy}
 
 import scala.math.{ceil, floor, max, min}
 
 trait DMProgressiveTrait extends DMTrait{
     val budget: Long
-
-    def apply(relation: Relation): RDD[(String, String)] = {
-        val imRDD = getDE9IM
-        relation match {
-            case Relation.CONTAINS => imRDD.filter(_.isContains).map(_.idPair)
-            case Relation.COVEREDBY => imRDD.filter(_.isCoveredBy).map(_.idPair)
-            case Relation.COVERS => imRDD.filter(_.isCovers).map(_.idPair)
-            case Relation.CROSSES => imRDD.filter(_.isCrosses).map(_.idPair)
-            case Relation.INTERSECTS => imRDD.filter(_.isIntersects).map(_.idPair)
-            case Relation.TOUCHES => imRDD.filter(_.isTouches).map(_.idPair)
-            case Relation.EQUALS => imRDD.filter(_.isEquals).map(_.idPair)
-            case Relation.OVERLAPS => imRDD.filter(_.isOverlaps).map(_.idPair)
-            case Relation.WITHIN => imRDD.filter(_.isWithin).map(_.idPair)
-        }
-    }
 
     /**
      * Weight a comparison
@@ -57,7 +43,107 @@ trait DMProgressiveTrait extends DMTrait{
         }
     }
 
-    def getDE9IM: RDD[IM]
+    /**
+     *  Get the DE-9IM of the top most related entities based
+     *  on the input budget and the Weighting strategy
+     * @return an RDD of IM
+     */
+    def getDE9IM: RDD[IM] ={
+        joinedRDD.flatMap{ p =>
+            val pid = p._1
+            val partition = partitionsZones(pid)
+            val source = p._2._1.toArray
+            val target = p._2._2.toArray
 
-    def getWeightedDE9IM: RDD[(Double, IM)]
+            val pq = compute(source, target, partition)
+            if (!pq.isEmpty)
+                Iterator.continually {
+                    val (i, j) = pq.removeFirst()._2
+                    val e1 = source(i)
+                    val e2 = target(j)
+                    IM(e1, e2)
+                }.takeWhile(_ => !pq.isEmpty).filter(_.relate)
+            else Iterator()
+        }
+    }
+
+
+    /**
+     *  Examine the Relation of the top most related entities based
+     *  on the input budget and the Weighting strategy
+     *  @param relation the relation to examine
+     *  @return an RDD of pair of IDs
+     */
+    def relate(relation: Relation): RDD[(String, String)] = {
+        joinedRDD.flatMap{ p =>
+            val pid = p._1
+            val partition = partitionsZones(pid)
+            val source = p._2._1.toArray
+            val target = p._2._2.toArray
+
+            val pq = compute(source, target, partition)
+            if (!pq.isEmpty)
+                Iterator.continually {
+                    val (i, j) = pq.removeFirst()._2
+                    val e1 = source(i)
+                    val e2 = target(j)
+                    (e1.relate(e2, relation), (e1.originalID, e2.originalID))
+                }.takeWhile(_ => !pq.isEmpty).filter(_._1).map(_._2)
+            else Iterator()
+        }
+    }
+
+
+    /**
+     * Compute AUC - first weight and perform the comparisons in each partition,
+     * then collect them in order and compute the progressive True Positives.
+     *
+     * TODO Consider counting AUC of each partition and then total AUC as the avg
+     *
+     * @param relation the examined relation
+     * @return (AUC, total interlinked Geometries (TP), total comparisons)
+     */
+    def getAUC(relation: Relation): (Double, Long, Long)  ={
+        var progressiveTP: Long = 0
+        var TP: Long = 0
+        var counter: Long = 0
+
+        // computes weighted the weighted comparisons
+        val matches: RDD[(Double, Boolean)] = joinedRDD
+            .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
+            .flatMap { p =>
+                val pid = p._1
+                val partition = partitionsZones(pid)
+                val source = p._2._1.toArray
+                val target = p._2._2.toArray
+
+                val pq = compute(source, target, partition)
+                if (!pq.isEmpty)
+                    Iterator.continually {
+                        val (w, (i, j)) = pq.removeFirst()
+                        val e1 = source(i)
+                        val e2 = target(j)
+                        relation match {
+                            case Relation.DE9IM => (w, IM(e1, e2).relate)
+                            case _ => (w, e1.relate(e2, relation))
+                        }
+                    }.takeWhile(_ => !pq.isEmpty)
+                else Iterator()
+            }
+
+        // compute AUC prioritizing the comparisons based on their weight
+        matches
+            .takeOrdered(budget.toInt)(Ordering.by[(Double, Boolean), Double](_._1).reverse)
+            .map(_._2)
+            .foreach{ r =>
+                if (r) TP += 1
+                progressiveTP += TP
+                counter += 1
+            }
+
+        val auc = progressiveTP/TP.toDouble/counter.toDouble
+        (auc, TP, counter)
+    }
+
+    def compute(source: Array[SpatialEntity], target: Array[SpatialEntity], partition: MBB): MinMaxPriorityQueue[(Double, (Int, Int))]
 }

@@ -9,6 +9,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
+import utils.Constants.Relation
 import utils.Readers.SpatialReader
 import utils.{ConfigurationParser, Utils}
 
@@ -24,10 +25,11 @@ object De9ImExp {
             .setAppName("DS-JedAI")
             .set("spark.serializer", classOf[KryoSerializer].getName)
             .set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
+
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()
 
-        // Parsing the input arguments
+        // Parsing input arguments
         @scala.annotation.tailrec
         def nextOption(map: OptionMap, list: List[String]): OptionMap = {
             list match {
@@ -70,6 +72,8 @@ object De9ImExp {
         val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
         val ws: String = if (options.contains("ws")) options("ws").toString else conf.getWeightingScheme.toString
         val ma: String = if (options.contains("ma")) options("ma").toString else conf.getMatchingAlgorithm.toString
+        val relation = conf.getRelation
+
         log.info("DS-JEDAI: Input Budget: " + budget)
         log.info("DS-JEDAI: Weighting Strategy: " + ws.toString)
         val startTime = Calendar.getInstance().getTimeInMillis
@@ -82,50 +86,49 @@ object De9ImExp {
         val targetRDD = reader.load2PartitionedRDD(conf.target)
         val partitioner = reader.partitioner
 
-        val de9im_startTime = Calendar.getInstance().getTimeInMillis
-        if (!options.contains("auc")) {
-            val pm = DMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD, partitioner, budget, ws, ma)
-            val (totalContains, totalCoveredBy, totalCovers,totalCrosses, totalEquals, totalIntersects,
-            totalOverlaps, totalTouches, totalWithin,intersectingPairs, interlinkedGeometries) = pm.countRelations
+        val matchingStartTime = Calendar.getInstance().getTimeInMillis
+        if (options.contains("auc")) {
 
-            val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
-                totalIntersects + totalOverlaps + totalTouches + totalWithin
-            log.info("DS-JEDAI: Total Intersecting Pairs: " + intersectingPairs)
-            log.info("DS-JEDAI: Interlinked Geometries: " + interlinkedGeometries)
-    
-            log.info("DS-JEDAI: CONTAINS: " + totalContains)
-            log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
-            log.info("DS-JEDAI: COVERS: " + totalCovers)
-            log.info("DS-JEDAI: CROSSES: " + totalCrosses)
-            log.info("DS-JEDAI: EQUALS: " + totalEquals)
-            log.info("DS-JEDAI: INTERSECTS: " + totalIntersects)
-            log.info("DS-JEDAI: OVERLAPS: " + totalOverlaps)
-            log.info("DS-JEDAI: TOUCHES: " + totalTouches)
-            log.info("DS-JEDAI: WITHIN: " + totalWithin)
-            log.info("DS-JEDAI: Total Top Relations: " + totalRelations)
-            val de9im_endTime = Calendar.getInstance().getTimeInMillis
-            log.info("DS-JEDAI: Only DE-9IM Time: " + (de9im_endTime - de9im_startTime) / 1000.0)
-        }
-        else{
             val pm = DMFactory.getProgressiveAlgorithm(conf, sourceRDD, targetRDD, partitioner, budget, ws, ma)
-            var counter: Double = 0
-            var auc: Double = 0
-            var interlinkedGeometries: Double = 0
-            pm.getWeightedDE9IM
-                .map(p  => (p._1, p._2.relate))
-                .takeOrdered(budget)(Ordering.by[(Double, Boolean), Double](_._1).reverse)
-                .map(_._2)
-                .foreach{ r =>
-                   if (r) interlinkedGeometries += 1
-                   auc += interlinkedGeometries
-                   counter += 1
-                }
+
+            val (auc, interlinkedGeometries, counter) = pm.getAUC(relation)
             log.info("DS-JEDAI: Total Intersecting Pairs: " + counter)
             log.info("DS-JEDAI: Interlinked Geometries: " + interlinkedGeometries)
-            log.info("DS-JEDAI: AUC: " + auc/interlinkedGeometries/counter)
+            log.info("DS-JEDAI: AUC: " + auc)
+        }
+        else {
+
+            val pm = DMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD, partitioner, budget, ws, ma)
+
+            if (relation.equals(Relation.DE9IM)) {
+                val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
+                totalOverlaps, totalTouches, totalWithin, intersectingPairs, interlinkedGeometries) = pm.countAllRelations
+
+                val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
+                    totalIntersects + totalOverlaps + totalTouches + totalWithin
+                log.info("DS-JEDAI: Total Intersecting Pairs: " + intersectingPairs)
+                log.info("DS-JEDAI: Interlinked Geometries: " + interlinkedGeometries)
+
+                log.info("DS-JEDAI: CONTAINS: " + totalContains)
+                log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
+                log.info("DS-JEDAI: COVERS: " + totalCovers)
+                log.info("DS-JEDAI: CROSSES: " + totalCrosses)
+                log.info("DS-JEDAI: EQUALS: " + totalEquals)
+                log.info("DS-JEDAI: INTERSECTS: " + totalIntersects)
+                log.info("DS-JEDAI: OVERLAPS: " + totalOverlaps)
+                log.info("DS-JEDAI: TOUCHES: " + totalTouches)
+                log.info("DS-JEDAI: WITHIN: " + totalWithin)
+                log.info("DS-JEDAI: Total Relations Discovered: " + totalRelations)
+            }
+            else{
+                val totalMatches = pm.countRelation(relation)
+                log.info("DS-JEDAI:" + relation.toString +": " + totalMatches)
+            }
+            val matchingEndTime = Calendar.getInstance().getTimeInMillis
+            log.info("DS-JEDAI: Interlinking Time: " + (matchingEndTime - matchingStartTime) / 1000.0)
         }
 
-        val endTime = Calendar.getInstance()
-        log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime) / 1000.0)
+        val endTime = Calendar.getInstance().getTimeInMillis
+        log.info("DS-JEDAI: Total Execution Time: " + (endTime - startTime) / 1000.0)
     }
 }

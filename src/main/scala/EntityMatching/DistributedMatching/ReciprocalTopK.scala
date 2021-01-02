@@ -1,6 +1,6 @@
 package EntityMatching.DistributedMatching
 
-import DataStructures.{IM, MBB, SpatialEntity}
+import DataStructures.{MBB, SpatialEntity}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import org.spark_project.guava.collect.MinMaxPriorityQueue
@@ -90,38 +90,6 @@ case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterabl
         partitionPQ
     }
 
-    def getDE9IM: RDD[IM] = joinedRDD
-        .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
-        .flatMap { p =>
-            val pid = p._1
-            val partition = partitionsZones(pid)
-            val source: Array[SpatialEntity] = p._2._1.toArray
-            val target: Array[SpatialEntity] = p._2._2.toArray
-
-            val pq = compute(source, target, partition)
-            if (!pq.isEmpty)
-                Iterator.continually{
-                    val (i, j) = pq.removeFirst()._2
-                    IM(source(i), target(j))
-                }.takeWhile(_ => !pq.isEmpty)
-            else Iterator()
-        }
-
-    def getWeightedDE9IM: RDD[(Double, IM)] = joinedRDD.filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
-        .flatMap { p =>
-            val pid = p._1
-            val partition = partitionsZones(pid)
-            val source: Array[SpatialEntity] = p._2._1.toArray
-            val target: Array[SpatialEntity] = p._2._2.toArray
-
-            val pq = compute(source, target, partition)
-            if (!pq.isEmpty)
-                Iterator.continually{
-                    val (w, (i, j)) = pq.removeFirst()
-                    (w, IM(source(i), target(j)))
-                }.takeWhile(_ => !pq.isEmpty)
-            else Iterator()
-        }
 
 }
 

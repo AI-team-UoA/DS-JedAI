@@ -28,6 +28,7 @@ case class SpatialEntity(originalID: String = "", geometry: Geometry, mbb: MBB){
             case Relation.DISJOINT => geometry.disjoint(target.geometry)
             case Relation.EQUALS => geometry.equals(target.geometry)
             case Relation.WITHIN => geometry.within(target.geometry)
+            case Relation.DE9IM => ! geometry.disjoint(target.geometry)
             case _ => false
         }
     }

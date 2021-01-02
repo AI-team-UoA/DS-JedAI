@@ -49,20 +49,20 @@ trait DMTrait {
             (p._1 + t._1, p._2 + t._2, p._3 +t._3, p._4+t._4, p._5+t._5, p._6+t._6, p._7+t._7, p._8+t._8, p._9+t._9, p._10+t._10, p._11+t._11)
     }
 
-    def countRelations: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = {
+    def countAllRelations: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = {
         getDE9IM
             .mapPartitions { imIterator =>
                 var totalContains: Int = 0
-                var totalCoveredBy = 0
-                var totalCovers = 0
-                var totalCrosses = 0
-                var totalEquals = 0
-                var totalIntersects = 0
-                var totalOverlaps = 0
-                var totalTouches = 0
-                var totalWithin = 0
-                var intersectingPairs = 0
-                var interlinkedGeometries = 0
+                var totalCoveredBy: Int = 0
+                var totalCovers: Int = 0
+                var totalCrosses: Int = 0
+                var totalEquals: Int = 0
+                var totalIntersects: Int = 0
+                var totalOverlaps: Int = 0
+                var totalTouches: Int = 0
+                var totalWithin: Int = 0
+                var intersectingPairs: Int = 0
+                var interlinkedGeometries: Int = 0
                 imIterator.foreach { im =>
                     intersectingPairs += 1
                     if (im.relate) {
@@ -87,7 +87,9 @@ trait DMTrait {
             .treeReduce({ case (im1, im2) => im1 + im2}, 4)
     }
 
-    def apply(relation: Relation): RDD[(String, String)]
+    def countRelation(relation: Relation): Long = relate(relation).count()
+
+    def relate(relation: Relation): RDD[(String, String)]
 
     def getDE9IM: RDD[IM]
 }

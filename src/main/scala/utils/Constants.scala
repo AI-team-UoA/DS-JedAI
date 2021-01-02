@@ -1,7 +1,5 @@
 package utils
 
-import utils.Constants.BlockingAlgorithm.Value
-
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
@@ -38,8 +36,10 @@ object Constants {
 		val OVERLAPS: Relation.Value = Value("overlaps")
 		val COVERS: Relation.Value = Value("covers")
 		val COVEREDBY: Relation.Value = Value("coveredby")
+		val DE9IM: Relation.Value = Value("DE9IM")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
+
 		def swap(r: Relation): Relation = r match {
 			case Relation.WITHIN => Relation.CONTAINS
 			case Relation.CONTAINS => Relation.WITHIN

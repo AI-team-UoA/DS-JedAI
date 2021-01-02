@@ -19,7 +19,7 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spatial
      * @param relation the examining relation
      * @return an RDD containing the matching pairs
      */
-    def apply(relation: Relation): RDD[(String, String)] = joinedRDD
+    def relate(relation: Relation): RDD[(String, String)] = joinedRDD
         .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty )
         .flatMap { p =>
             val pid = p._1
@@ -62,7 +62,7 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spatial
                     .index(thetaXY, filteringFunction)
                     .view
                     .flatMap(c => sourceIndex.get(c).map(i => (c, i)))
-                    .filter{case(c, i) => source(i).testMBB(targetSE, Relation.INTERSECTS) &&
+                    .filter{case(c, i) => source(i).testMBB(targetSE, Relation.DE9IM) &&
                                           source(i).referencePointFiltering(targetSE, c, thetaXY, Some(partition))}
                     .map(_._2)
                     .map(i => IM(source(i), targetSE))
@@ -73,27 +73,7 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spatial
     }
 
 
-    def getSampleDE9IM(frac: Double): RDD[(SpatialEntity, SpatialEntity)] ={
-        joinedRDD
-            .flatMap { p =>
-                val pid = p._1
-                val partition = partitionsZones(pid)
-                val source: Array[SpatialEntity] = p._2._1.toArray
-                val target: Iterator[SpatialEntity] = p._2._2.toIterator
-                val sourceIndex = index(source)
-                val filteringFunction = (b:(Int, Int)) => sourceIndex.contains(b)
 
-                target.flatMap { targetSE =>
-                    targetSE
-                        .index(thetaXY, filteringFunction)
-                        .flatMap(c => sourceIndex.get(c).map(j => (c, source(j))))
-                        .filter { case (c, se) => se.testMBB(targetSE, Relation.INTERSECTS) &&
-                                                se.referencePointFiltering(targetSE, c, thetaXY, Some(partition)) }
-                        .map(se => (se._2, targetSE))
-                }
-            }
-            .sample(withReplacement = false, frac)
-    }
 }
 
 /**

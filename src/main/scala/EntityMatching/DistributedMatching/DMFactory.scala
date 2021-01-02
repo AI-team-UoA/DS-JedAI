@@ -25,7 +25,7 @@ object DMFactory {
                 ProgressiveGIAnt(source, target, ws, budget, partitioner)
             case MatchingAlgorithm.GEOMETRY_CENTRIC =>
                 log.info("Matching Algorithm: " + MatchingAlgorithm.GEOMETRY_CENTRIC)
-                EntityCentricPrioritization(source, target, ws, budget, partitioner)
+                GeometryCentric(source, target, ws, budget, partitioner)
             case MatchingAlgorithm.TOPK =>
                 log.info("Matching Algorithm: " + MatchingAlgorithm.TOPK)
                 TopKPairs(source, target, ws, budget, partitioner)
@@ -53,7 +53,7 @@ object DMFactory {
                 ProgressiveGIAnt(source, target, ws, budget, partitioner)
             case MatchingAlgorithm.GEOMETRY_CENTRIC =>
                 log.info("Matching Algorithm: " + MatchingAlgorithm.GEOMETRY_CENTRIC)
-                EntityCentricPrioritization(source, target, ws, budget, partitioner)
+                GeometryCentric(source, target, ws, budget, partitioner)
             case MatchingAlgorithm.RECIPROCAL_TOPK =>
                 log.info("Matching Algorithm: " + MatchingAlgorithm.RECIPROCAL_TOPK)
                 ReciprocalTopK(source, target, ws, budget, partitioner)
