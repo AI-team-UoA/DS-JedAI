@@ -32,7 +32,7 @@ case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Itera
         val filterRedundantComparisons = (i: Int, j: Int) => source(i).partitionRF(target(j).mbb, thetaXY, partition) &&
             source(i).testMBB(target(j), Relation.INTERSECTS)
 
-        val localBudget: Int = math.ceil((source.length*budget)/sourceCount).toInt
+        val localBudget: Int = math.ceil((source.length*2*budget)/sourceCount).toInt
         val orderingPair = Ordering.by[(Double, (Int, Int)), Double](_._1).reverse
         val pq: MinMaxPriorityQueue[(Double, (Int, Int))] = MinMaxPriorityQueue.orderedBy(orderingPair).maximumSize(localBudget + 1).create()
         var minW = 0d

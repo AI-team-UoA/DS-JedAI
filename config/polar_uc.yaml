@@ -1,18 +1,18 @@
 source:
-  path: "/home/gmandi/Documents/Extreme-Earth/Datasets/polar-uc/IceMonitoring/s1_images_20K.csv"
+  path: "/home/gmandi/Documents/Extreme-Earth/Datasets/polar-uc/IceMonitoring/workplace/s1_images400.csv"
   realIdField: "id"
   geometryField: "WKT"
 
 target:
-  path: "/home/gmandi/Documents/Extreme-Earth/Datasets/polar-uc/IceMonitoring/s1_images_20K.csv"
+  path: "/home/gmandi/Documents/Extreme-Earth/Datasets/polar-uc/IceMonitoring/workplace/observations_WKT.csv"
   realIdField: "id"
   geometryField: "WKT"
 
-relation: "intersects"
+relation: "DE9IM"
 
 configurations:
-  partitions: "40"
-  theta_measure: "avg2"
-  matchingAlg: "PROGRESSIVE_LIGHT_RADON"
+  partitions: "12"
+  theta_measure: "avg"
+  matchingAlg: "PROGRESSIVE_GIANT"
   gridType: "QUADTREE"
   weighting_strategy: "JS"

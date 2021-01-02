@@ -26,7 +26,7 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spa
 
         // initialize PQ and compute budget based on the n.o. intersecting targets
         // (avoid the entities that don't intersect, so we do not compute the top-k for those )
-        val localBudget: Int = ((source.length * budget) / sourceCount).toInt
+        val localBudget: Int = ((source.length*2 * budget) / sourceCount).toInt
         val k = (math.ceil(localBudget / (source.length + target.length)).toInt + 1) * 2 // +1 to avoid k=0
 
         val sourceMinWeightPQ: Array[Double] = Array.fill(source.length)(0d)

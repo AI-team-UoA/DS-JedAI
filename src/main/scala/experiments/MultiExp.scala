@@ -3,7 +3,6 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.DistributedMatching.DMFactory
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
@@ -76,53 +75,53 @@ object MultiExp {
         val algorithms = Array("PROGRESSIVE_GIANT")
         val budgets = Array(10000000, 30000000, 50000000)
         val weightingSchemes = Array("JS", "CBS", "PEARSON_X2")
-
-        for (ma <- algorithms; budget <- budgets; ws <- weightingSchemes) {
-            log.info("DS-JEDAI: Input Budget: " + budget)
-            log.info("DS-JEDAI: Weighting Strategy: " + ws)
-            if (!options.contains("auc")) {
-                val de9im_startTime = Calendar.getInstance().getTimeInMillis
-                val pm = DMFactory.getProgressiveAlgorithm(conf, sourceRDD, targetRDD, partitioner, budget, ws, ma)
-                val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-                totalOverlaps, totalTouches, totalWithin, intersectingPairs, interlinkedGeometries) = pm.countRelations
-
-                val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
-                    totalIntersects + totalOverlaps + totalTouches + totalWithin
-                log.info("DS-JEDAI: Total Intersecting Pairs: " + intersectingPairs)
-                log.info("DS-JEDAI: Interlinked Geometries: " + interlinkedGeometries)
-
-                log.info("DS-JEDAI: CONTAINS: " + totalContains)
-                log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
-                log.info("DS-JEDAI: COVERS: " + totalCovers)
-                log.info("DS-JEDAI: CROSSES: " + totalCrosses)
-                log.info("DS-JEDAI: EQUALS: " + totalEquals)
-                log.info("DS-JEDAI: INTERSECTS: " + totalIntersects)
-                log.info("DS-JEDAI: OVERLAPS: " + totalOverlaps)
-                log.info("DS-JEDAI: TOUCHES: " + totalTouches)
-                log.info("DS-JEDAI: WITHIN: " + totalWithin)
-                log.info("DS-JEDAI: Total Top Relations: " + totalRelations)
-                val de9im_endTime = Calendar.getInstance().getTimeInMillis
-                log.info("DS-JEDAI: Only DE-9IM Time: " + (((de9im_endTime - de9im_startTime) / 1000.0) + initialOverheard))
-            }
-            else {
-                val pm = DMFactory.getProgressiveAlgorithm(conf, sourceRDD, targetRDD, partitioner, budget, ws, ma)
-                var counter: Double = 0
-                var auc: Double = 0
-                var interlinkedGeometries: Double = 0
-                pm.getWeightedDE9IM
-                    .map(p => (p._1, p._2.relate))
-                    .takeOrdered(budget)(Ordering.by[(Double, Boolean), Double](_._1).reverse)
-                    .map(_._2)
-                    .foreach { r =>
-                        if (r) interlinkedGeometries += 1
-                        auc += interlinkedGeometries
-                        counter += 1
-                    }
-                log.info("DS-JEDAI: Total Intersecting Pairs: " + counter)
-                log.info("DS-JEDAI: Interlinked Geometries: " + interlinkedGeometries)
-                log.info("DS-JEDAI: AUC: " + auc / interlinkedGeometries / counter)
-            }
-        }
+//
+//        for (ma <- algorithms; budget <- budgets; ws <- weightingSchemes) {
+//            log.info("DS-JEDAI: Input Budget: " + budget)
+//            log.info("DS-JEDAI: Weighting Strategy: " + ws)
+//            if (!options.contains("auc")) {
+//                val de9im_startTime = Calendar.getInstance().getTimeInMillis
+//                val pm = DMFactory.getProgressiveAlgorithm(conf, sourceRDD, targetRDD, partitioner, budget, ws, ma)
+//                val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
+//                totalOverlaps, totalTouches, totalWithin, intersectingPairs, interlinkedGeometries) = pm.countRelations
+//
+//                val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
+//                    totalIntersects + totalOverlaps + totalTouches + totalWithin
+//                log.info("DS-JEDAI: Total Intersecting Pairs: " + intersectingPairs)
+//                log.info("DS-JEDAI: Interlinked Geometries: " + interlinkedGeometries)
+//
+//                log.info("DS-JEDAI: CONTAINS: " + totalContains)
+//                log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
+//                log.info("DS-JEDAI: COVERS: " + totalCovers)
+//                log.info("DS-JEDAI: CROSSES: " + totalCrosses)
+//                log.info("DS-JEDAI: EQUALS: " + totalEquals)
+//                log.info("DS-JEDAI: INTERSECTS: " + totalIntersects)
+//                log.info("DS-JEDAI: OVERLAPS: " + totalOverlaps)
+//                log.info("DS-JEDAI: TOUCHES: " + totalTouches)
+//                log.info("DS-JEDAI: WITHIN: " + totalWithin)
+//                log.info("DS-JEDAI: Total Top Relations: " + totalRelations)
+//                val de9im_endTime = Calendar.getInstance().getTimeInMillis
+//                log.info("DS-JEDAI: Only DE-9IM Time: " + (((de9im_endTime - de9im_startTime) / 1000.0) + initialOverheard))
+//            }
+//            else {
+//                val pm = DMFactory.getProgressiveAlgorithm(conf, sourceRDD, targetRDD, partitioner, budget, ws, ma)
+//                var counter: Double = 0
+//                var auc: Double = 0
+//                var interlinkedGeometries: Double = 0
+//                pm.getWeightedDE9IM
+//                    .map(p => (p._1, p._2.relate))
+//                    .takeOrdered(budget)(Ordering.by[(Double, Boolean), Double](_._1).reverse)
+//                    .map(_._2)
+//                    .foreach { r =>
+//                        if (r) interlinkedGeometries += 1
+//                        auc += interlinkedGeometries
+//                        counter += 1
+//                    }
+//                log.info("DS-JEDAI: Total Intersecting Pairs: " + counter)
+//                log.info("DS-JEDAI: Interlinked Geometries: " + interlinkedGeometries)
+//                log.info("DS-JEDAI: AUC: " + auc / interlinkedGeometries / counter)
+//            }
+//        }
         val endTime = Calendar.getInstance()
         log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime) / 1000.0)
     }
