@@ -8,6 +8,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.col
 import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 import org.datasyslab.geospark.enums.GridType
+import org.datasyslab.geospark.formatMapper.shapefileParser.ShapefileReader
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import org.datasyslab.geospark.spatialPartitioning.SpatialPartitioner
 import org.datasyslab.geospark.spatialRDD.SpatialRDD
@@ -44,18 +45,29 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
                 loadCSV(dc.path, dc.realIdField, dc.geometryField, header = true )
             case "tsv" =>
                 loadTSV(dc.path, dc.realIdField, dc.geometryField, header = true )
+            case "shp" =>
+                loadSHP(dc.path, dc.realIdField, dc.geometryField)
             case _ =>
                 null
         }
     }
 
     def loadCSV(filepath: String, realIdField: String, geometryField: String, header: Boolean):SpatialRDD[Geometry] =
-        load(filepath, realIdField, geometryField, ",", header)
+        loadDelimitedFile(filepath, realIdField, geometryField, ",", header)
 
     def loadTSV(filepath: String, realIdField: String, geometryField: String, header: Boolean): SpatialRDD[Geometry] =
-        load(filepath, realIdField, geometryField, "\t", header)
+        loadDelimitedFile(filepath, realIdField, geometryField, "\t", header)
 
-    def load(filepath: String, realIdField: String, geometryField: String, delimiter: String, header: Boolean): SpatialRDD[Geometry] ={
+    /**
+     * Loads a delimited file
+     * @param filepath path to the delimited text file
+     * @param realIdField instances' unique id
+     * @param geometryField geometry field
+     * @param delimiter delimiter
+     * @param header if first row contains the headers
+     * @return a spatial RDD
+     */
+    def loadDelimitedFile(filepath: String, realIdField: String, geometryField: String, delimiter: String, header: Boolean): SpatialRDD[Geometry] ={
         val conf = new SparkConf()
         conf.set("spark.serializer", classOf[KryoSerializer].getName)
         conf.set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
@@ -79,6 +91,34 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
         val spatialDF = spark.sql(geometryQuery)
         val srdd = new SpatialRDD[Geometry]
         srdd.rawSpatialRDD = Adapter.toRdd(spatialDF)
+        srdd
+    }
+
+    /**
+     * Loads a shapefile
+     * @param filepath path to the SHP file
+     * @param realIdField instances' unique id
+     * @param geometryField geometry field
+     * @return a spatial RDD
+     */
+    def loadSHP(filepath: String, realIdField: String, geometryField: String): SpatialRDD[Geometry] ={
+        val conf = new SparkConf()
+        conf.set("spark.serializer", classOf[KryoSerializer].getName)
+        conf.set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
+        val sc = SparkContext.getOrCreate(conf)
+
+        val parentFolder = filepath.substring(0, filepath.lastIndexOf("/"))
+        val srdd = ShapefileReader.readToGeometryRDD(sc, parentFolder)
+        val idIndex = srdd.fieldNames.indexOf(realIdField)
+
+        // keep only the id from user data
+        srdd.rawSpatialRDD =  srdd.rawSpatialRDD.rdd.map{ g =>
+            g.setUserData(g.getUserData.toString.split("\t")(idIndex))
+            g
+        }
+
+        // filter records with valid geometries and ids
+        srdd.rawSpatialRDD =  srdd.rawSpatialRDD.rdd.filter(g => ! (g.isEmpty || g == null || g.getUserData.toString == ""))
         srdd
     }
 
