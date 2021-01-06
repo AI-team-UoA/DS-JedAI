@@ -63,11 +63,11 @@ object MultiExp {
         val startTime = Calendar.getInstance().getTimeInMillis
 
         val reader = SpatialReader(conf.source, partitions)
-        val sourceRDD = reader.load2PartitionedRDD()
+        val sourceRDD = reader.load()
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
         Utils(sourceRDD.map(_._2.mbb), conf.getTheta, reader.partitionsZones)
 
-        val targetRDD = reader.load2PartitionedRDD(conf.target)
+        val targetRDD = reader.load(conf.target)
         val partitioner = reader.partitioner
         val readTime = Calendar.getInstance()
         val initialOverheard = (readTime.getTimeInMillis - startTime) / 1000.0

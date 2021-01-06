@@ -2,6 +2,9 @@ package utils.Readers
 
 import DataStructures.{MBB, SpatialEntity}
 import com.vividsolutions.jts.geom.Geometry
+import net.sansa_stack.rdf.spark.io._
+import org.apache.jena.query.ARQ
+import org.apache.jena.riot.Lang
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
@@ -24,7 +27,7 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
         case Constants.GridType.QUADTREE => GridType.QUADTREE
     }
 
-    lazy val spatialRDD: SpatialRDD[Geometry] = load(sourceDc)
+    lazy val spatialRDD: SpatialRDD[Geometry] = loadSource(sourceDc)
 
     lazy val spatialPartitioner: SpatialPartitioner = getSpatialPartitioner(spatialRDD)
 
@@ -37,8 +40,14 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
             spatialRDD.getPartitioner.getGrids.asScala.map(e => MBB(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY)).toArray
         }
 
+    def getSpatialPartitioner(srdd: SpatialRDD[Geometry]): SpatialPartitioner ={
+        srdd.analyze()
+        if (partitions > 0) srdd.spatialPartitioning(gridType, partitions) else srdd.spatialPartitioning(gridType)
+        srdd.getPartitioner
+    }
 
-    def load(dc: DatasetConfigurations): SpatialRDD[Geometry] ={
+
+    def loadSource(dc: DatasetConfigurations): SpatialRDD[Geometry] ={
         val extension = dc.path.toString.split("\\.").last
         extension match {
             case "csv" =>
@@ -47,6 +56,14 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
                 loadTSV(dc.path, dc.realIdField, dc.geometryField, header = true )
             case "shp" =>
                 loadSHP(dc.path, dc.realIdField, dc.geometryField)
+            case "nt" =>
+                loadRDF(dc.path, dc.geometryField, Lang.NTRIPLES)
+            case "ttl" =>
+                loadRDF(dc.path, dc.geometryField, Lang.TURTLE)
+            case "rdf"|"xml" =>
+                loadRDF(dc.path, dc.geometryField, Lang.RDFXML)
+            case "rj" =>
+                loadRDF(dc.path, dc.geometryField, Lang.RDFJSON)
             case _ =>
                 null
         }
@@ -87,8 +104,8 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
 
         inputDF.createOrReplaceTempView("GEOMETRIES")
 
-        val geometryQuery = """SELECT ST_GeomFromWKT(GEOMETRIES.""" + geometryField + """) AS WKT,  GEOMETRIES.""" + realIdField + """ AS REAL_ID FROM GEOMETRIES""".stripMargin
-        val spatialDF = spark.sql(geometryQuery)
+        val query = """SELECT ST_GeomFromWKT(GEOMETRIES.""" + geometryField + """) AS WKT,  GEOMETRIES.""" + realIdField + """ AS REAL_ID FROM GEOMETRIES""".stripMargin
+        val spatialDF = spark.sql(query)
         val srdd = new SpatialRDD[Geometry]
         srdd.rawSpatialRDD = Adapter.toRdd(spatialDF)
         srdd
@@ -122,16 +139,47 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
         srdd
     }
 
+    /**
+     * Loads RDF dataset into Spatial RDD
+     * @param filepath path to the RDF file
+     * @param geometryPredicate the predicate of the geometry
+     * @param lang the RDF format (i.e. NTRIPLES, TURTLE, etc.)
+     * @return a spatial RDD
+     */
+    def loadRDF(filepath: String, geometryPredicate: String, lang: Lang) : SpatialRDD[Geometry] ={
+        val conf = new SparkConf()
+        conf.set("spark.serializer", classOf[KryoSerializer].getName)
+        conf.set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
+        val sc = SparkContext.getOrCreate(conf)
+        val spark = SparkSession.getActiveSession.get
 
-    def getSpatialPartitioner(srdd: SpatialRDD[Geometry]): SpatialPartitioner ={
-        srdd.analyze()
-        if (partitions > 0) srdd.spatialPartitioning(gridType, partitions) else srdd.spatialPartitioning(gridType)
-        srdd.getPartitioner
+        GeoSparkSQLRegistrator.registerAll(spark)
+
+        ARQ.init()
+        val cleanGeomPredicate = if (geometryPredicate.head == '<' && geometryPredicate.last == '>') geometryPredicate.substring(1, geometryPredicate.length-1)
+        val triplesRDD = spark.rdf(lang)(filepath)
+            .filter(t => t.getPredicate.getURI == cleanGeomPredicate)
+            .map(t => (t.getSubject.getURI, t.getObject.getLiteral.getLexicalForm))
+
+        val triplesDF = spark.createDataFrame(triplesRDD).toDF("REAL_ID", "WKT")
+        triplesDF.createOrReplaceTempView("GEOMETRIES")
+
+        val query = """SELECT ST_GeomFromWKT(GEOMETRIES.WKT),  GEOMETRIES.REAL_ID FROM GEOMETRIES""".stripMargin
+        val spatialDF = spark.sql(query)
+        val srdd = new SpatialRDD[Geometry]
+        srdd.rawSpatialRDD = Adapter.toRdd(spatialDF)
+        srdd
     }
 
-
-    def load2PartitionedRDD(dc: DatasetConfigurations = sourceDc): RDD[(Int, SpatialEntity)] = {
-        val srdd = if (dc == sourceDc) spatialRDD else load(dc)
+    /**
+     *  Loads a dataset into Spatial Partitioned RDD. The partitioner
+     *  is defined by the first dataset (i.e. the source dataset)
+     *
+     * @param dc dataset configuration
+     * @return a spatial partitioned rdd
+     */
+    def load(dc: DatasetConfigurations = sourceDc): RDD[(Int, SpatialEntity)] = {
+        val srdd = if (dc == sourceDc) spatialRDD else loadSource(dc)
         val sp = SparkContext.getOrCreate().broadcast(spatialPartitioner)
         srdd.rawSpatialRDD.rdd
             .map{ geom =>
