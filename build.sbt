@@ -1,10 +1,10 @@
 name := "DS-JedAI"
 version := "0.1"
 scalaVersion := "2.11.12"
-val sparkVersion = "2.4.3"
+val sparkVersion = "2.4.4"
 
 libraryDependencies ++= Seq(
-	// "net.sansa-stack" %% "sansa-rdf-spark" % "0.7.1",
+	"net.sansa-stack" %% "sansa-rdf-spark" % "0.7.1",
 	"org.apache.spark" %%  "spark-core" % sparkVersion % Provided,
 	"org.apache.spark" %%  "spark-sql" % sparkVersion  % Provided,
 	"org.scalanlp" %% "breeze" % "1.0"
@@ -16,8 +16,6 @@ libraryDependencies += "org.datasyslab" % "geospark" % "1.2.0"
 // https://mvnrepository.com/artifact/org.datasyslab/geospark
 libraryDependencies += "org.datasyslab" % "geospark-sql_2.3" % "1.2.0"
 
-// https://mvnrepository.com/artifact/com.vividsolutions/jts
-libraryDependencies += "com.vividsolutions" % "jts" % "1.13"
 
 // https://mvnrepository.com/artifact/org.yaml/snakeyaml
 libraryDependencies += "org.yaml" % "snakeyaml" % "1.8"

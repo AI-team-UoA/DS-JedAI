@@ -4,12 +4,11 @@ import java.util.Calendar
 
 import EntityMatching.SemiDistributedMatching.SDMFactory
 import org.apache.log4j.{Level, LogManager, Logger}
-import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
-import utils.Readers.Reader
-import utils.{ConfigurationParser, Utils}
+import org.apache.spark.{SparkConf, SparkContext}
+import utils.{ConfigurationParser, SpatialReader, Utils}
 
 
 /**
@@ -77,13 +76,20 @@ object LightExp {
         log.info("DS-JEDAI: Input Budget: " + budget)
         log.info("DS-JEDAI: Weighting Strategy: " + ws.toString)
 
-        val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, conf)
-        val sourceCount = sourceRDD.setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK)
-        log.info("DS-JEDAI: Number of ptofiles of Source: " + sourceCount)
 
-        // Loading Target
-        val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, conf)
-        Utils(sourceRDD.map(_.mbb), conf.getTheta)
+        val reader = SpatialReader(conf.source, 20)
+        val sourceRDD = reader.load().map(_._2)
+        sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
+        val sourceCount = sourceRDD.setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK).count().toInt
+        log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions +" partitions")
+
+
+        Utils(sourceRDD.map(_.mbb), conf.getTheta, reader.partitionsZones)
+
+        val targetRDD = reader.load(conf.target).map(_._2)
+        val targetCount = targetRDD.setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK).count().toInt
+        log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions +" partitions")
+        val partitioner = reader.partitioner
 
         val sma = SDMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD, budget, ws, ma)
         val (totalContains, totalCoveredBy, totalCovers,totalCrosses, totalEquals, totalIntersects,

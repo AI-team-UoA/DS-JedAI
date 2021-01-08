@@ -9,8 +9,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import utils.Readers.SpatialReader
-import utils.{ConfigurationParser, Utils}
+import utils.{ConfigurationParser, SpatialReader, Utils}
 
 
 object WellBalancedExp {

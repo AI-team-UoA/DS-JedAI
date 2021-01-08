@@ -10,11 +10,10 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import utils.Constants.Relation
-import utils.Readers.SpatialReader
-import utils.{ConfigurationParser, Utils}
+import utils.Constants.{GridType, Relation}
+import utils.{ConfigurationParser, Constants, SpatialReader, Utils}
 
-object De9ImExp {
+object MainExp {
 
     def main(args: Array[String]): Unit = {
         Logger.getLogger("org").setLevel(Level.ERROR)
@@ -51,6 +50,8 @@ object De9ImExp {
                     nextOption(map ++ Map("ws" -> value), tail)
                 case "-ma" :: value :: tail =>
                     nextOption(map ++ Map("ma" -> value), tail)
+                case "-gt" :: value :: tail =>
+                    nextOption(map ++ Map("gt" -> value), tail)
                 case _ :: tail =>
                     log.warn("DS-JEDAI: Unrecognized argument")
                     nextOption(map, tail)
@@ -73,13 +74,15 @@ object De9ImExp {
         val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
         val ws: String = if (options.contains("ws")) options("ws").toString else conf.getWeightingScheme.toString
         val ma: String = if (options.contains("ma")) options("ma").toString else conf.getMatchingAlgorithm.toString
+        val gridType: Constants.GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
         val relation = conf.getRelation
+
 
         log.info("DS-JEDAI: Input Budget: " + budget)
         log.info("DS-JEDAI: Weighting Strategy: " + ws.toString)
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        val reader = SpatialReader(conf.source, partitions)
+        val reader = SpatialReader(conf.source, partitions, gridType)
         val sourceRDD = reader.load()
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
         Utils(sourceRDD.map(_._2.mbb), conf.getTheta, reader.partitionsZones)

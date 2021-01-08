@@ -15,8 +15,10 @@ import utils.Constants._
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
 
-// TODO add headers field
-case class DatasetConfigurations(path: String, realIdField: String, geometryField: String)
+
+case class DatasetConfigurations(path: String, geometryField: String, realIdField: Option[String] = None)
+
+
 
 case class Configuration(source: DatasetConfigurations, target:DatasetConfigurations, relation: String, var configurations: Map[String, String]){
 
@@ -96,11 +98,6 @@ object ConfigurationParser {
 					case YamlConfiguration.CONF_STATIC_BLOCKING_DISTANCE =>
 						if (! value.matches("[+-]?\\d+.?\\d+")){
 							log.error("DS-JEDAI: Static Blocking's distance must be a Number")
-							System.exit(1)
-						}
-					case YamlConfiguration.CONF_SPATIAL_PARTITION =>
-						if (!(value == "false" || value == "true")) {
-							log.error("DS-JEDAI: 'spatialPartition' must be Boolean")
 							System.exit(1)
 						}
 					case YamlConfiguration.CONF_THETA_MEASURE =>

@@ -5,14 +5,14 @@ source:
 
 target:
   path: "/home/gmandi/Documents/Extreme-Earth/Datasets/polar-uc/IceMonitoring/workplace/observations_WKT.csv"
-  realIdField: "id"
   geometryField: "WKT"
+  realIdField: "id"
 
 relation: "DE9IM"
 
 configurations:
   partitions: "12"
   theta_measure: "avg"
-  matchingAlg: "PROGRESSIVE_GIANT"
+  matchingAlg: "GIANT"
   gridType: "QUADTREE"
   weighting_strategy: "JS"

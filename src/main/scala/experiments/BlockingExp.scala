@@ -3,14 +3,13 @@ package experiments
 import java.util.Calendar
 
 import Blocking.BlockingFactory
-import EntityMatching.BlockBasedAlgorithms.{BlockMatching, BlockMatchingFactory}
+import EntityMatching.BlockBasedAlgorithms.BlockMatchingFactory
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.serializer.KryoSerializer
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.sql.SparkSession
-import utils.Readers.Reader
-import utils.{ConfigurationParser, Utils}
+import utils.{ConfigurationParser, SpatialReader, Utils}
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
@@ -64,16 +63,20 @@ object BlockingExp {
 		val spatialPartition: Boolean = conf.getSpatialPartitioning
 
 		// Loading Source
-		val sourceRDD = Reader.read(conf.source.path, conf.source.realIdField, conf.source.geometryField, conf)
+		val reader = SpatialReader(conf.source, 20)
+		val sourceRDD = reader.load().map(_._2)
+		sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 		val sourceCount = sourceRDD.setName("SourceRDD").persist(StorageLevel.MEMORY_AND_DISK).count().toInt
 		log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions +" partitions")
 
-		// Loading Target
-		val targetRDD = Reader.read(conf.target.path, conf.source.realIdField, conf.source.geometryField, conf)
+
+		Utils(sourceRDD.map(_.mbb), conf.getTheta, reader.partitionsZones)
+
+		val targetRDD = reader.load(conf.target).map(_._2)
 		val targetCount = targetRDD.setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK).count().toInt
 		log.info("DS-JEDAI: Number of profiles of Target: " + targetCount + " in " + targetRDD.getNumPartitions +" partitions")
+		val partitioner = reader.partitioner
 
-		Utils(sourceRDD.map(_.mbb), conf.getTheta)
 		val (source, target, relation) = (sourceRDD, targetRDD, conf.getRelation)
 		val dimensions = (sourceCount, targetCount)
 
