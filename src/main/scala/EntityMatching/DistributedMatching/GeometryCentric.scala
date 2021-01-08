@@ -4,11 +4,11 @@ import DataStructures.{MBB, SpatialEntity}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import org.spark_project.guava.collect.MinMaxPriorityQueue
-import utils.Constants.Relation
+import utils.Constants.Relation.Relation
 import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
 
-import collection.JavaConverters._
+import scala.collection.JavaConverters._
 
 case class GeometryCentric(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
                                        thetaXY: (Double, Double), ws: WeightStrategy, budget: Long, sourceCount: Long)
@@ -22,11 +22,9 @@ case class GeometryCentric(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterab
      *
      * @return  an RDD of Intersection Matrices
      */
-    def prioritize(source: Array[SpatialEntity], target: Array[SpatialEntity], partition: MBB): MinMaxPriorityQueue[(Double, (Int, Int))] = {
+    def prioritize(source: Array[SpatialEntity], target: Array[SpatialEntity], partition: MBB, relation: Relation): MinMaxPriorityQueue[(Double, (Int, Int))] = {
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
-        val filterRedundantComparisons = (i: Int, j: Int) => source(i).partitionRF(target(j).mbb, thetaXY, partition) &&
-            source(i).testMBB(target(j), Relation.INTERSECTS)
 
         val orderingInt = Ordering.by[(Double, Int), Double](_._1).reverse
         val orderingPair = Ordering.by[(Double, (Int, Int)), Double](_._1).reverse
@@ -44,9 +42,9 @@ case class GeometryCentric(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterab
                 var wSum = 0d
                 val e2 = target(j)
                 e2.index(thetaXY, filterIndices)
-                    .foreach { c =>
-                        sourceIndex.get(c)
-                            .filter(i => filterRedundantComparisons(i, j))
+                    .foreach { block =>
+                        sourceIndex.get(block)
+                            .filter(i => source(i).filter(e2, relation, block, thetaXY, Some(partition)))
                             .foreach { i =>
                                 val e1 = source(i)
                                 val w = getWeight(e1, e2)

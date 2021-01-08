@@ -29,16 +29,15 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spatial
             val sourceIndex = index(source)
             val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
 
-            target.flatMap{ targetSE =>
-                targetSE
+            target.flatMap{ e2 =>
+                e2
                     .index(thetaXY, filteringFunction)
                     .view
-                    .flatMap(c => sourceIndex.get(c).map(i => (c, i)))
-                    .filter{ case(c, i) => source(i).testMBB(targetSE, relation) &&
-                                            source(i).referencePointFiltering(targetSE, c, thetaXY, Some(partition))}
-                    .filter{ case (_, i) => source(i).relate(targetSE, relation)}
+                    .flatMap(block => sourceIndex.get(block).map(i => (block, i)))
+                    .filter{ case(block, i) => source(i).filter(e2, relation, block, thetaXY, Some(partition))}
+                    .filter{ case (_, i) => source(i).relate(e2, relation)}
                     .map(_._2)
-                    .map(i => (source(i).originalID, targetSE.originalID))
+                    .map(i => (source(i).originalID, e2.originalID))
                     .force
             }
         }
@@ -57,15 +56,14 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spatial
             val sourceIndex = index(source)
             val filteringFunction = (b:(Int, Int)) => sourceIndex.contains(b)
 
-           target.flatMap { targetSE =>
-                targetSE
+           target.flatMap { e2 =>
+               e2
                     .index(thetaXY, filteringFunction)
                     .view
                     .flatMap(c => sourceIndex.get(c).map(i => (c, i)))
-                    .filter{case(c, i) => source(i).testMBB(targetSE, Relation.DE9IM) &&
-                                          source(i).referencePointFiltering(targetSE, c, thetaXY, Some(partition))}
+                    .filter{ case(block, i) => source(i).filter(e2, Relation.DE9IM, block, thetaXY, Some(partition))}
                     .map(_._2)
-                    .map(i => IM(source(i), targetSE))
+                    .map(i => IM(source(i), e2))
                     .filter(_.relate)
                     .force
             }

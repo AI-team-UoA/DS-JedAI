@@ -5,7 +5,7 @@ import DataStructures.{MBB, SpatialEntity}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import org.spark_project.guava.collect.MinMaxPriorityQueue
-import utils.Constants.Relation
+import utils.Constants.Relation.Relation
 import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
 
@@ -26,11 +26,9 @@ case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Itera
      * @param target target
      * @return a PQ with the top comparisons
      */
-    def prioritize(source: Array[SpatialEntity], target: Array[SpatialEntity], partition: MBB): MinMaxPriorityQueue[(Double, (Int, Int))] ={
+    def prioritize(source: Array[SpatialEntity], target: Array[SpatialEntity], partition: MBB, relation: Relation): MinMaxPriorityQueue[(Double, (Int, Int))] ={
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
-        val filterRedundantComparisons = (i: Int, j: Int) => source(i).partitionRF(target(j).mbb, thetaXY, partition) &&
-            source(i).testMBB(target(j), Relation.INTERSECTS)
 
         val localBudget: Int = math.ceil((source.length*2*budget)/sourceCount).toInt
         val orderingPair = Ordering.by[(Double, (Int, Int)), Double](_._1).reverse
@@ -43,9 +41,9 @@ case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Itera
             .foreach {j =>
                 val e2 = target(j)
                 e2.index(thetaXY, filterIndices)
-                    .foreach { c =>
-                        sourceIndex.get(c)
-                            .filter(i => filterRedundantComparisons(i, j))
+                    .foreach { block =>
+                        sourceIndex.get(block)
+                            .filter(i => source(i).filter(e2, relation, block, thetaXY, Some(partition)))
                             .foreach { i =>
                                 val e1 = source(i)
                                 val w = getWeight(e1, e2)

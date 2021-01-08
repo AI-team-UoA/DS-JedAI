@@ -42,9 +42,9 @@ case class SpatialEntity(originalID: String = "", geometry: Geometry, mbb: MBB){
         }
     }
 
-    def partitionRF(mbb:MBB, thetaXY: (Double, Double), partition: MBB): Boolean ={
-        mbb.partitionRF(mbb, thetaXY, partition)
-    }
+    def filter(se: SpatialEntity, relation: Relation, block: (Int, Int), thetaXY: (Double, Double), partition: Option[MBB]=None): Boolean =
+        testMBB(se, relation) && referencePointFiltering(se, block, thetaXY, partition)
+
 
 
     /**

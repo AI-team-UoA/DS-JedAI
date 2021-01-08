@@ -1,13 +1,13 @@
-package utils.Readers
+package utils
 
 import DataStructures.{MBB, SpatialEntity}
 import com.vividsolutions.jts.geom.Geometry
-import net.sansa_stack.rdf.spark.io._
 import org.apache.jena.query.ARQ
 import org.apache.jena.riot.Lang
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
+import net.sansa_stack.rdf.spark.io._
 import org.apache.spark.sql.functions.col
 import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 import org.datasyslab.geospark.enums.GridType
@@ -16,29 +16,24 @@ import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import org.datasyslab.geospark.spatialPartitioning.SpatialPartitioner
 import org.datasyslab.geospark.spatialRDD.SpatialRDD
 import org.datasyslab.geosparksql.utils.{Adapter, GeoSparkSQLRegistrator}
-import utils.{Constants, DatasetConfigurations}
-
-import scala.collection.JavaConverters._
+import collection.JavaConverters._
 
 case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: Constants.GridType.GridType = Constants.GridType.QUADTREE) {
 
     lazy val gridType: GridType = gt match {
         case Constants.GridType.KDBTREE => GridType.KDBTREE
-        case Constants.GridType.QUADTREE => GridType.QUADTREE
+        case _ => GridType.QUADTREE
     }
 
     lazy val spatialRDD: SpatialRDD[Geometry] = loadSource(sourceDc)
 
     lazy val spatialPartitioner: SpatialPartitioner = getSpatialPartitioner(spatialRDD)
 
-    val partitioner = new HashPartitioner(partitions)
+    lazy val partitioner = new HashPartitioner(spatialPartitioner.numPartitions)
 
-    lazy val partitionsZones: Array[MBB] = gridType match {
-        case GridType.QUADTREE =>
-            spatialRDD.partitionTree.getLeafZones.asScala.map(qr => MBB(qr.getEnvelope)).toArray
-        case GridType.KDBTREE =>
-            spatialRDD.getPartitioner.getGrids.asScala.map(e => MBB(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY)).toArray
-        }
+    lazy val partitionsZones: Array[MBB] =
+        spatialPartitioner.getGrids.asScala.map(e => MBB(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY)).toArray
+
 
     def getSpatialPartitioner(srdd: SpatialRDD[Geometry]): SpatialPartitioner ={
         srdd.analyze()
@@ -51,11 +46,11 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
         val extension = dc.path.toString.split("\\.").last
         extension match {
             case "csv" =>
-                loadCSV(dc.path, dc.realIdField, dc.geometryField, header = true )
+                loadCSV(dc.path, dc.realIdField.getOrElse("id"), dc.geometryField, header = true )
             case "tsv" =>
-                loadTSV(dc.path, dc.realIdField, dc.geometryField, header = true )
+                loadTSV(dc.path, dc.realIdField.getOrElse("id"), dc.geometryField, header = true )
             case "shp" =>
-                loadSHP(dc.path, dc.realIdField, dc.geometryField)
+                loadSHP(dc.path, dc.realIdField.getOrElse("id"), dc.geometryField)
             case "nt" =>
                 loadRDF(dc.path, dc.geometryField, Lang.NTRIPLES)
             case "ttl" =>

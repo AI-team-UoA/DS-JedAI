@@ -55,7 +55,7 @@ trait DMProgressiveTrait extends DMTrait{
             val source = p._2._1.toArray
             val target = p._2._2.toArray
 
-            val pq = prioritize(source, target, partition)
+            val pq = prioritize(source, target, partition, Relation.DE9IM)
             if (!pq.isEmpty)
                 Iterator.continually {
                     val (i, j) = pq.removeFirst()._2
@@ -81,7 +81,7 @@ trait DMProgressiveTrait extends DMTrait{
             val source = p._2._1.toArray
             val target = p._2._2.toArray
 
-            val pq = prioritize(source, target, partition)
+            val pq = prioritize(source, target, partition, relation)
             if (!pq.isEmpty)
                 Iterator.continually {
                     val (i, j) = pq.removeFirst()._2
@@ -117,7 +117,7 @@ trait DMProgressiveTrait extends DMTrait{
                 val source = p._2._1.toArray
                 val target = p._2._2.toArray
 
-                val pq = prioritize(source, target, partition)
+                val pq = prioritize(source, target, partition, relation)
                 if (!pq.isEmpty)
                     Iterator.continually {
                         val (w, (i, j)) = pq.removeFirst()
@@ -145,5 +145,5 @@ trait DMProgressiveTrait extends DMTrait{
         (auc, TP, counter)
     }
 
-    def prioritize(source: Array[SpatialEntity], target: Array[SpatialEntity], partition: MBB): MinMaxPriorityQueue[(Double, (Int, Int))]
+    def prioritize(source: Array[SpatialEntity], target: Array[SpatialEntity], partition: MBB, relation: Relation): MinMaxPriorityQueue[(Double, (Int, Int))]
 }
