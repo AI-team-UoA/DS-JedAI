@@ -60,6 +60,19 @@ object Constants {
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
 
+	object FileTypes extends Enumeration{
+		type FileTypes = Value
+		val NTRIPLES: Constants.FileTypes.Value = Value("nt")
+		val TURTLE: Constants.FileTypes.Value = Value("ttl")
+		val RDFXML: Constants.FileTypes.Value = Value("xml")
+		val RDFJSON: Constants.FileTypes.Value = Value("rj")
+		val CSV: Constants.FileTypes.Value = Value("csv")
+		val TSV: Constants.FileTypes.Value = Value("tsv")
+		val SHP: Constants.FileTypes.Value = Value("shp")
+
+		def exists(s: String): Boolean = values.exists(_.toString == s)
+	}
+
 	/**
 	 * Weighting Strategies
 	 */

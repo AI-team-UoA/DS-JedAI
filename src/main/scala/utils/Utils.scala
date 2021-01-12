@@ -1,7 +1,7 @@
 package utils
 
 
-import DataStructures.{MBB, SpatialEntity}
+import DataStructures.{MBB, Entity}
 import com.vividsolutions.jts.geom.Geometry
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.TaskContext
@@ -82,7 +82,7 @@ object Utils {
 	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
 	implicit def tuple[String, Int](implicit e1: Encoder[String], e2: Encoder[Int]): Encoder[(String,Int)] = Encoders.tuple[String,Int](e1, e2)
 
-	def export(rdd: RDD[SpatialEntity], path:String): Unit ={
+	def export(rdd: RDD[Entity], path:String): Unit ={
 		val schema = StructType(
 			StructField("id", IntegerType, nullable = true) ::
 			StructField("wkt", StringType, nullable = true) :: Nil
@@ -166,7 +166,7 @@ object Utils {
 	}
 
 
-	def printPartition(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Iterable[SpatialEntity]))]): Unit ={
+	def printPartition(joinedRDD: RDD[(Int, (Iterable[Entity],  Iterable[Entity]))]): Unit ={
 		val c = joinedRDD.map(p => (p._1, (p._2._1.size, p._2._2.size))).sortByKey().collect()
 		log.info("Printing Partitions")
 		log.info("----------------------------------------------------------------------------")
