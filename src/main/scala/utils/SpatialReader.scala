@@ -50,21 +50,21 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
 
 
     def loadSource(dc: DatasetConfigurations): SpatialRDD[Geometry] ={
-        val extension = dc.path.toString.split("\\.").last
+        val extension = dc.getExtension
         extension match {
-            case "csv" =>
+            case FileTypes.CSV =>
                 loadCSV(dc.path, dc.realIdField.getOrElse("id"), dc.geometryField, dc.dateField, header = true )
-            case "tsv" =>
+            case FileTypes.TSV =>
                 loadTSV(dc.path, dc.realIdField.getOrElse("id"), dc.geometryField, dc.dateField, header = true )
-            case "shp" =>
+            case FileTypes.SHP =>
                 loadSHP(dc.path, dc.realIdField.getOrElse("id"), dc.geometryField, dc.dateField)
-            case "nt" =>
+            case FileTypes.NTRIPLES =>
                 loadRDF(dc.path, dc.geometryField, dc.dateField, Lang.NTRIPLES)
-            case "ttl" =>
+            case FileTypes.TURTLE =>
                 loadRDF(dc.path, dc.geometryField, dc.dateField, Lang.TURTLE)
-            case "rdf"|"xml" =>
+            case FileTypes.RDFXML =>
                 loadRDF(dc.path, dc.geometryField, dc.dateField, Lang.RDFXML)
-            case "rj" =>
+            case FileTypes.RDFJSON =>
                 loadRDF(dc.path, dc.geometryField, dc.dateField, Lang.RDFJSON)
             case _ =>
                 null
@@ -105,11 +105,11 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
             .filter(col(geometryField).isNotNull)
             .filter(! col(geometryField).contains("EMPTY"))
 
-        var query = """SELECT ST_GeomFromWKT(GEOMETRIES.""" + geometryField + """) AS WKT,  GEOMETRIES.""" + realIdField + """ AS REAL_ID FROM GEOMETRIES""".stripMargin
+        var query = s"SELECT ST_GeomFromWKT(GEOMETRIES.$geometryField) AS WKT,  GEOMETRIES.$realIdField AS REAL_ID FROM GEOMETRIES".stripMargin
 
         if (dateField.isDefined) {
             inputDF = inputDF.filter(col(dateField.get).isNotNull)
-            query =  """SELECT ST_GeomFromWKT(GEOMETRIES.""" + geometryField + """) AS WKT,  GEOMETRIES.""" + realIdField + """ AS REAL_ID, GEOMETRIES.""" + dateField.get + """ AS DATE  FROM GEOMETRIES""".stripMargin
+            query = s"SELECT ST_GeomFromWKT(GEOMETRIES.$geometryField) AS WKT,  GEOMETRIES.$realIdField AS REAL_ID, GEOMETRIES.${dateField.get} AS DATE  FROM GEOMETRIES".stripMargin
         }
 
         inputDF.createOrReplaceTempView("GEOMETRIES")
@@ -216,7 +216,7 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
         val triplesDF = spark.createDataFrame(rdd).toDF("REAL_ID", "WKT")
         triplesDF.createOrReplaceTempView("GEOMETRIES")
 
-        val query = """SELECT ST_GeomFromWKT(GEOMETRIES.WKT),  GEOMETRIES.REAL_ID FROM GEOMETRIES""".stripMargin
+        val query = "SELECT ST_GeomFromWKT(GEOMETRIES.WKT),  GEOMETRIES.REAL_ID FROM GEOMETRIES".stripMargin
         val spatialDF = spark.sql(query)
         val srdd = new SpatialRDD[Geometry]
         srdd.rawSpatialRDD = Adapter.toRdd(spatialDF)

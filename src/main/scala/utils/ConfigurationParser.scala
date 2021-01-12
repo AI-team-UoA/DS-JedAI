@@ -31,12 +31,12 @@ case class DatasetConfigurations(path: String, geometryField: String, realIdFiel
 		val log: Logger = LogManager.getRootLogger
 
 		// checks path and geometry filed
-		if (! Files.exists(Paths.get(path)) ){
-			log.error("DS-JEDAI: Path: \'"+path+"\' does not exist")
+		if (! Files.exists(Paths.get(path))){
+			log.error(s"DS-JEDAI: Path: \'$path\' does not exist")
 			false
 		}
 		else if (geometryField == ""){
-			log.error("DS-JEDAI: Path: \'"+path+"\' does not exist")
+			log.error(s"DS-JEDAI: Path: \'$path\' does not exist")
 			false
 		}
 		else {
@@ -46,7 +46,7 @@ case class DatasetConfigurations(path: String, geometryField: String, realIdFiel
 					try DateTimeFormat.forPattern(datePattern.get).isParser
 					catch {
 						case _: IllegalArgumentException =>
-							log.error("DS-JEDAI: Pattern \'"+datePattern.get+"\' is not valid")
+							log.error(s"DS-JEDAI: Pattern \'${datePattern.get}\' is not valid")
 							false
 					}
 				}
@@ -157,7 +157,7 @@ object ConfigurationParser {
 						}
 					case YamlConfiguration.CONF_BLOCK_ALG =>
 						if (! BlockingAlgorithm.exists(value)) {
-							log.error("DS-JEDAI: Blocking Algorithm '" + value + "' is not supported")
+							log.error(s"DS-JEDAI: Blocking Algorithm \'$value\' is not supported")
 							false
 						}
 					case YamlConfiguration.CONF_SPATIAL_BLOCKING_FACTOR =>
@@ -183,17 +183,17 @@ object ConfigurationParser {
 						}
 					case YamlConfiguration.CONF_MATCHING_ALG =>
 						if (!MatchingAlgorithm.exists(value)) {
-							log.error("DS-JEDAI: Prioritization Algorithm '" + value + "' is not supported")
+							log.error(s"DS-JEDAI: Prioritization Algorithm \'$value\' is not supported")
 							false
 						}
 					case YamlConfiguration.CONF_WEIGHTING_STRG =>
 						if (! WeightStrategy.exists(value)) {
-							log.error("DS-JEDAI: Weighting algorithm '" + value + "' is not supported")
+							log.error(s"DS-JEDAI: Weighting algorithm \'$value\' is not supported")
 							false
 						}
 					case YamlConfiguration.CONF_GRIDTYPE=>
 						if (! GridType.exists(value)){
-							log.error("DS-JEDAI: Grid Type '" + value + "' is not supported")
+							log.error(s"DS-JEDAI: Grid Type \'$value\' is not supported")
 							false
 						}
 
