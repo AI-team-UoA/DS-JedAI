@@ -98,6 +98,8 @@ trait Entity extends Serializable {
      * @return IntersectionMatrix
      */
     def getIntersectionMatrix(se: Entity): IntersectionMatrix = geometry.relate(se.geometry)
+
+    override def toString: String = s"$originalID, ${MBB.toString}"
 }
 
 case class SpatialEntity(originalID: String = "", geometry: Geometry, mbb: MBB) extends Entity

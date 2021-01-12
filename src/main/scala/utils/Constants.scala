@@ -5,15 +5,17 @@ package utils
  */
 object Constants {
 
-	val DT_SOURCE = "source"
-	val DT_TARGET = "target"
+	final val DT_SOURCE = "source"
+	final val DT_TARGET = "target"
 
-	val MAX_LAT: Double = 90.0
-	val MIN_LAT: Double = -90.0
-	val MAX_LONG: Double = 180.0
-	val MIN_LONG: Double = -180.0
-	val LAT_RANGE: Double = MAX_LAT - MIN_LAT
-	val LONG_RANGE: Double = MAX_LONG - MIN_LONG
+	final val MAX_LAT: Double = 90.0
+	final val MIN_LAT: Double = -90.0
+	final val MAX_LONG: Double = 180.0
+	final val MIN_LONG: Double = -180.0
+	final val LAT_RANGE: Double = MAX_LAT - MIN_LAT
+	final val LONG_RANGE: Double = MAX_LONG - MIN_LONG
+
+	final val defaultDatePattern = "yyyy-MM-dd HH:mm:ss"
 
 	/**
 	 * Earth circumferences (in meters).
@@ -60,6 +62,9 @@ object Constants {
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
 
+	/**
+	 * Supported fileTypes
+	 */
 	object FileTypes extends Enumeration{
 		type FileTypes = Value
 		val NTRIPLES: Constants.FileTypes.Value = Value("nt")

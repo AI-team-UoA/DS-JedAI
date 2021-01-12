@@ -20,6 +20,7 @@ import org.datasyslab.geospark.spatialRDD.SpatialRDD
 import org.datasyslab.geosparksql.utils.{Adapter, GeoSparkSQLRegistrator}
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
+import utils.Constants.FileTypes
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -256,7 +257,8 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
                                 val realID = userdata(0)
                                 val dateStr = userdata(1)
                                 val date: DateTime = formatter.parseDateTime(dateStr)
-                                SpatioTemporalEntity(realID, geom, date)
+                                val dateStr_ = date.toString(Constants.defaultDatePattern)
+                                SpatioTemporalEntity(realID, geom, dateStr_)
                         }
                     }
         entitiesRDD
