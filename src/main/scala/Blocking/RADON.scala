@@ -17,7 +17,7 @@ import scala.collection.mutable.ListBuffer
  * RADON blocking algorithm
  * @param source source set as RDD
  * @param target target set as RDD
- * @param thetaXY theta measure
+ * @param thetaXY theta granularity
  */
 case class RADON(source: RDD[Entity], target: RDD[Entity], thetaXY: (Double, Double)) extends  Blocking with Serializable
 {

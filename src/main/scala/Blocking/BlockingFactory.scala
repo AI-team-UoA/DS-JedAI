@@ -11,19 +11,19 @@ import utils.Configuration
 object BlockingFactory {
 
 	def getBlocking(conf: Configuration, source: RDD[Entity], target: RDD[Entity], spatialPartitioned: Boolean = false): Blocking = {
-		val theta_msr = conf.getTheta
+		val thetaGran = conf.getTheta
 
 		if (spatialPartitioned) {
-			return PartitionBlocking(source, target, theta_msr)
+			return PartitionBlocking(source, target, thetaGran)
 		}
 		val algorithm = conf.getBlockingAlgorithm
 		algorithm match {
 			case BlockingAlgorithm.STATIC_BLOCKING =>
 				val blockingFactor: Int = conf.getBlockingFactor
 				val distance: Double = conf.getBlockingDistance
-				StaticBlocking(source, target, theta_msr, blockingFactor, distance)
+				StaticBlocking(source, target, thetaGran, blockingFactor, distance)
 			case BlockingAlgorithm.RADON| _ =>
-				RADON(source, target, theta_msr)
+				RADON(source, target, thetaGran)
 		}
 	}
 }

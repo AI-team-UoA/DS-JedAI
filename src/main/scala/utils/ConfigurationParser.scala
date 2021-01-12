@@ -90,7 +90,7 @@ case class Configuration(source: DatasetConfigurations, target:DatasetConfigurat
 
 	def getPartitions: Int = configurations.getOrElse(YamlConfiguration.CONF_PARTITIONS, "-1").toInt
 
-	def getTheta: ThetaOption = ThetaOption.withName(configurations.getOrElse(YamlConfiguration.CONF_THETA_MEASURE, "NO_USE"))
+	def getTheta: ThetaOption = ThetaOption.withName(configurations.getOrElse(YamlConfiguration.CONF_THETA_GRANULARITY, "avg"))
 
 	def getWeightingScheme: WeightStrategy = WeightStrategy.withName(configurations.getOrElse(YamlConfiguration.CONF_WEIGHTING_STRG, "CBS"))
 
@@ -170,7 +170,7 @@ object ConfigurationParser {
 							log.error("DS-JEDAI: Static Blocking's distance must be a Number")
 							false
 						}
-					case YamlConfiguration.CONF_THETA_MEASURE =>
+					case YamlConfiguration.CONF_THETA_GRANULARITY =>
 						if (!ThetaOption.exists(value)) {
 							log.error("DS-JEDAI: Not valid measure for theta")
 							false
@@ -178,7 +178,7 @@ object ConfigurationParser {
 					case YamlConfiguration.CONF_BUDGET =>
 						val allDigits = value forall Character.isDigit
 						if (!allDigits) {
-							log.error("DS-JEDAI: Not valid measure for budget")
+							log.error("DS-JEDAI: Not valid value for budget")
 							false
 						}
 					case YamlConfiguration.CONF_MATCHING_ALG =>

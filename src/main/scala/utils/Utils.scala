@@ -94,7 +94,7 @@ object Utils {
 
 
 	/**
-	 * initialize theta based on theta measure
+	 * initialize theta based on theta granularity
 	 */
 	private def initTheta(): (Double, Double) = {
 
@@ -125,7 +125,7 @@ object Utils {
 		(tx, ty)
 	}
 
-	// todo spaghetti code
+	// todo fix spaghetti code
 	def getZones: Array[MBB] ={
 		val (thetaX, thetaY) = thetaXY
 

@@ -27,7 +27,7 @@ number of partitions.
 
 * `gridType`: Defines the Spatial Partitioner. Accepted values are `QUADTREE` and `KDBTREE`
 
-* `theta_measure`: Defines the longitude and latitude granularity used for indexing. We recommend to use `avg2`, but other
+* `thetaGranularity`: Defines the longitude and latitude granularity used for indexing. We recommend to use `avg2`, but other
 supported values are `max`, `min` and `avg`.
 
 * `matchingAlg`: Set the matching algorithm. **MORE INFORMATION WILL BE PUBLISHED LATER**. Accepted values are:
@@ -46,7 +46,7 @@ Such arguments are:
 * `-p` to se `partitions`
 * `-ma` to set `matchingAlg`
 * `-b` to set `budget`
-* `-ws` to set `weighting_strategy`
+* `-ws` to set `weightingStrategy`
          
  
     
