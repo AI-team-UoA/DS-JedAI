@@ -74,6 +74,7 @@ object Constants {
 		val CSV: Constants.FileTypes.Value = Value("csv")
 		val TSV: Constants.FileTypes.Value = Value("tsv")
 		val SHP: Constants.FileTypes.Value = Value("shp")
+		val GEOJSON: Constants.FileTypes.Value = Value("geojson")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}

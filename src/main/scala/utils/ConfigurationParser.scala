@@ -55,7 +55,7 @@ case class DatasetConfigurations(path: String, geometryField: String, realIdFiel
 			val extension = getExtension
 			// in case of CSV, TSV and SHP users must specify id
 			val idCheck = extension match {
-				case FileTypes.CSV | FileTypes.TSV | FileTypes.SHP if realIdField.isEmpty =>
+				case FileTypes.CSV | FileTypes.TSV | FileTypes.SHP | FileTypes.GEOJSON if realIdField.isEmpty =>
 					log.error("DS-JEDAI: ID field is not specified")
 					false
 				case _ => true
@@ -63,7 +63,7 @@ case class DatasetConfigurations(path: String, geometryField: String, realIdFiel
 
 			// geometry field is necessary for all fileTypes except SHP
 			val geometryCheck = extension match {
-				case FileTypes.SHP => true
+				case FileTypes.SHP | FileTypes.GEOJSON => true
 				case _ => ! geometryField.isEmpty
 			}
 			if (!geometryCheck) log.error("DS-JEDAI: Geometry field is not specified")

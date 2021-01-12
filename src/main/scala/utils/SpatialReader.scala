@@ -13,6 +13,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.col
 import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 import org.datasyslab.geospark.enums.GridType
+import org.datasyslab.geospark.formatMapper.GeoJsonReader
 import org.datasyslab.geospark.formatMapper.shapefileParser.ShapefileReader
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import org.datasyslab.geospark.spatialPartitioning.SpatialPartitioner
@@ -25,6 +26,15 @@ import utils.Constants.FileTypes
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+/**
+ * Spatial Reader loads input dataset into  RDD[Entity]
+ *
+ * It's initialized based on the source dataset, which sets the partitioner,
+ * and the next datasets will be loaded using the same partitioner
+ * @param sourceDc source Dataset configuration
+ * @param partitions num of partitions
+ * @param gt grid algorithm of spatial partitioner
+ */
 case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: Constants.GridType.GridType = Constants.GridType.QUADTREE) {
 
     lazy val gridType: GridType = gt match {
@@ -32,23 +42,28 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
         case _ => GridType.QUADTREE
     }
 
+    // spatial RDD of source
     lazy val spatialRDD: SpatialRDD[Geometry] = loadSource(sourceDc)
 
-    lazy val spatialPartitioner: SpatialPartitioner = getSpatialPartitioner(spatialRDD)
+    // spatial partitioner defined by the source spatial RDD
+    lazy val spatialPartitioner: SpatialPartitioner = {
+        spatialRDD.analyze()
+        if (partitions > 0) spatialRDD.spatialPartitioning(gridType, partitions) else spatialRDD.spatialPartitioning(gridType)
+        spatialRDD.getPartitioner
+    }
 
+    // the final partitioner - because the transformation of SRDD into RDD does not preserve partitioning
+    // we partitioning using HashPartitioning with the spatial indexes as keys
     lazy val partitioner = new HashPartitioner(spatialPartitioner.numPartitions)
 
     lazy val partitionsZones: Array[MBB] =
         spatialPartitioner.getGrids.asScala.map(e => MBB(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY)).toArray
 
-
-    def getSpatialPartitioner(srdd: SpatialRDD[Geometry]): SpatialPartitioner ={
-        srdd.analyze()
-        if (partitions > 0) srdd.spatialPartitioning(gridType, partitions) else srdd.spatialPartitioning(gridType)
-        srdd.getPartitioner
-    }
-
-
+    /**
+     *  Employ the appropriate reader based the FileType
+     * @param dc dataset configuration
+     * @return a spatial RDD
+     */
     def loadSource(dc: DatasetConfigurations): SpatialRDD[Geometry] ={
         val extension = dc.getExtension
         extension match {
@@ -57,7 +72,7 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
             case FileTypes.TSV =>
                 loadTSV(dc.path, dc.realIdField.getOrElse("id"), dc.geometryField, dc.dateField, header = true )
             case FileTypes.SHP =>
-                loadSHP(dc.path, dc.realIdField.getOrElse("id"), dc.geometryField, dc.dateField)
+                loadSHP(dc.path, dc.realIdField.getOrElse("id"), dc.dateField)
             case FileTypes.NTRIPLES =>
                 loadRDF(dc.path, dc.geometryField, dc.dateField, Lang.NTRIPLES)
             case FileTypes.TURTLE =>
@@ -121,14 +136,13 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
     }
 
     /**
-     * Loads a shapefile
+     * Loads an ESRI Shapefile
      * @param filepath path to the SHP file
      * @param realIdField instances' unique id
-     * @param geometryField geometry field
      * @param dateField date field if exists
      * @return a spatial RDD
      */
-    def loadSHP(filepath: String, realIdField: String, geometryField: String, dateField: Option[String]): SpatialRDD[Geometry] ={
+    def loadSHP(filepath: String, realIdField: String, dateField: Option[String]): SpatialRDD[Geometry] ={
         val conf = new SparkConf()
         conf.set("spark.serializer", classOf[KryoSerializer].getName)
         conf.set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
@@ -136,9 +150,37 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
 
         val parentFolder = filepath.substring(0, filepath.lastIndexOf("/"))
         val srdd = ShapefileReader.readToGeometryRDD(sc, parentFolder)
-        val idIndex = srdd.fieldNames.indexOf(realIdField)
+        adjustUserData(srdd, realIdField, dateField)
+    }
 
-        // set user data
+
+    /**
+     * Loads a GeoJSON file
+     * @param filepath path to the SHP file
+     * @param realIdField instances' unique id
+     * @param dateField date field if exists
+     * @return a spatial RDD
+     */
+    def loadGeoJSON(filepath: String, realIdField: String, dateField: Option[String]): SpatialRDD[Geometry] ={
+        val conf = new SparkConf()
+        conf.set("spark.serializer", classOf[KryoSerializer].getName)
+        conf.set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
+        val sc = SparkContext.getOrCreate(conf)
+
+        val srdd = GeoJsonReader.readToGeometryRDD(sc, filepath)
+        adjustUserData(srdd, realIdField, dateField)
+    }
+
+    /**
+     *  Adjust users' data.
+     *  Discard all properties except the id and the date if it's requested.
+     * @param srdd the input rdd
+     * @param realIdField the field of id
+     * @param dateField the field of data if it's given
+     * @return geometries with only the necessary user data
+     */
+    def adjustUserData(srdd: SpatialRDD[Geometry], realIdField: String, dateField: Option[String]): SpatialRDD[Geometry]={
+        val idIndex = srdd.fieldNames.indexOf(realIdField)
         val rddWithUserData: RDD[Geometry] = dateField match {
             case Some(dateField) =>
                 val dateIndex = srdd.fieldNames.indexOf(dateField)
@@ -179,12 +221,10 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
         conf.set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
         val sc = SparkContext.getOrCreate(conf)
         val spark = SparkSession.getActiveSession.get
-
         GeoSparkSQLRegistrator.registerAll(spark)
         ARQ.init()
 
         val asWKT = "http://www.opengis.net/ont/geosparql#asWKT"
-
         val allowedPredicates: mutable.Set[String] = mutable.Set(asWKT)
 
         val cleanGeomPredicate: String = if (geometryPredicate.head == '<' && geometryPredicate.last == '>')
@@ -237,7 +277,7 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
 
         val withTemporal = dc.dateField.isDefined
 
-
+        // remove entpy, invalid geometries and geometry collections
         val filteredGeometriesRDD = srdd.rawSpatialRDD.rdd
             .map{ geom =>
                 val userdata = geom.getUserData.asInstanceOf[String].split("\t")
@@ -245,6 +285,7 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
             }
             .filter{case (g, _) => !g.isEmpty && g.isValid && g.getGeometryType != "GeometryCollection"}
 
+        // create Spatial or SpatioTemporal entities
         val entitiesRDD: RDD[Entity] =
             if(!withTemporal)
                 filteredGeometriesRDD.map{ case (geom, userdata) =>  SpatialEntity(userdata(0), geom)}
@@ -261,6 +302,7 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
                                 SpatioTemporalEntity(realID, geom, dateStr_)
                         }
                     }
+        // redistribute based on spatial partitioner
         entitiesRDD
             .flatMap(se =>  sp.value.placeObject(se.geometry).asScala.map(i => (i._1.toInt, se)))
             .partitionBy(partitioner)
