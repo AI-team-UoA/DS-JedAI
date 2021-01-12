@@ -1,6 +1,6 @@
 package EntityMatching.SemiDistributedMatching
 
-import DataStructures.{IM, SpatialEntity}
+import DataStructures.{IM, Entity}
 import com.google.common.collect.MinMaxPriorityQueue
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
@@ -14,7 +14,7 @@ import scala.collection.mutable.ListBuffer
 
 
 
-case class GeometryCentric(source: RDD[SpatialEntity], target: Array[SpatialEntity], thetaXY: (Double, Double),
+case class GeometryCentric(source: RDD[Entity], target: Array[Entity], thetaXY: (Double, Double),
                            sourceCount: Long, ws: WeightStrategy, budget: Long) extends SDMTrait {
 
     /**
@@ -34,8 +34,8 @@ case class GeometryCentric(source: RDD[SpatialEntity], target: Array[SpatialEnti
      * @param relations examined relation
      * @return a PQ with the comparisons of the overall partition
      */
-    private def compute(source: Array[SpatialEntity], target: Array[SpatialEntity], targetIndex: mutable.HashMap[(Int, Int), ListBuffer[Int]],
-                relations: Relation*): MinMaxPriorityQueue[(Double, (Int, Int))]={
+    private def compute(source: Array[Entity], target: Array[Entity], targetIndex: mutable.HashMap[(Int, Int), ListBuffer[Int]],
+                        relations: Relation*): MinMaxPriorityQueue[(Double, (Int, Int))]={
 
         // estimate local budget and K
         val totalBlocks = targetIndex.keySet.size
@@ -162,7 +162,7 @@ object GeometryCentric {
      * @param target      target RDD which will be collected
      * @return LightRADON instance
      */
-    def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], ws: WeightStrategy = WeightStrategy.CBS,  budget: Long): GeometryCentric = {
+    def apply(source: RDD[Entity], target: RDD[Entity], ws: WeightStrategy = WeightStrategy.CBS, budget: Long): GeometryCentric = {
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.sourceCount
         GeometryCentric(source, target.collect(), thetaXY, sourceCount, ws, budget)

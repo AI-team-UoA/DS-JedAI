@@ -1,6 +1,6 @@
 package EntityMatching.SemiDistributedMatching
 
-import DataStructures.{IM, SpatialEntity}
+import DataStructures.{IM, Entity}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.spark_project.guava.collect.MinMaxPriorityQueue
@@ -13,8 +13,8 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 
-case class ProgressiveLightRADON(source: RDD[SpatialEntity], target: Array[SpatialEntity], thetaXY: (Double, Double),
-                                 sourceCount: Long, ws: WeightStrategy,  budget: Long) extends SDMTrait{
+case class ProgressiveLightRADON(source: RDD[Entity], target: Array[Entity], thetaXY: (Double, Double),
+                                 sourceCount: Long, ws: WeightStrategy, budget: Long) extends SDMTrait{
 
     /**
      * Prioritize the execution of comparisons in the partition based on their weight.
@@ -26,8 +26,8 @@ case class ProgressiveLightRADON(source: RDD[SpatialEntity], target: Array[Spati
      * @param relations the relation the MBBs must hold
      * @return a PQ of weighted comparisons
      */
-    private def compute(source: Array[SpatialEntity], target: Array[SpatialEntity], targetIndex: mutable.HashMap[(Int, Int), ListBuffer[Int]],
-                relations: Relation*): MinMaxPriorityQueue[(Double, (Int, Int))] ={
+    private def compute(source: Array[Entity], target: Array[Entity], targetIndex: mutable.HashMap[(Int, Int), ListBuffer[Int]],
+                        relations: Relation*): MinMaxPriorityQueue[(Double, (Int, Int))] ={
 
         // to avoid redundant comparisons
         val candidates = mutable.HashSet[Int]()
@@ -125,7 +125,7 @@ object ProgressiveLightRADON {
      * @param target      target RDD which will be collected
      * @return LightRADON instance
      */
-    def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], ws: WeightStrategy = WeightStrategy.CBS, budget: Long): ProgressiveLightRADON = {
+    def apply(source: RDD[Entity], target: RDD[Entity], ws: WeightStrategy = WeightStrategy.CBS, budget: Long): ProgressiveLightRADON = {
         val thetaXY = Utils.getTheta
         val count = Utils.sourceCount
         ProgressiveLightRADON(source, target.collect(), thetaXY, count, ws, budget)

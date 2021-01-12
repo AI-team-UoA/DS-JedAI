@@ -1,6 +1,6 @@
 package Blocking
 
-import DataStructures.{Block, MBB, SpatialEntity}
+import DataStructures.{Block, Entity, MBB}
 import org.apache.spark.{SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -8,7 +8,7 @@ import utils.Constants.ThetaOption.ThetaOption
 import utils.Utils
 
 
-case class PartitionBlocking(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY: (Double,Double))
+case class PartitionBlocking(source: RDD[Entity], target: RDD[Entity], thetaXY: (Double,Double))
     extends  Blocking with Serializable {
 
     val partitionsZones: Array[MBB] = Utils.getZones
@@ -57,13 +57,13 @@ case class PartitionBlocking(source: RDD[SpatialEntity], target: RDD[SpatialEnti
      * @param acceptedBlocks the accepted blocks that the set can be indexed to
      * @return an Array of block ids for each spatial entity
      */
-    def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[SpatialEntity])] ={
+    def index(spatialEntitiesRDD: RDD[Entity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[Entity])] ={
         val acceptedBlocksBD = SparkContext.getOrCreate().broadcast(acceptedBlocks)
         broadcastMap += ("acceptedBlocks" -> acceptedBlocksBD.asInstanceOf[Broadcast[Any]])
         spatialEntitiesRDD.mapPartitions { seIter =>
             val pid = TaskContext.getPartitionId()
             val acceptedBlocks = acceptedBlocksBD.value
-            val blocks: Iterator[(Seq[(Int, Int)], SpatialEntity)] =
+            val blocks: Iterator[(Seq[(Int, Int)], Entity)] =
                 if (acceptedBlocks.nonEmpty)
                     seIter.map(se => (se.index(thetaXY).filter(acceptedBlocks.contains), se)) // todo check iterator!
                 else
@@ -72,7 +72,7 @@ case class PartitionBlocking(source: RDD[SpatialEntity], target: RDD[SpatialEnti
             blocks
                 .toArray
                 .map(b => (b._1.filter(zoneCheck(pid, _)), b._2))
-                .flatMap(b => b._1.map(id => (id, Array[SpatialEntity](b._2))))
+                .flatMap(b => b._1.map(id => (id, Array[Entity](b._2))))
                 .groupBy(_._1)
                 .map(p => (p._1, p._2.flatMap(ar => ar._2)))
                 .toIterator
@@ -89,7 +89,7 @@ case class PartitionBlocking(source: RDD[SpatialEntity], target: RDD[SpatialEnti
         val sourceBlocks: Set[(Int, Int)] = sourceIndex.map(b => Set(b._1)).reduce(_++_)
         val targetIndex = index(target, sourceBlocks)
 
-        val blocksIndex: RDD[((Int, Int), (Option[Array[SpatialEntity]], Array[SpatialEntity]))] =
+        val blocksIndex: RDD[((Int, Int), (Option[Array[Entity]], Array[Entity]))] =
             targetIndex.rightOuterJoin(sourceIndex) // right outer join, in order to shuffle the small dataset
         // construct blocks from indexes
         blocksIndex
@@ -106,7 +106,7 @@ case class PartitionBlocking(source: RDD[SpatialEntity], target: RDD[SpatialEnti
 }
 
 object PartitionBlocking {
-    def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaOption: ThetaOption): PartitionBlocking={
+    def apply(source: RDD[Entity], target: RDD[Entity], thetaOption: ThetaOption): PartitionBlocking={
         val thetaXY = Utils.getTheta
         PartitionBlocking(source, target, thetaXY)
     }

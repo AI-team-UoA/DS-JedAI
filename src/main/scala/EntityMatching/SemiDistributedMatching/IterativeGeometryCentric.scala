@@ -1,6 +1,6 @@
 package EntityMatching.SemiDistributedMatching
 
-import DataStructures.{IM, SpatialEntity}
+import DataStructures.{IM, Entity}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
@@ -11,7 +11,7 @@ import utils.Utils
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-case class IterativeGeometryCentric(source: RDD[SpatialEntity], target: Array[SpatialEntity], thetaXY: (Double, Double),
+case class IterativeGeometryCentric(source: RDD[Entity], target: Array[Entity], thetaXY: (Double, Double),
                                     sourceCount: Long, ws: WeightStrategy, budget: Long) extends SDMTrait {
 
     def matchTarget(relation: Relation, targetIndex: mutable.HashMap[(Int, Int), ListBuffer[Int]]): RDD[(String, String)] = {
@@ -129,7 +129,7 @@ object IterativeGeometryCentric {
      * @param target      target RDD which will be collected
      * @return LightRADON instance
      */
-    def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], ws: WeightStrategy = WeightStrategy.CBS,  budget: Long): IterativeGeometryCentric = {
+    def apply(source: RDD[Entity], target: RDD[Entity], ws: WeightStrategy = WeightStrategy.CBS, budget: Long): IterativeGeometryCentric = {
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.sourceCount
         IterativeGeometryCentric(source, target.collect(), thetaXY, sourceCount, ws, budget)

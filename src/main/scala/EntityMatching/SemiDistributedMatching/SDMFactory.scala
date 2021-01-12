@@ -1,6 +1,6 @@
 package EntityMatching.SemiDistributedMatching
 
-import DataStructures.SpatialEntity
+import DataStructures.Entity
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import utils.Constants.{MatchingAlgorithm, WeightStrategy}
@@ -11,7 +11,7 @@ object SDMFactory {
 
     val log: Logger = LogManager.getRootLogger
 
-    def getMatchingAlgorithm(conf: Configuration, source: RDD[SpatialEntity], target: RDD[SpatialEntity],
+    def getMatchingAlgorithm(conf: Configuration, source: RDD[Entity], target: RDD[Entity],
                              budgetArg: Int = -1, wsArg: String = "", ma: String = ""): SDMTrait = {
 
         val algorithm = if(MatchingAlgorithm.exists(ma)) MatchingAlgorithm.withName(ma) else conf.getMatchingAlgorithm

@@ -1,6 +1,6 @@
 package EntityMatching
 
-import DataStructures.{IM, MBB, SpatialEntity, SpatialIndex}
+import DataStructures.{IM, MBB, Entity, SpatialIndex}
 import org.apache.log4j.{Level, LogManager}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partitioner, TaskContext}
@@ -10,7 +10,7 @@ import utils.Utils
 import scala.collection.mutable.ListBuffer
 
 
-case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Iterable[SpatialEntity]))], thetaXY: (Double, Double)){
+case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[Entity],  Iterable[Entity]))], thetaXY: (Double, Double)){
 
     val partitionsZones: Array[MBB] = Utils.getZones
     val spaceEdges: MBB = Utils.getSpaceEdges
@@ -19,8 +19,8 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
         val log = LogManager.getRootLogger
         log.setLevel(Level.INFO)
 
-        val source: RDD[SpatialEntity] = joinedRDD.flatMap(_._2._1.map(se => (se.originalID, se))).distinct().map(_._2).setName("Source").cache()
-        val target: RDD[SpatialEntity] = joinedRDD.flatMap(_._2._2.map(se => (se.originalID, se))).distinct().map(_._2).setName("target").cache()
+        val source: RDD[Entity] = joinedRDD.flatMap(_._2._1.map(se => (se.originalID, se))).distinct().map(_._2).setName("Source").cache()
+        val target: RDD[Entity] = joinedRDD.flatMap(_._2._2.map(se => (se.originalID, se))).distinct().map(_._2).setName("target").cache()
 
         val sourceTiles: RDD[(Int, Int)] = source.flatMap(se => se.index(thetaXY)).setName("SourceTiles").cache()
         val targetTiles: RDD[(Int, Int)] = target.flatMap(se => se.index(thetaXY)).setName("TargetTiles").cache()
@@ -49,11 +49,11 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
         source.unpersist()
         target.unpersist()
 
-        val comparisonsRDD: RDD[(SpatialEntity, SpatialEntity)] = joinedRDD
+        val comparisonsRDD: RDD[(Entity, Entity)] = joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
-                val source: Array[SpatialEntity] = p._2._1.toArray
-                val target: Iterator[SpatialEntity] = p._2._2.toIterator
+                val source: Array[Entity] = p._2._1.toArray
+                val target: Iterator[Entity] = p._2._2.toIterator
                 val sourceIndex = index(source)
                 val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
                 val pid = p._1
@@ -82,7 +82,7 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
      * @param entities list of spatial entities
      * @return a SpatialIndex
      */
-    def index(entities: Array[SpatialEntity]): SpatialIndex = {
+    def index(entities: Array[Entity]): SpatialIndex = {
         val spatialIndex = new SpatialIndex()
         entities.zipWithIndex.foreach { case (se, index) =>
             val indices: Seq[(Int, Int)] = se.index(thetaXY)
@@ -95,7 +95,7 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[SpatialEntity],  Ite
 }
 object SpaceStatsCounter{
 
-    def apply(source:RDD[SpatialEntity], target:RDD[SpatialEntity], partitioner: Partitioner): SpaceStatsCounter ={
+    def apply(source:RDD[Entity], target:RDD[Entity], partitioner: Partitioner): SpaceStatsCounter ={
         val thetaXY = Utils.getTheta
         val sourcePartitions = source.map(se => (TaskContext.getPartitionId(), se))
         val targetPartitions = target.map(se => (TaskContext.getPartitionId(), se))

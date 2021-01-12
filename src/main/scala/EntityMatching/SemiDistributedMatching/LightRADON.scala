@@ -1,6 +1,6 @@
 package EntityMatching.SemiDistributedMatching
 
-import DataStructures.{IM, SpatialEntity}
+import DataStructures.{IM, Entity}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
@@ -18,7 +18,7 @@ import scala.collection.mutable.ListBuffer
  * @param target the collected dataset
  * @param thetaXY theta values
  */
-case class LightRADON(source: RDD[SpatialEntity], target: Array[SpatialEntity], thetaXY: (Double, Double), budget: Long) extends SDMTrait {
+case class LightRADON(source: RDD[Entity], target: Array[Entity], thetaXY: (Double, Double), budget: Long) extends SDMTrait {
 
        /**
         * Get the matching pairs which the relation holds.
@@ -93,7 +93,7 @@ object LightRADON {
      * @param target target RDD which will be collected
      * @return LightRADON instance
      */
-    def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], budget: Long): LightRADON ={
+    def apply(source: RDD[Entity], target: RDD[Entity], budget: Long): LightRADON ={
         val thetaXY = Utils.getTheta
         LightRADON(source, target.collect(), thetaXY, budget)
     }

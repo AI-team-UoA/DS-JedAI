@@ -1,6 +1,6 @@
 package EntityMatching.DistributedMatching
 
-import DataStructures.SpatialEntity
+import DataStructures.Entity
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
@@ -12,7 +12,7 @@ object DMFactory {
 
     val log: Logger = LogManager.getRootLogger
 
-    def getMatchingAlgorithm(conf: Configuration, source: RDD[(Int, SpatialEntity)], target: RDD[(Int, SpatialEntity)],
+    def getMatchingAlgorithm(conf: Configuration, source: RDD[(Int, Entity)], target: RDD[(Int, Entity)],
                              partitioner: Partitioner, budgetArg: Int = -1, wsArg: String = "", ma: String = ""): DMTrait ={
 
         val algorithm = if(MatchingAlgorithm.exists(ma)) MatchingAlgorithm.withName(ma) else conf.getMatchingAlgorithm
@@ -39,7 +39,7 @@ object DMFactory {
     }
 
 
-    def getProgressiveAlgorithm(conf: Configuration, source: RDD[(Int, SpatialEntity)], target: RDD[(Int, SpatialEntity)],
+    def getProgressiveAlgorithm(conf: Configuration, source: RDD[(Int, Entity)], target: RDD[(Int, Entity)],
                                 partitioner: Partitioner, budgetArg: Int = -1, wsArg: String = "",
                                 ma: String = ""): DMProgressiveTrait ={
 

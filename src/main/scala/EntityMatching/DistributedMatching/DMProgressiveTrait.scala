@@ -1,6 +1,6 @@
 package EntityMatching.DistributedMatching
 
-import DataStructures.{IM, MBB, SpatialEntity}
+import DataStructures.{IM, MBB, Entity}
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
 import org.spark_project.guava.collect.MinMaxPriorityQueue
@@ -19,7 +19,7 @@ trait DMProgressiveTrait extends DMTrait{
      * @param e2        Spatial entity
      * @return weight
      */
-    def getWeight(e1: SpatialEntity, e2: SpatialEntity): Double = {
+    def getWeight(e1: Entity, e2: Entity): Double = {
         val e1Blocks = (ceil(e1.mbb.maxX/thetaXY._1).toInt - floor(e1.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e1.mbb.maxY/thetaXY._2).toInt - floor(e1.mbb.minY/thetaXY._2).toInt + 1).toDouble
         val e2Blocks = (ceil(e2.mbb.maxX/thetaXY._1).toInt - floor(e2.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e2.mbb.maxY/thetaXY._2).toInt - floor(e2.mbb.minY/thetaXY._2).toInt + 1).toDouble
         val cb = (min(ceil(e1.mbb.maxX/thetaXY._1), ceil(e2.mbb.maxX/thetaXY._1)).toInt - max(floor(e1.mbb.minX/thetaXY._1), floor(e2.mbb.minX/thetaXY._1)).toInt + 1) *
@@ -145,5 +145,5 @@ trait DMProgressiveTrait extends DMTrait{
         (auc, TP, counter)
     }
 
-    def prioritize(source: Array[SpatialEntity], target: Array[SpatialEntity], partition: MBB, relation: Relation): MinMaxPriorityQueue[(Double, (Int, Int))]
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBB, relation: Relation): MinMaxPriorityQueue[(Double, (Int, Int))]
 }

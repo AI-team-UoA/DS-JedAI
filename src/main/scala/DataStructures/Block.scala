@@ -7,7 +7,7 @@ import utils.Utils
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-case class Block(id: Long, coords: (Int, Int), source: Array[SpatialEntity], target: Array[SpatialEntity]) {
+case class Block(id: Long, coords: (Int, Int), source: Array[Entity], target: Array[Entity]) {
 
 	/**
 	 * For each comparison in the block, return its id
@@ -29,7 +29,7 @@ case class Block(id: Long, coords: (Int, Int), source: Array[SpatialEntity], tar
 	 * Return all blocks comparisons
 	 * @return block's comparisons
 	 */
-	def getComparisons: Array[(SpatialEntity, SpatialEntity)]= for (s <-source; t <- target) yield (s, t)
+	def getComparisons: Array[(Entity, Entity)]= for (s <-source; t <- target) yield (s, t)
 
 	/**
 	 *
@@ -43,7 +43,7 @@ case class Block(id: Long, coords: (Int, Int), source: Array[SpatialEntity], tar
 	 *
 	 * @return blocks comparisons after filtering
 	 */
-	def getFilteredComparisons(relation: Relation): Array[(SpatialEntity, SpatialEntity)] =
+	def getFilteredComparisons(relation: Relation): Array[(Entity, Entity)] =
 		for (s <-source; t <- target; if s.testMBB(t, relation) && s.referencePointFiltering(t, coords, Utils.thetaXY))
 			yield (s, t)
 
@@ -58,7 +58,7 @@ case class Block(id: Long, coords: (Int, Int), source: Array[SpatialEntity], tar
 }
 
 object Block {
-	def apply(coords: (Int, Int), source: Array[SpatialEntity], target: Array[SpatialEntity]): Block ={
+	def apply(coords: (Int, Int), source: Array[Entity], target: Array[Entity]): Block ={
 		Block(Utils.signedPairing(coords._1, coords._2), coords, source, target)
 	}
 }

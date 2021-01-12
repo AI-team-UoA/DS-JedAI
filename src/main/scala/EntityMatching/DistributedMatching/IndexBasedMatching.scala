@@ -1,6 +1,6 @@
 package EntityMatching.DistributedMatching
 
-import DataStructures.{IM, MBB, SpatialEntity}
+import DataStructures.{IM, MBB, Entity}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation
@@ -8,11 +8,11 @@ import utils.Utils
 
 import scala.collection.mutable.ListBuffer
 
-case class IndexBasedMatching(source:RDD[SpatialEntity], target:RDD[SpatialEntity], thetaXY: (Double, Double))  {
+case class IndexBasedMatching(source:RDD[Entity], target:RDD[Entity], thetaXY: (Double, Double))  {
 
     val partitionsZones: Array[MBB] = Utils.getZones
-    val filteringFunction: ((SpatialEntity, Int), (SpatialEntity, Int), (Int, Int)) => Boolean =
-        (e1: (SpatialEntity, Int), e2: (SpatialEntity, Int), c: (Int, Int)) =>
+    val filteringFunction: ((Entity, Int), (Entity, Int), (Int, Int)) => Boolean =
+        (e1: (Entity, Int), e2: (Entity, Int), c: (Int, Int)) =>
         e1._2 == e2._2 && e1._1.testMBB(e2._1, Relation.INTERSECTS) &&
             e1._1.referencePointFiltering(e2._1, c, thetaXY, Some(partitionsZones(e1._2)))
 
@@ -35,7 +35,7 @@ case class IndexBasedMatching(source:RDD[SpatialEntity], target:RDD[SpatialEntit
 
         indexedSource.leftOuterJoin(indexedTarget, partitioner)
             .filter(_._2._2.isDefined)
-            .flatMap { case (c: (Int, Int), (s: ListBuffer[(SpatialEntity, Int)], optT: Option[ListBuffer[(SpatialEntity, Int)]])) =>
+            .flatMap { case (c: (Int, Int), (s: ListBuffer[(Entity, Int)], optT: Option[ListBuffer[(Entity, Int)]])) =>
                 for (e1 <- s; e2 <- optT.get; if filteringFunction(e1, e2, c)) yield IM(e1._1, e2._1)
             }
     }

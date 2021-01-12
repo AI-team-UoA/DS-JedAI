@@ -1,6 +1,6 @@
 package EntityMatching.DistributedMatching
 
-import DataStructures.{IM, MBB, SpatialEntity, SpatialIndex}
+import DataStructures.{IM, MBB, Entity, SpatialIndex}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
@@ -11,9 +11,9 @@ import utils.Utils
 
 trait DMTrait {
 
-    val orderByWeight: Ordering[(Double, (SpatialEntity, SpatialEntity))] = Ordering.by[(Double, (SpatialEntity, SpatialEntity)), Double](_._1).reverse
+    val orderByWeight: Ordering[(Double, (Entity, Entity))] = Ordering.by[(Double, (Entity, Entity)), Double](_._1).reverse
 
-    val joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))]
+    val joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
     val thetaXY: (Double, Double)
     val ws: WeightStrategy
 
@@ -35,7 +35,7 @@ trait DMTrait {
      * @param entities list of spatial entities
      * @return a SpatialIndex
      */
-    def index(entities: Array[SpatialEntity]): SpatialIndex = {
+    def index(entities: Array[Entity]): SpatialIndex = {
         val spatialIndex = new SpatialIndex()
         entities.zipWithIndex.foreach { case (se, i) =>
             val indices: Seq[(Int, Int)] = se.index(thetaXY)

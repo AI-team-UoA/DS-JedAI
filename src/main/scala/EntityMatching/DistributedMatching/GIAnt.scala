@@ -1,6 +1,6 @@
 package EntityMatching.DistributedMatching
 
-import DataStructures.{IM, SpatialEntity}
+import DataStructures.{IM, Entity}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation
@@ -9,7 +9,7 @@ import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
 
 
-case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
+case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
                  thetaXY: (Double, Double), ws: WeightStrategy) extends DMTrait {
 
     /**
@@ -24,8 +24,8 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spatial
         .flatMap { p =>
             val pid = p._1
             val partition = partitionsZones(pid)
-            val source: Array[SpatialEntity] = p._2._1.toArray
-            val target: Iterator[SpatialEntity] = p._2._2.toIterator
+            val source: Array[Entity] = p._2._1.toArray
+            val target: Iterator[Entity] = p._2._2.toIterator
             val sourceIndex = index(source)
             val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
 
@@ -51,8 +51,8 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spatial
         joinedRDD.flatMap { p =>
             val pid = p._1
             val partition = partitionsZones(pid)
-            val source: Array[SpatialEntity] = p._2._1.toArray
-            val target: Iterable[SpatialEntity] = p._2._2
+            val source: Array[Entity] = p._2._1.toArray
+            val target: Iterable[Entity] = p._2._2
             val sourceIndex = index(source)
             val filteringFunction = (b:(Int, Int)) => sourceIndex.contains(b)
 
@@ -79,7 +79,7 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[Spatial
  */
 object GIAnt{
 
-    def apply(source:RDD[(Int, SpatialEntity)], target:RDD[(Int, SpatialEntity)], partitioner: Partitioner): GIAnt ={
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], partitioner: Partitioner): GIAnt ={
         val thetaXY = Utils.getTheta
         val joinedRDD = source.cogroup(target, partitioner)
         GIAnt(joinedRDD, thetaXY, null)

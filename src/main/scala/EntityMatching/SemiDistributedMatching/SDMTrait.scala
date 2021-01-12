@@ -1,6 +1,6 @@
 package EntityMatching.SemiDistributedMatching
 
-import DataStructures.{IM, SpatialEntity}
+import DataStructures.{IM, Entity}
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
@@ -13,8 +13,8 @@ import scala.math.log10
 
 trait SDMTrait {
     val budget: Long
-    val source: RDD[SpatialEntity]
-    val target: Array[SpatialEntity]
+    val source: RDD[Entity]
+    val target: Array[Entity]
     val thetaXY: (Double, Double)
 
     /**

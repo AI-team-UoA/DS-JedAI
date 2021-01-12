@@ -8,7 +8,7 @@ case class IM(idPair: (String, String), isContains: Boolean, isCoveredBy: Boolea
 }
 
 object IM {
-    def apply(e1: SpatialEntity, e2: SpatialEntity): IM = {
+    def apply(e1: Entity, e2: Entity): IM = {
         val im = e1.getIntersectionMatrix(e2)
         val d1 = e1.geometry.getDimension
         val d2 = e2.geometry.getDimension

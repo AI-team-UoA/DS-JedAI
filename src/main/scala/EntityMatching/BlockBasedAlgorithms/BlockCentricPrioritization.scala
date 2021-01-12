@@ -1,6 +1,6 @@
 package EntityMatching.BlockBasedAlgorithms
 
-import DataStructures.{Block, SpatialEntity}
+import DataStructures.{Block, Entity}
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
@@ -27,7 +27,7 @@ case class BlockCentricPrioritization(blocks: RDD[Block], d: (Int, Int), totalBl
      * @param e2        Spatial entity
      * @return weight
      */
-    def getWeight(e1: SpatialEntity, e2: SpatialEntity): Double = {
+    def getWeight(e1: Entity, e2: Entity): Double = {
         val e1Blocks = (ceil(e1.mbb.maxX/thetaXY._1).toInt - floor(e1.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e1.mbb.maxY/thetaXY._2).toInt - floor(e1.mbb.minY/thetaXY._2).toInt + 1).toDouble
         val e2Blocks = (ceil(e2.mbb.maxX/thetaXY._1).toInt - floor(e2.mbb.minX/thetaXY._1).toInt + 1) * (ceil(e2.mbb.maxY/thetaXY._2).toInt - floor(e2.mbb.minY/thetaXY._2).toInt + 1).toDouble
         val cb = (min(ceil(e1.mbb.maxX/thetaXY._1), ceil(e2.mbb.maxX/thetaXY._1)).toInt - max(floor(e1.mbb.minX/thetaXY._1), floor(e2.mbb.minX/thetaXY._1)).toInt + 1) *

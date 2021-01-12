@@ -1,6 +1,6 @@
 package EntityMatching.DistributedMatching
 
-import DataStructures.{MBB, SpatialEntity}
+import DataStructures.{MBB, Entity}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import org.spark_project.guava.collect.MinMaxPriorityQueue
@@ -10,8 +10,8 @@ import utils.Utils
 
 import scala.collection.JavaConverters._
 
-case class GeometryCentric(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterable[SpatialEntity]))],
-                                       thetaXY: (Double, Double), ws: WeightStrategy, budget: Long, sourceCount: Long)
+case class GeometryCentric(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
+                           thetaXY: (Double, Double), ws: WeightStrategy, budget: Long, sourceCount: Long)
    extends DMProgressiveTrait {
 
 
@@ -22,7 +22,7 @@ case class GeometryCentric(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterab
      *
      * @return  an RDD of Intersection Matrices
      */
-    def prioritize(source: Array[SpatialEntity], target: Array[SpatialEntity], partition: MBB, relation: Relation): MinMaxPriorityQueue[(Double, (Int, Int))] = {
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBB, relation: Relation): MinMaxPriorityQueue[(Double, (Int, Int))] = {
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
 
@@ -72,7 +72,7 @@ case class GeometryCentric(joinedRDD: RDD[(Int, (Iterable[SpatialEntity], Iterab
 
 object GeometryCentric{
 
-    def apply(source:RDD[(Int, SpatialEntity)], target:RDD[(Int, SpatialEntity)], ws: WeightStrategy, budget: Long, partitioner: Partitioner)
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightStrategy, budget: Long, partitioner: Partitioner)
     : GeometryCentric ={
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.getSourceCount

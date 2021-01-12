@@ -1,6 +1,6 @@
 package Blocking
 
-import DataStructures.{Block, SpatialEntity}
+import DataStructures.{Block, Entity}
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -19,7 +19,7 @@ import scala.collection.mutable.ListBuffer
  * @param target target set as RDD
  * @param thetaXY theta measure
  */
-case class RADON(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY: (Double, Double)) extends  Blocking with Serializable
+case class RADON(source: RDD[Entity], target: RDD[Entity], thetaXY: (Double, Double)) extends  Blocking with Serializable
 {
 
 	/**
@@ -30,7 +30,7 @@ case class RADON(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY
 	 * @param acceptedBlocks the accepted blocks that the set can be indexed to
 	 * @return an Array of block ids for each spatial entity
 	 */
-	def index(spatialEntitiesRDD: RDD[SpatialEntity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[SpatialEntity])] ={
+	def index(spatialEntitiesRDD: RDD[Entity], acceptedBlocks: Set[(Int, Int)] = Set()): RDD[((Int, Int), Array[Entity])] ={
 		val acceptedBlocksBD = SparkContext.getOrCreate().broadcast(acceptedBlocks)
 		broadcastMap += ("acceptedBlocks" -> acceptedBlocksBD.asInstanceOf[Broadcast[Any]])
 		spatialEntitiesRDD
@@ -56,7 +56,7 @@ case class RADON(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaXY
 }
 
 object RADON{
-	def apply(source: RDD[SpatialEntity], target: RDD[SpatialEntity], thetaOption: ThetaOption): RADON={
+	def apply(source: RDD[Entity], target: RDD[Entity], thetaOption: ThetaOption): RADON={
 		val thetaXY = Utils.getTheta
 		RADON(source, target, thetaXY)
 	}
