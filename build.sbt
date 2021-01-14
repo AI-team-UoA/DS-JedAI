@@ -1,3 +1,5 @@
+import sbt.ExclusionRule
+
 name := "DS-JedAI"
 version := "0.1"
 scalaVersion := "2.11.12"
@@ -9,28 +11,41 @@ resolvers += "jitpack" at "https://jitpack.io"
 libraryDependencies ++= Seq(
 	"org.apache.spark" %%  "spark-core" % sparkVersion % Provided,
 	"org.apache.spark" %%  "spark-sql" % sparkVersion  % Provided,
-	"org.scalanlp" %% "breeze" % "1.0"
+	"org.apache.spark" %% "spark-graphx" % sparkVersion % Provided
 )
 
 // https://mvnrepository.com/artifact/net.sansa-stack/sansa-rdf-spark
-libraryDependencies += "net.sansa-stack" %% "sansa-rdf-spark" % "0.7.1"
+libraryDependencies += "net.sansa-stack" %% "sansa-rdf-spark" % "0.7.1" excludeAll(
+	ExclusionRule("org.springframework"),
+	ExclusionRule("org.apache.hadoop"),
+	ExclusionRule("org.apache.spark"),
+	ExclusionRule("org.scala-lang"),
+	ExclusionRule("org.scalatest")
+)
 
-//// https://mvnrepository.com/artifact/net.sansa-stack/sansa-query-spark
-//libraryDependencies += "net.sansa-stack" %% "sansa-query-spark" % "0.7.2-SNAPSHOT"
-
-// https://mvnrepository.com/artifact/net.sansa-stack/sansa-query-spark-sparqlify
-libraryDependencies += "net.sansa-stack" %% "sansa-query-spark-sparqlify" % "0.3.0"
-
+// https://mvnrepository.com/artifact/net.sansa-stack/sansa-query-spark
+libraryDependencies += "net.sansa-stack" %% "sansa-query-spark" % "0.7.1"  excludeAll(
+	ExclusionRule("com.ibm.sparktc.sparkbench", "sparkbench"),
+	ExclusionRule("net.sansa-stack"),//, "query-tests"),
+	ExclusionRule("net.sansa-stack", "sansa-datalake-spark"),
+	ExclusionRule("net.sansa-stack", "sansa-rdf-common"),
+	ExclusionRule("org.springframework"),
+	ExclusionRule("org.apache.hadoop"),
+	ExclusionRule("org.apache.spark"),
+	ExclusionRule("io.github.litmus-benchmark-suite"),
+	ExclusionRule("org.scala-lang"),
+	ExclusionRule("org.scalatest"),
+	ExclusionRule("it.unibz.inf.ontop"),
+	ExclusionRule("org.aksw.jena-sparql-api"),
+	ExclusionRule("it.unimi.dsi"),
+	ExclusionRule("om.sun.xml.bind"),
+)
 
 // https://mvnrepository.com/artifact/org.datasyslab/geospark
 libraryDependencies += "org.datasyslab" % "geospark" % "1.2.0"
 
 // https://mvnrepository.com/artifact/org.datasyslab/geospark
 libraryDependencies += "org.datasyslab" % "geospark-sql_2.3" % "1.2.0"
-
-// https://mvnrepository.com/artifact/org.apache.spark/spark-graphx
-libraryDependencies += "org.apache.spark" %% "spark-graphx" % sparkVersion
-
 
 // https://mvnrepository.com/artifact/org.yaml/snakeyaml
 libraryDependencies += "org.yaml" % "snakeyaml" % "1.8"
@@ -39,7 +54,6 @@ libraryDependencies += "net.jcazevedo" %% "moultingyaml" % "0.4.0"
 
 // https://mvnrepository.com/artifact/org.apache.commons/commons-math3
 libraryDependencies += "org.apache.commons" % "commons-math3" % "3.0"
-
 
 assemblyMergeStrategy in assembly := {
 	case PathList("META-INF", xs @ _*) => MergeStrategy.discard

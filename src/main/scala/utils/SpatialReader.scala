@@ -4,13 +4,14 @@ import DataStructures.{Entity, MBB, SpatialEntity, SpatioTemporalEntity}
 import com.vividsolutions.jts.geom.Geometry
 import org.apache.jena.query.ARQ
 import net.sansa_stack.rdf.spark.io._
-import net.sansa_stack.rdf.spark.model._
+import net.sansa_stack.query.spark.query._
 import org.apache.jena.riot.Lang
-import org.apache.spark.graphx.{EdgeDirection, VertexId, VertexRDD}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.functions.udf
 import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 import org.datasyslab.geospark.enums.GridType
 import org.datasyslab.geospark.formatMapper.GeoJsonReader
@@ -208,7 +209,10 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
 
 
     /**
-     * Loads RDF dataset into Spatial RDD
+     * Loads RDF dataset into Spatial RDD - First loads the dataset into
+     * RDD[Triples] and then using a SPARQL Select query, extract the necessary
+     * fields.
+     *
      * @param filepath path to the RDF file
      * @param geometryPredicate the predicate of the geometry
      * @param datePredicate date predicate if exists
@@ -226,10 +230,14 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
 
         val asWKT = "http://www.opengis.net/ont/geosparql#asWKT"
         val allowedPredicates: mutable.Set[String] = mutable.Set(asWKT)
+        var sparqlQuery = s"SELECT ?Subject ?WKT WHERE { ?Subject $geometryPredicate ?g. ?g <$asWKT> ?WKT.}"
+        var query = "SELECT ST_GeomFromWKT(GEOMETRIES.WKT),  GEOMETRIES.Subject FROM GEOMETRIES".stripMargin
 
-        val cleanGeomPredicate: String = if (geometryPredicate.head == '<' && geometryPredicate.last == '>')
-            geometryPredicate.substring(1, geometryPredicate.length-1)
-        else geometryPredicate
+        val cleanGeomPredicate: String =
+            if (geometryPredicate.head == '<' && geometryPredicate.last == '>')
+                geometryPredicate.substring(1, geometryPredicate.length-1)
+            else geometryPredicate
+
         allowedPredicates.add(cleanGeomPredicate)
 
         if(datePredicate.isDefined){
@@ -238,30 +246,25 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
                 datePredicateValue.substring(1, datePredicateValue.length-1)
             else datePredicateValue
             allowedPredicates.add(cleanDatePredicate)
+            sparqlQuery = s"SELECT ?Subject ?WKT ?Date WHERE { ?Subject ${datePredicate.get} ?Date. ?Subject $geometryPredicate ?g. ?g <$asWKT> ?WKT.}"
+            query = "SELECT ST_GeomFromWKT(GEOMETRIES.WKT),  GEOMETRIES.Subject, GEOMETRIES.Date FROM GEOMETRIES".stripMargin
         }
 
         val triplesRDD = spark.rdf(lang)(filepath).filter(t => allowedPredicates.contains(t.getPredicate.getURI))
+        var df = SparqlExecutor.query(spark, triplesRDD, sparqlQuery)
 
-//        val graphRDD = triplesRDD.coalesce(1).asStringGraph()
-//        val neighbourRDD: VertexRDD[Array[VertexId]] = graphRDD.collectNeighborIds(EdgeDirection.Out).filter(_._2.length > 0)
-//        val reversedNeighbourRDD = neighbourRDD.flatMap(v => v._2.map(n => (n, v._1)))
-//        val joined = reversedNeighbourRDD.join(neighbourRDD)
-//            .map( v => (v._2._1, v._2._2))
-//        val vn = joined.collect()
+        val cleanWKT = udf( (wkt: String) => wkt.replaceAll("<\\S+>\\s?", ""), StringType)
+        df = df.withColumn("WKT", cleanWKT(df.col("WKT")))
+            .filter(col("WKT").isNotNull)
+            .filter(col("WKT").isNotNull)
+            .filter(! col("WKT").contains("EMPTY"))
 
-//        import net.sansa_stack.query.spark.query._
-//        triplesRDD.sparql("SSSSSS")
-        val rdd = triplesRDD
-            .map(t => (t.getSubject.getURI, t.getObject.getLiteral.getLexicalForm))
-        val triplesDF = spark.createDataFrame(rdd).toDF("REAL_ID", "WKT")
-        triplesDF.createOrReplaceTempView("GEOMETRIES")
+        df.createOrReplaceTempView("GEOMETRIES")
 
-        val query = "SELECT ST_GeomFromWKT(GEOMETRIES.WKT),  GEOMETRIES.REAL_ID FROM GEOMETRIES".stripMargin
         val spatialDF = spark.sql(query)
         val srdd = new SpatialRDD[Geometry]
         srdd.rawSpatialRDD = Adapter.toRdd(spatialDF)
         srdd
-
     }
 
     /**
@@ -277,7 +280,7 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
 
         val withTemporal = dc.dateField.isDefined
 
-        // remove entpy, invalid geometries and geometry collections
+        // remove empty, invalid geometries and geometry collections
         val filteredGeometriesRDD = srdd.rawSpatialRDD.rdd
             .map{ geom =>
                 val userdata = geom.getUserData.asInstanceOf[String].split("\t")
