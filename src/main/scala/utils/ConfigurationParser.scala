@@ -31,11 +31,11 @@ case class DatasetConfigurations(path: String, geometryField: String, realIdFiel
 		val log: Logger = LogManager.getRootLogger
 
 		// checks path and geometry filed
-		if (! Files.exists(Paths.get(path))){
-			log.error(s"DS-JEDAI: Path: \'$path\' does not exist")
-			false
-		}
-		else if (geometryField == ""){
+//		if (! Files.exists(Paths.get(path))){
+//			log.error(s"DS-JEDAI: Path: \'$path\' does not exist")
+//			false
+//		}
+		if (geometryField == ""){
 			log.error(s"DS-JEDAI: Path: \'$path\' does not exist")
 			false
 		}
