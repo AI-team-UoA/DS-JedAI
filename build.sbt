@@ -20,7 +20,8 @@ libraryDependencies += "net.sansa-stack" %% "sansa-rdf-spark" % "0.7.1" excludeA
 	ExclusionRule("org.apache.hadoop"),
 	ExclusionRule("org.apache.spark"),
 	ExclusionRule("org.scala-lang"),
-	ExclusionRule("org.scalatest")
+	ExclusionRule("org.scalatest"),
+	ExclusionRule("it.unimi.dsi"),
 )
 
 // https://mvnrepository.com/artifact/net.sansa-stack/sansa-query-spark
@@ -36,6 +37,7 @@ libraryDependencies += "net.sansa-stack" %% "sansa-query-spark" % "0.7.1"  exclu
 	ExclusionRule("org.scala-lang"),
 	ExclusionRule("org.scalatest"),
 	ExclusionRule("it.unibz.inf.ontop"),
+	ExclusionRule("it.unimi.dsi"),
 	ExclusionRule("org.aksw.jena-sparql-api"),
 	ExclusionRule("it.unimi.dsi"),
 	ExclusionRule("om.sun.xml.bind"),

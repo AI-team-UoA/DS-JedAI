@@ -4,7 +4,6 @@ import DataStructures.{Entity, MBB, SpatialEntity, SpatioTemporalEntity}
 import com.vividsolutions.jts.geom.Geometry
 import org.apache.jena.query.ARQ
 import net.sansa_stack.rdf.spark.io._
-import net.sansa_stack.query.spark.query._
 import org.apache.jena.riot.Lang
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
