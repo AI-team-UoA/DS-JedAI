@@ -70,6 +70,8 @@ object GeoSparkExp {
             .filter(col(conf.source.realIdField.get).isNotNull)
             .filter(col(conf.source.geometryField).isNotNull)
             .filter(! col(conf.source.geometryField).contains("EMPTY"))
+            .filter(! col(conf.source.geometryField).contains("GEOMETRYCOLLECTION"))
+
         source.createOrReplaceTempView("Source")
         val sourceQuery = s"SELECT ST_GeomFromWKT(Source.${conf.source.geometryField}) AS WKT,  Source.${conf.source.realIdField.get} AS REAL_ID FROM Source".stripMargin
         val sourceDF = spark.sql(sourceQuery)
@@ -84,6 +86,8 @@ object GeoSparkExp {
             .filter(col(conf.target.realIdField.get).isNotNull)
             .filter(col(conf.target.geometryField).isNotNull)
             .filter(! col(conf.target.geometryField).contains("EMPTY"))
+            .filter(! col(conf.target.geometryField).contains("GEOMETRYCOLLECTION"))
+
         target.createOrReplaceTempView("Target")
         val targetQuery = s"SELECT ST_GeomFromWKT(Target.${conf.target.geometryField}) AS WKT,  Target.${conf.target.realIdField.get} AS REAL_ID FROM Target".stripMargin
         val targetDF = spark.sql(targetQuery)
