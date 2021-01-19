@@ -3,6 +3,7 @@ package experiments
 import java.util
 import java.util.Calendar
 
+import com.vividsolutions.jts.geom.Geometry
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
@@ -12,7 +13,7 @@ import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import org.datasyslab.geosparksql.utils.GeoSparkSQLRegistrator
 import utils.ConfigurationParser
 import utils.Constants.{FileTypes, Relation}
-
+import org.apache.spark.sql.functions.udf
 
 object GeoSparkExp {
 
@@ -61,6 +62,7 @@ object GeoSparkExp {
             case FileTypes.TSV => "\t"
             case _ => ""
         }
+        val removeInvalidGeometries = udf((g: Geometry) => g.isValid)
         val sourcePath = conf.source.path
         val source =  spark.read.format("csv")
             .option("delimiter", delimiter)
@@ -74,7 +76,7 @@ object GeoSparkExp {
 
         source.createOrReplaceTempView("Source")
         val sourceQuery = s"SELECT ST_GeomFromWKT(Source.${conf.source.geometryField}) AS WKT,  Source.${conf.source.realIdField.get} AS REAL_ID FROM Source".stripMargin
-        val sourceDF = spark.sql(sourceQuery)
+        val sourceDF = spark.sql(sourceQuery).filter(removeInvalidGeometries(col("WKT")))
         sourceDF.createOrReplaceTempView("sSource")
 
         val targetPath = conf.target.path
@@ -90,7 +92,7 @@ object GeoSparkExp {
 
         target.createOrReplaceTempView("Target")
         val targetQuery = s"SELECT ST_GeomFromWKT(Target.${conf.target.geometryField}) AS WKT,  Target.${conf.target.realIdField.get} AS REAL_ID FROM Target".stripMargin
-        val targetDF = spark.sql(targetQuery)
+        val targetDF = spark.sql(targetQuery).filter(removeInvalidGeometries(col("WKT")))
         targetDF.createOrReplaceTempView("sTarget")
 
         val function = relation match {

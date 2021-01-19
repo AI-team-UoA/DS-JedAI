@@ -4,7 +4,7 @@
 # "/home/gmandi/Documents/Extreme-Earth/Datasets/polar-uc/IceMonitoring/workplace/observations_WKT/observations_WKT.shp"
 
 source:
-  path: "/home/gmandi/Documents/Extreme-Earth/Datasets/polar-uc/IceMonitoring/workplace/s1_images.csv"
+  path: "/home/gmandi/Documents/Extreme-Earth/Datasets/polar-uc/IceMonitoring/workplace/s1_images_10K.csv"
   realIdField: "id"
   geometryField: "WKT"
 #  dateField: "datetime"
