@@ -122,6 +122,7 @@ object Utils {
 			case _ =>
 				(1d, 1d)
 		}
+		source.unpersist()
 		(tx, ty)
 	}
 

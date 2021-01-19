@@ -10,10 +10,12 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import utils.Constants.{GridType, Relation}
+import utils.Constants.MatchingAlgorithm.MatchingAlgorithm
+import utils.Constants.WeightStrategy.WeightStrategy
+import utils.Constants.{GridType, MatchingAlgorithm, Relation, WeightStrategy}
 import utils.{ConfigurationParser, Constants, SpatialReader, Utils}
 
-object MainExp {
+object GiantExp {
 
     def main(args: Array[String]): Unit = {
         Logger.getLogger("org").setLevel(Level.ERROR)
@@ -58,25 +60,23 @@ object MainExp {
             }
         }
 
-        val arglist = args.toList
+        val argList = args.toList
         type OptionMap = Map[String, String]
-        val options = nextOption(Map(), arglist)
-        val stats = options.contains("stats")
+        val options = nextOption(Map(), argList)
 
         if (!options.contains("conf")) {
             log.error("DS-JEDAI: No configuration file!")
             System.exit(1)
         }
 
-        val conf_path = options("conf")
-        val conf = ConfigurationParser.parse(conf_path)
+        val confPath = options("conf")
+        val conf = ConfigurationParser.parse(confPath)
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
         val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
-        val ws: String = if (options.contains("ws")) options("ws").toString else conf.getWeightingScheme.toString
-        val ma: String = if (options.contains("ma")) options("ma").toString else conf.getMatchingAlgorithm.toString
-        val gridType: Constants.GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
+        val ws: WeightStrategy = if (options.contains("ws")) WeightStrategy.withName(options("ws")) else conf.getWeightingScheme
+        val ma: MatchingAlgorithm = if (options.contains("ma")) MatchingAlgorithm.withName(options("ma")) else conf.getMatchingAlgorithm
+        val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
         val relation = conf.getRelation
-
 
         log.info("DS-JEDAI: Input Budget: " + budget)
         log.info("DS-JEDAI: Weighting Strategy: " + ws.toString)
@@ -86,6 +86,7 @@ object MainExp {
         val sourceRDD = reader.load()
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
         Utils(sourceRDD.map(_._2.mbb), conf.getTheta, reader.partitionsZones)
+        log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val targetRDD = reader.load(conf.target)
         val partitioner = reader.partitioner
@@ -93,7 +94,7 @@ object MainExp {
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
         if (options.contains("auc")) {
 
-            val pm = DMFactory.getProgressiveAlgorithm(conf, sourceRDD, targetRDD, partitioner, budget, ws, ma)
+            val pm = DMFactory.getProgressiveAlgorithm(ma, sourceRDD, targetRDD, partitioner, budget, ws)
 
             val (auc, interlinkedGeometries, counter) = pm.getAUC(relation)
             log.info("DS-JEDAI: Total Intersecting Pairs: " + counter)
@@ -102,7 +103,7 @@ object MainExp {
         }
         else {
 
-            val pm = DMFactory.getMatchingAlgorithm(conf, sourceRDD, targetRDD, partitioner, budget, ws, ma)
+            val pm = DMFactory.getMatchingAlgorithm(ma, sourceRDD, targetRDD, partitioner, budget, ws)
 
             if (relation.equals(Relation.DE9IM)) {
                 val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
@@ -126,7 +127,7 @@ object MainExp {
             }
             else{
                 val totalMatches = pm.countRelation(relation)
-                log.info("DS-JEDAI:" + relation.toString +": " + totalMatches)
+                log.info("DS-JEDAI: " + relation.toString +": " + totalMatches)
             }
             val matchingEndTime = Calendar.getInstance().getTimeInMillis
             log.info("DS-JEDAI: Interlinking Time: " + (matchingEndTime - matchingStartTime) / 1000.0)
