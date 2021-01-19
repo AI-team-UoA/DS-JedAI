@@ -11,7 +11,7 @@ import org.apache.spark.sql.functions.col
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import org.datasyslab.geosparksql.utils.GeoSparkSQLRegistrator
 import utils.ConfigurationParser
-import utils.Constants.Relation
+import utils.Constants.{FileTypes, Relation}
 
 
 object GeoSparkExp {
@@ -56,9 +56,14 @@ object GeoSparkExp {
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
         val relation = conf.getRelation
 
+        val delimiter = conf.source.getExtension match {
+            case FileTypes.CSV => ","
+            case FileTypes.TSV => "\t"
+            case _ => ""
+        }
         val sourcePath = conf.source.path
         val source =  spark.read.format("csv")
-            .option("delimiter", ",")
+            .option("delimiter", delimiter)
             .option("quote", "\"")
             .option("header", value = true)
             .load(sourcePath)
