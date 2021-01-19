@@ -4,18 +4,18 @@
 # "/home/gmandi/Documents/Extreme-Earth/Datasets/polar-uc/IceMonitoring/workplace/observations_WKT/observations_WKT.shp"
 
 source:
-  path: "/home/gmandi/Documents/Extreme-Earth/Datasets/polar-uc/IceMonitoring/workplace/s1_images_10K.csv"
+  path: "/home/gmandi/Documents/Extreme-Earth/Datasets/polar-uc/IceMonitoring/workplace/s1_images.csv"
   realIdField: "id"
   geometryField: "WKT"
-  dateField: "datetime"
-  datePattern: "yyyy-MM-dd'T'HH:mm:ss"
+#  dateField: "datetime"
+#  datePattern: "yyyy-MM-dd'T'HH:mm:ss"
 
 target:
-  path: "/home/gmandi/Documents/Extreme-Earth/Datasets/polar-uc/IceMonitoring/workplace/observations_WKT/observations_WKT.shp"
+  path: "/home/gmandi/Documents/Extreme-Earth/Datasets/polar-uc/IceMonitoring/workplace/observations_WKT.csv"
   geometryField: "WKT"
   realIdField: "id"
-  dateField: "observed_a"
-  datePattern: "yyyy-MM-dd HH:mm:ss"
+#  dateField: "observed_a"
+#  datePattern: "yyyy-MM-dd HH:mm:ss"
 
 relation: "DE9IM"
 
