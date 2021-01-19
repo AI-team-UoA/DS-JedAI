@@ -62,7 +62,7 @@ object GeoSparkExp {
             case FileTypes.TSV => "\t"
             case _ => ""
         }
-        val removeInvalidGeometries = udf((g: Geometry) => g.isValid)
+        val isValid = udf((g: Geometry) => g.isValid)
         val sourcePath = conf.source.path
         val source =  spark.read.format("csv")
             .option("delimiter", delimiter)
@@ -76,7 +76,7 @@ object GeoSparkExp {
 
         source.createOrReplaceTempView("Source")
         val sourceQuery = s"SELECT ST_GeomFromWKT(Source.${conf.source.geometryField}) AS WKT,  Source.${conf.source.realIdField.get} AS REAL_ID FROM Source".stripMargin
-        val sourceDF = spark.sql(sourceQuery).filter(removeInvalidGeometries(col("WKT")))
+        val sourceDF = spark.sql(sourceQuery).withColumn("valid", isValid(col("WKT"))).filter(col("valid"))
         sourceDF.createOrReplaceTempView("sSource")
 
         val targetPath = conf.target.path
@@ -92,7 +92,7 @@ object GeoSparkExp {
 
         target.createOrReplaceTempView("Target")
         val targetQuery = s"SELECT ST_GeomFromWKT(Target.${conf.target.geometryField}) AS WKT,  Target.${conf.target.realIdField.get} AS REAL_ID FROM Target".stripMargin
-        val targetDF = spark.sql(targetQuery).filter(removeInvalidGeometries(col("WKT")))
+        val targetDF = spark.sql(targetQuery).withColumn("valid", isValid(col("WKT"))).filter(col("valid"))
         targetDF.createOrReplaceTempView("sTarget")
 
         val function = relation match {
