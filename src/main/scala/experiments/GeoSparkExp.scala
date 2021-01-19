@@ -77,7 +77,7 @@ object GeoSparkExp {
 
         val targetPath = conf.target.path
         val target =  spark.read.format("csv")
-            .option("delimiter", ",")
+            .option("delimiter", delimiter)
             .option("quote", "\"")
             .option("header", value = true)
             .load(targetPath)
