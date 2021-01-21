@@ -20,7 +20,7 @@ trait DMTrait {
     val partitionsZones: Array[MBB] = SparkContext.getOrCreate().broadcast(Utils.getZones).value
     val spaceEdges: MBB = SparkContext.getOrCreate().broadcast(Utils.getSpaceEdges).value
 
-    lazy val totalBlocks: Double = if (ws == WeightStrategy.ECBS || ws == WeightStrategy.PEARSON_X2){
+    val totalBlocks: Double = if (ws == WeightStrategy.ECBS || ws == WeightStrategy.PEARSON_X2){
         val globalMinX = joinedRDD.flatMap(p => p._2._1.map(_.mbb.minX/thetaXY._1)).min()
         val globalMaxX = joinedRDD.flatMap(p => p._2._1.map(_.mbb.maxX/thetaXY._1)).max()
         val globalMinY = joinedRDD.flatMap(p => p._2._1.map(_.mbb.minY/thetaXY._2)).min()

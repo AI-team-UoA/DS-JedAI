@@ -106,7 +106,7 @@ object GeoSparkExp {
         }
         val spatialQuery = s"SELECT sSource.REAL_ID, sTarget.REAL_ID FROM sSource, sTarget WHERE $function(sSource.WKT, sTarget.WKT)"
         val results = spark.sql(spatialQuery).count()
-        log.info(s"GEOSPARK: Total intersections: $results")
+        log.info(s"DS-JEDAI: Total intersections: $results")
 
         val endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Total Execution Time: " + (endTime - startTime) / 1000.0)
