@@ -15,6 +15,17 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
                      thetaXY: (Double, Double), ws: WeightStrategy, budget: Long, sourceCount: Long) extends DMProgressiveTrait {
 
 
+    /**
+     * First we find the top-k comparisons of each geometry in source and target,
+     * then we merge them and for each common comparison maintain the max weight.
+     * Last, add them in PQ with max size localBudget
+     *
+     * @param source partition of source dataset
+     * @param target partition of target dataset
+     * @param partition partition MBB
+     * @param relation examining relation
+     * @return prioritized comparisons in a PQ
+     */
     def prioritize(source: Array[Entity], target: Array[Entity], partition: MBB, relation: Relation): MinMaxPriorityQueue[(Double, (Int, Int))] = {
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
@@ -105,14 +116,15 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
 
         // keep partitions top comparisons
         partitionMinWeight = 0d
-        partitionPairs.takeWhile(_._2 > partitionMinWeight).foreach{ case(pair, w) =>
-            partitionPQ.add((w, pair))
-            if (partitionPQ.size() > localBudget)
-                partitionMinWeight = partitionPQ.pollLast()._1
+        partitionPairs.foreach{ case(pair, w) =>
+            if (partitionMinWeight < w) {
+                partitionPQ.add((w, pair))
+                if (partitionPQ.size() > localBudget)
+                    partitionMinWeight = partitionPQ.pollLast()._1
+            }
         }
         partitionPQ
     }
-
 }
 
 object TopKPairs{

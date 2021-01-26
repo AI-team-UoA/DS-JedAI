@@ -49,7 +49,8 @@ trait DMProgressiveTrait extends DMTrait{
      * @return an RDD of IM
      */
     def getDE9IM: RDD[IM] ={
-        joinedRDD.flatMap{ p =>
+        joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
+            .flatMap{ p =>
             val pid = p._1
             val partition = partitionsZones(pid)
             val source = p._2._1.toArray
@@ -75,7 +76,8 @@ trait DMProgressiveTrait extends DMTrait{
      *  @return an RDD of pair of IDs
      */
     def relate(relation: Relation): RDD[(String, String)] = {
-        joinedRDD.flatMap{ p =>
+        joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
+            .flatMap{ p =>
             val pid = p._1
             val partition = partitionsZones(pid)
             val source = p._2._1.toArray

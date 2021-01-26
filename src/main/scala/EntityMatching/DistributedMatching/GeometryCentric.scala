@@ -1,6 +1,6 @@
 package EntityMatching.DistributedMatching
 
-import DataStructures.{MBB, Entity}
+import DataStructures.{Entity, MBB}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import org.spark_project.guava.collect.MinMaxPriorityQueue
@@ -29,8 +29,10 @@ case class GeometryCentric(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Enti
         val orderingInt = Ordering.by[(Double, Int), Double](_._1).reverse
         val orderingPair = Ordering.by[(Double, (Int, Int)), Double](_._1).reverse
 
-        val localBudget: Int = ((source.length * budget) / sourceCount).toInt
-        val k = (math.ceil(localBudget / (source.length + target.length)).toInt + 1) * 2 // +1 to avoid k=0
+        // initialize PQ and compute budget based on the n.o. intersecting targets
+        // (avoid the entities that don't intersect, so we do not compute the top-k for those )
+        val localBudget: Int = ((source.length * budget) / sourceCount).toInt * 2
+        val k = (math.ceil(localBudget / target.length).toInt + 1) * 2 // +1 to avoid k=0
 
         val targetPQ: MinMaxPriorityQueue[(Double, Int)] = MinMaxPriorityQueue.orderedBy(orderingInt).maximumSize(k + 1).create()
         var minW = 0d
@@ -59,9 +61,12 @@ case class GeometryCentric(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Enti
                             }
                     }
                 if (! targetPQ.isEmpty) {
-                    val weight = wSum / targetPQ.size()
-                    val topK = targetPQ.iterator().asScala.map(_._2)
-                    partitionPQ.addAll(topK.map(i => (weight, (i, j))).toList.reverse.asJava)
+                    val pqSize = targetPQ.size()
+                    val topK = Iterator.continually{
+                        targetPQ.pollLast()._2
+                    }.takeWhile(_ => !targetPQ.isEmpty).toList
+                    val weight = wSum / pqSize
+                    partitionPQ.addAll(topK.map(i => (weight, (i, j))).asJava)
                     targetPQ.clear()
                 }
             }

@@ -81,7 +81,6 @@ case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entit
                             partitionPQ.add(w, (i, j))
                             if (partitionPQ.size() > localBudget)
                                 partitionMinWeight = partitionPQ.pollLast()._1
-
                         }
                 }
             }

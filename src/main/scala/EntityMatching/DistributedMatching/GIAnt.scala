@@ -48,7 +48,8 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
      * @return an RDD of intersection matrix
      */
     def getDE9IM: RDD[IM] ={
-        joinedRDD.flatMap { p =>
+        joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
+            .flatMap { p =>
             val pid = p._1
             val partition = partitionsZones(pid)
             val source: Array[Entity] = p._2._1.toArray
@@ -69,9 +70,6 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
             }
         }
     }
-
-
-
 }
 
 /**
