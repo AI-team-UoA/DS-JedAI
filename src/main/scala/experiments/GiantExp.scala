@@ -13,13 +13,13 @@ import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import utils.Constants.MatchingAlgorithm.MatchingAlgorithm
 import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Constants.{GridType, MatchingAlgorithm, Relation, WeightStrategy}
-import utils.{ConfigurationParser, Constants, SpatialReader, Utils}
+import utils.{ConfigurationParser, SpatialReader, Utils}
 
 object GiantExp {
 
     def main(args: Array[String]): Unit = {
-        Logger.getLogger("org").setLevel(Level.INFO)
-        Logger.getLogger("akka").setLevel(Level.INFO)
+        Logger.getLogger("org").setLevel(Level.ERROR)
+        Logger.getLogger("akka").setLevel(Level.ERROR)
         val log = LogManager.getRootLogger
         log.setLevel(Level.INFO)
 
@@ -93,26 +93,22 @@ object GiantExp {
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
         if (options.contains("auc")) {
-
-            val pm = DMFactory.getProgressiveAlgorithm(ma, sourceRDD, targetRDD, partitioner, budget, ws)
-
-            val (auc, interlinkedGeometries, counter) = pm.getAUC(relation)
-            log.info("DS-JEDAI: Total Intersecting Pairs: " + counter)
-            log.info("DS-JEDAI: Interlinked Geometries: " + interlinkedGeometries)
+            val pm = DMFactory.getMatchingAlgorithm(ma, sourceRDD, targetRDD, partitioner, budget, ws)
+            val (auc, totalInterlinkedGeometries, totalVerifiedPars, _) = pm.getAUC(relation, 20)
+            log.info("DS-JEDAI: Total Verifications: " + totalVerifiedPars)
+            log.info("DS-JEDAI: Interlinked Geometries: " + totalInterlinkedGeometries)
             log.info("DS-JEDAI: AUC: " + auc)
         }
         else {
-
             val pm = DMFactory.getMatchingAlgorithm(ma, sourceRDD, targetRDD, partitioner, budget, ws)
-
             if (relation.equals(Relation.DE9IM)) {
                 val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-                totalOverlaps, totalTouches, totalWithin, intersectingPairs, interlinkedGeometries) = pm.countAllRelations
+                totalOverlaps, totalTouches, totalWithin, verifications, qualifiedPairs) = pm.countAllRelations
 
                 val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
                     totalIntersects + totalOverlaps + totalTouches + totalWithin
-                log.info("DS-JEDAI: Total Intersecting Pairs: " + intersectingPairs)
-                log.info("DS-JEDAI: Interlinked Geometries: " + interlinkedGeometries)
+                log.info("DS-JEDAI: Total Verifications: " + verifications)
+                log.info("DS-JEDAI: Interlinked Geometries : " + qualifiedPairs)
 
                 log.info("DS-JEDAI: CONTAINS: " + totalContains)
                 log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)

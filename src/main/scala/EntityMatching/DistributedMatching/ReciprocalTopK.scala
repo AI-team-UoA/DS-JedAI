@@ -1,42 +1,39 @@
 package EntityMatching.DistributedMatching
 
-import DataStructures.{MBB, Entity}
+import DataStructures.{ComparisonPQ, Entity, MBB}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
-import org.spark_project.guava.collect.MinMaxPriorityQueue
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
 
-import scala.collection.mutable
 
 
 case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
-                          thetaXY: (Double, Double), ws: WeightStrategy, budget: Long, sourceCount: Long) extends DMProgressiveTrait {
+                          thetaXY: (Double, Double), ws: WeightStrategy, budget: Int, sourceCount: Long) extends DMProgressiveTrait {
 
-
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBB, relation: Relation): MinMaxPriorityQueue[(Double, (Int, Int))] = {
+    /**
+     * Find the top-K comparisons of target and source and keep only the comparison (i, j) that belongs to both
+     * top-K comparisons of i and j.
+     *
+     * @param source source dataset
+     * @param target target dataset
+     * @param partition current partition
+     * @param relation examining relation
+     * @return prioritized comparisons as a PQ
+     */
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBB, relation: Relation): ComparisonPQ[(Int, Int)] = {
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
 
-        val orderingInt = Ordering.by[(Double, Int), Double](_._1).reverse
-        val orderingPair = Ordering.by[(Double, (Int, Int)), Double](_._1).reverse
+        val sourceK = (math.ceil(budget / source.length).toInt + 1) * 2 // +1 to avoid k=0
+        val targetK = (math.ceil(budget / target.length).toInt + 1) * 2 // +1 to avoid k=0
 
-        // initialize PQ and compute budget based on the n.o. intersecting targets
-        // (avoid the entities that don't intersect, so we do not compute the top-k for those )
-        val localBudget: Int = ((source.length*2 * budget) / sourceCount).toInt
-        val k = (math.ceil(localBudget / (source.length + target.length)).toInt + 1) * 2 // +1 to avoid k=0
+        val sourcePQ: Array[ComparisonPQ[Int]] = new Array(source.length)
+        val targetPQ: ComparisonPQ[Int] = ComparisonPQ[Int](targetK)
+        val partitionPQ: ComparisonPQ[(Int, Int)] = ComparisonPQ[(Int, Int)](budget)
 
-        val sourceMinWeightPQ: Array[Double] = Array.fill(source.length)(0d)
-        val sourcePQ: Array[MinMaxPriorityQueue[(Double, Int)]] = new Array(source.length)
-
-        val targetPQ: mutable.PriorityQueue[(Double, Int)] = mutable.PriorityQueue()(Ordering.by[(Double, Int), Double](_._1).reverse)
-        val targetSet: Array[mutable.HashSet[Int]] = Array.fill(target.length)(new mutable.HashSet[Int]())
-        var minW = 0d
-
-        val partitionPQ: MinMaxPriorityQueue[(Double, (Int, Int))] = MinMaxPriorityQueue.orderedBy(orderingPair).maximumSize(localBudget + 1).create()
-        var partitionMinWeight = 0d
-
+        val targetSet: Array[Set[Int]] = new Array(target.length)
         target.indices
             .foreach{j =>
                 val e2 = target(j)
@@ -48,51 +45,39 @@ case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entit
                                 val e1 = source(i)
                                 val w = getWeight(e1, e2)
 
-                                // set top-K for each target entity
-                                if (minW < w) {
-                                    targetPQ.enqueue((w, i))
-                                    if (targetPQ.size > localBudget)
-                                        minW = targetPQ.dequeue()._1
-                                }
+                                // set top-K PQ for the examining target entity
+                                targetPQ.enqueue(w, i)
 
                                 // update source entities' top-K
-                                if (sourceMinWeightPQ(i) == 0)
-                                    sourcePQ(i) = MinMaxPriorityQueue.orderedBy(orderingInt).maximumSize(k + 1).create()
-                                if (sourceMinWeightPQ(i) < w) {
-                                    sourcePQ(i).add((w, j))
-                                    if (sourcePQ(i).size > k)
-                                        sourceMinWeightPQ(i) = sourcePQ(i).pollLast()._1
-                                }
+                                if (sourcePQ(i) == null)
+                                    sourcePQ(i) = ComparisonPQ[Int](sourceK)
+                                sourcePQ(i).enqueue(w, j)
                             }
                     }
-
-                while (targetPQ.nonEmpty) targetSet(j).add(targetPQ.dequeue()._2)
+                // add comparisons into corresponding HashSet
+                targetSet(j) = targetPQ.iterator().map(_._2).toSet
+                targetPQ.clear()
             }
 
+        // add comparison into PQ only if is contained by both top-K PQs
         sourcePQ
             .zipWithIndex
             .filter(_._1 != null)
             .foreach { case (pq, i) =>
                 val w = Double.MaxValue
-                while (pq.size > 0 && w > partitionMinWeight) {
-                    val (w, j) = pq.pollFirst()
+                while (pq.size > 0 && w > partitionPQ.minW) {
+                    val (w, j) = pq.dequeueHead()
                     if (targetSet(j).contains(i))
-                        if (partitionMinWeight < w) {
-                            partitionPQ.add(w, (i, j))
-                            if (partitionPQ.size() > localBudget)
-                                partitionMinWeight = partitionPQ.pollLast()._1
-                        }
+                        partitionPQ.enqueue(w, (i, j))
                 }
             }
         partitionPQ
     }
-
-
 }
 
 object ReciprocalTopK{
 
-    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightStrategy, budget: Long, partitioner: Partitioner): ReciprocalTopK ={
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightStrategy, budget: Int, partitioner: Partitioner): ReciprocalTopK ={
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.getSourceCount
         val joinedRDD = source.cogroup(target, partitioner)

@@ -1,16 +1,18 @@
 package EntityMatching.DistributedMatching
 
-import DataStructures.{IM, MBB, Entity}
+import DataStructures.{ComparisonPQ, Entity, IM, MBB}
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
-import org.spark_project.guava.collect.MinMaxPriorityQueue
 import utils.Constants.Relation.Relation
 import utils.Constants.{Relation, WeightStrategy}
 
+import scala.collection.mutable.ListBuffer
 import scala.math.{ceil, floor, max, min}
 
 trait DMProgressiveTrait extends DMTrait{
-    val budget: Long
+    val budget: Int
+
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBB, relation: Relation): ComparisonPQ[(Int, Int)]
 
     /**
      * Weight a comparison
@@ -58,12 +60,11 @@ trait DMProgressiveTrait extends DMTrait{
 
             val pq = prioritize(source, target, partition, Relation.DE9IM)
             if (!pq.isEmpty)
-                Iterator.continually {
-                    val (i, j) = pq.removeFirst()._2
+                pq.dequeueAll.map{ case (_, (i, j)) =>
                     val e1 = source(i)
                     val e2 = target(j)
                     IM(e1, e2)
-                }.takeWhile(_ => !pq.isEmpty).filter(_.relate)
+                }.takeWhile(_ => !pq.isEmpty)
             else Iterator()
         }
     }
@@ -85,12 +86,11 @@ trait DMProgressiveTrait extends DMTrait{
 
             val pq = prioritize(source, target, partition, relation)
             if (!pq.isEmpty)
-                Iterator.continually {
-                    val (i, j) = pq.removeFirst()._2
+                pq.dequeueAll.map{ case (_, (i, j)) =>
                     val e1 = source(i)
                     val e2 = target(j)
                     (e1.relate(e2, relation), (e1.originalID, e2.originalID))
-                }.takeWhile(_ => !pq.isEmpty).filter(_._1).map(_._2)
+                }.filter(_._1).map(_._2)
             else Iterator()
         }
     }
@@ -100,15 +100,15 @@ trait DMProgressiveTrait extends DMTrait{
      * Compute AUC - first weight and perform the comparisons in each partition,
      * then collect them in order and compute the progressive True Positives.
      *
-     * TODO Consider counting AUC of each partition and then total AUC as the avg
-     *
      * @param relation the examined relation
      * @return (AUC, total interlinked Geometries (TP), total comparisons)
      */
-    def getAUC(relation: Relation): (Double, Long, Long)  ={
+    def getAUC(relation: Relation, n: Int = 10): (Double, Long, Long, (List[Int], List[Int]) )  ={
         var progressiveTP: Long = 0
         var TP: Long = 0
-        var counter: Long = 0
+
+        val verifiedPairs = ListBuffer[Int]()
+        val qualifiedParis = ListBuffer[Int]()
 
         // computes weighted the weighted comparisons
         val matches: RDD[(Double, Boolean)] = joinedRDD
@@ -121,8 +121,7 @@ trait DMProgressiveTrait extends DMTrait{
 
                 val pq = prioritize(source, target, partition, relation)
                 if (!pq.isEmpty)
-                    Iterator.continually {
-                        val (w, (i, j)) = pq.removeFirst()
+                    pq.dequeueAll.map{ case (w, (i, j)) =>
                         val e1 = source(i)
                         val e2 = target(j)
                         relation match {
@@ -133,19 +132,28 @@ trait DMProgressiveTrait extends DMTrait{
                 else Iterator()
             }
 
+        val step = math.ceil(budget/n)
         // compute AUC prioritizing the comparisons based on their weight
-        matches
-            .takeOrdered(budget.toInt)(Ordering.by[(Double, Boolean), Double](_._1).reverse)
-            .map(_._2)
-            .foreach{ r =>
-                if (r) TP += 1
-                progressiveTP += TP
-                counter += 1
-            }
-
+        val sorted = matches.takeOrdered(budget.toInt)(Ordering.by[(Double, Boolean), Double](_._1).reverse)
+        val counter = sorted.length
+        sorted
+           .map(_._2)
+           .zipWithIndex
+           .foreach{
+               case (r, i) =>
+                    if (r) TP += 1
+                    progressiveTP += TP
+                    if (i % step == 0){
+                        qualifiedParis += TP.toInt
+                        verifiedPairs += i
+                    }
+           }
+        if (counter % step != 0) {
+            qualifiedParis += TP.toInt
+            verifiedPairs += counter.toInt
+        }
         val auc = progressiveTP/TP.toDouble/counter.toDouble
-        (auc, TP, counter)
+        (auc, TP, counter, (verifiedPairs.toList, qualifiedParis.toList))
     }
 
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBB, relation: Relation): MinMaxPriorityQueue[(Double, (Int, Int))]
 }

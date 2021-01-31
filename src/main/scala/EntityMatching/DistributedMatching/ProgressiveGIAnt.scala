@@ -1,39 +1,31 @@
 package EntityMatching.DistributedMatching
 
 
-import DataStructures.{MBB, Entity}
+import DataStructures.{ComparisonPQ, Entity, MBB}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
-import org.spark_project.guava.collect.MinMaxPriorityQueue
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
 
 
 case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
-                            thetaXY: (Double, Double), ws: WeightStrategy, budget: Long, sourceCount: Long) extends DMProgressiveTrait {
+                            thetaXY: (Double, Double), ws: WeightStrategy, budget: Int, sourceCount: Long) extends DMProgressiveTrait {
 
 
     /**
      * First index source and then for each entity of target, find its comparisons using source's index.
-     * Weight the comparisons according to the weighting scheme and sort them using a PQ. Calculate the
-     * DE9IM in a descending order.
-     * From each partition we calculate just a portion of the total comparisons, based on the budget and the size
-     * of the partition.
+     * Weight the comparisons according to the input weighting scheme and sort them using a PQ.
      *
      * @param partition the MBB of the partition
      * @param source source
      * @param target target
      * @return a PQ with the top comparisons
      */
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBB, relation: Relation): MinMaxPriorityQueue[(Double, (Int, Int))] ={
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBB, relation: Relation): ComparisonPQ[(Int, Int)] ={
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
-
-        val localBudget: Int = math.ceil((source.length*2*budget)/sourceCount).toInt
-        val orderingPair = Ordering.by[(Double, (Int, Int)), Double](_._1).reverse
-        val pq: MinMaxPriorityQueue[(Double, (Int, Int))] = MinMaxPriorityQueue.orderedBy(orderingPair).maximumSize(localBudget + 1).create()
-        var minW = 0d
+        val pq: ComparisonPQ[(Int, Int)] = ComparisonPQ[(Int, Int)](budget)
 
         // weight and put the comparisons in a PQ
         target
@@ -47,17 +39,12 @@ case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Ent
                             .foreach { i =>
                                 val e1 = source(i)
                                 val w = getWeight(e1, e2)
-                                if (minW < w) {
-                                    pq.add((w, (i, j)))
-                                    if (pq.size > localBudget)
-                                        minW = pq.pollLast()._1
-                                }
+                                pq.enqueue(w, (i,j))
                             }
                     }
             }
         pq
     }
-
 }
 
 
@@ -67,7 +54,7 @@ case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Ent
  */
 object ProgressiveGIAnt {
 
-    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightStrategy, budget: Long, partitioner: Partitioner): ProgressiveGIAnt ={
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightStrategy, budget: Int, partitioner: Partitioner): ProgressiveGIAnt ={
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.getSourceCount
         val joinedRDD = source.cogroup(target, partitioner)

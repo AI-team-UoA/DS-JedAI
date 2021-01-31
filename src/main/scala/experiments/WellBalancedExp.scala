@@ -2,14 +2,15 @@ package experiments
 
 import java.util.Calendar
 
-import EntityMatching.DistributedMatching.{GIAnt, IndexBasedMatching}
+import EntityMatching.DistributedMatching.{DMFactory, IndexBasedMatching}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import utils.Constants.{GridType, Relation, WeightStrategy}
+import utils.Constants.MatchingAlgorithm.MatchingAlgorithm
+import utils.Constants.{GridType, MatchingAlgorithm, Relation, WeightStrategy}
 import utils.Constants.WeightStrategy.WeightStrategy
 import utils.{ConfigurationParser, SpatialReader, Utils}
 
@@ -37,6 +38,7 @@ object WellBalancedExp {
 
         // Parsing the input arguments
         @scala.annotation.tailrec
+        @scala.annotation.tailrec
         def nextOption(map: OptionMap, list: List[String]): OptionMap = {
             list match {
                 case Nil => map
@@ -54,6 +56,10 @@ object WellBalancedExp {
                     nextOption(map ++ Map("budget" -> value), tail)
                 case "-ws" :: value :: tail =>
                     nextOption(map ++ Map("ws" -> value), tail)
+                case "-ma" :: value :: tail =>
+                    nextOption(map ++ Map("ma" -> value), tail)
+                case "-gt" :: value :: tail =>
+                    nextOption(map ++ Map("gt" -> value), tail)
                 case _ :: tail =>
                     log.warn("DS-JEDAI: Unrecognized argument")
                     nextOption(map, tail)
@@ -72,10 +78,12 @@ object WellBalancedExp {
         val confPath = options("conf")
         val conf = ConfigurationParser.parse(confPath)
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
+        val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
         val ws: WeightStrategy = if (options.contains("ws")) WeightStrategy.withName(options("ws")) else conf.getWeightingScheme
+        val ma: MatchingAlgorithm = if (options.contains("ma")) MatchingAlgorithm.withName(options("ma")) else conf.getMatchingAlgorithm
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
         val relation = conf.getRelation
-        val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
+
         log.info("DS-JEDAI: Input Budget: " + budget)
         log.info("DS-JEDAI: Weighting Strategy: " + ws.toString)
 
@@ -98,7 +106,7 @@ object WellBalancedExp {
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
 
-        val pm = GIAnt(balancedSource, balancedTarget, partitioner)
+        val pm = DMFactory.getMatchingAlgorithm(ma, sourceRDD, targetRDD, partitioner, budget, ws)
         val ibm = IndexBasedMatching(overloadedSource.map(_._2), overloadedTarget.map(_._2), Utils.getTheta)
 
         if (relation.equals(Relation.DE9IM)) {

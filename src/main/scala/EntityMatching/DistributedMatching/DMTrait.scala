@@ -61,12 +61,12 @@ trait DMTrait {
                 var totalOverlaps: Int = 0
                 var totalTouches: Int = 0
                 var totalWithin: Int = 0
-                var intersectingPairs: Int = 0
-                var interlinkedGeometries: Int = 0
+                var verifications: Int = 0
+                var qualifiedPairs: Int = 0
                 imIterator.foreach { im =>
-                    intersectingPairs += 1
+                    verifications += 1
                     if (im.relate) {
-                        interlinkedGeometries += 1
+                        qualifiedPairs += 1
                         if (im.isContains) totalContains += 1
                         if (im.isCoveredBy) totalCoveredBy += 1
                         if (im.isCovers) totalCovers += 1
@@ -82,7 +82,7 @@ trait DMTrait {
                 Iterator((totalContains, totalCoveredBy, totalCovers,
                     totalCrosses, totalEquals, totalIntersects,
                     totalOverlaps, totalTouches, totalWithin,
-                    intersectingPairs, interlinkedGeometries))
+                    verifications, qualifiedPairs))
             }
             .treeReduce({ case (im1, im2) => im1 + im2}, 4)
     }
