@@ -103,10 +103,9 @@ trait DMProgressiveTrait extends DMTrait{
      * @param relation the examined relation
      * @return (AUC, total interlinked Geometries (TP), total comparisons)
      */
-    def getAUC(relation: Relation, n: Int = 10): (Double, Long, Long, (List[Int], List[Int]) )  ={
-        var progressiveTP: Long = 0
-        var TP: Long = 0
-
+    def getAUC(relation: Relation, n: Int = 10, totalQualifiedPairs: Double): (Double, Long, Long, (List[Int], List[Int]) )  ={
+        var progressiveTP: Double = 0
+        var TP = 0
         val verifiedPairs = ListBuffer[Int]()
         val qualifiedParis = ListBuffer[Int]()
 
@@ -137,22 +136,22 @@ trait DMProgressiveTrait extends DMTrait{
         val sorted = matches.takeOrdered(budget.toInt)(Ordering.by[(Double, Boolean), Double](_._1).reverse)
         val counter = sorted.length
         sorted
-           .map(_._2)
-           .zipWithIndex
-           .foreach{
-               case (r, i) =>
+            .map(_._2)
+            .zipWithIndex
+            .foreach{
+                case (r, i) =>
                     if (r) TP += 1
                     progressiveTP += TP
                     if (i % step == 0){
-                        qualifiedParis += TP.toInt
+                        qualifiedParis += TP
                         verifiedPairs += i
                     }
-           }
-        if (counter % step != 0) {
-            qualifiedParis += TP.toInt
-            verifiedPairs += counter.toInt
-        }
-        val auc = progressiveTP/TP.toDouble/counter.toDouble
+
+            }
+        qualifiedParis += TP
+        verifiedPairs += counter
+        val qualifiedPairsWithinBudget = if (totalQualifiedPairs < counter) totalQualifiedPairs else counter
+        val auc = (progressiveTP/qualifiedPairsWithinBudget)/counter.toDouble
         (auc, TP, counter, (verifiedPairs.toList, qualifiedParis.toList))
     }
 

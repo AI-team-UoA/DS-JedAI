@@ -1,27 +1,33 @@
 package experiments
 
 
-import java.util.Calendar
-
-import EntityMatching.DistributedMatching.DMFactory
+import DataStructures.Entity
+import EntityMatching.DistributedMatching.{DMFactory, GIAnt}
 import org.apache.log4j.{Level, LogManager, Logger}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.{Partitioner, SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.{SparkConf, SparkContext}
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import utils.Constants.MatchingAlgorithm.MatchingAlgorithm
+import utils.Constants.Relation.Relation
 import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Constants.{GridType, MatchingAlgorithm, Relation, WeightStrategy}
 import utils.{ConfigurationParser, SpatialReader, Utils}
 
-object GiantExp {
+
+object allDatasetsExp {
+
+    private val log: Logger = LogManager.getRootLogger
+    log.setLevel(Level.INFO)
+
+    var budget: Int = 10000
+    var relation: Relation = Relation.DE9IM
 
     def main(args: Array[String]): Unit = {
         Logger.getLogger("org").setLevel(Level.ERROR)
         Logger.getLogger("akka").setLevel(Level.ERROR)
-        val log = LogManager.getRootLogger
-        log.setLevel(Level.INFO)
 
         val sparkConf = new SparkConf()
             .setAppName("DS-JedAI")
@@ -38,20 +44,12 @@ object GiantExp {
                 case Nil => map
                 case ("-c" | "-conf") :: value :: tail =>
                     nextOption(map ++ Map("conf" -> value), tail)
-                case ("-f" | "-fraction") :: value :: tail =>
-                    nextOption(map ++ Map("fraction" -> value), tail)
-                case ("-s" | "-stats") :: tail =>
-                    nextOption(map ++ Map("stats" -> "true"), tail)
-                case "-auc" :: tail =>
-                    nextOption(map ++ Map("auc" -> "true"), tail)
                 case ("-p" | "-partitions") :: value :: tail =>
                     nextOption(map ++ Map("partitions" -> value), tail)
                 case ("-b" | "-budget") :: value :: tail =>
                     nextOption(map ++ Map("budget" -> value), tail)
                 case "-ws" :: value :: tail =>
                     nextOption(map ++ Map("ws" -> value), tail)
-                case "-ma" :: value :: tail =>
-                    nextOption(map ++ Map("ma" -> value), tail)
                 case "-gt" :: value :: tail =>
                     nextOption(map ++ Map("gt" -> value), tail)
                 case _ :: tail =>
@@ -72,15 +70,12 @@ object GiantExp {
         val confPath = options("conf")
         val conf = ConfigurationParser.parse(confPath)
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
-        val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
-        val ws: WeightStrategy = if (options.contains("ws")) WeightStrategy.withName(options("ws")) else conf.getWeightingScheme
-        val ma: MatchingAlgorithm = if (options.contains("ma")) MatchingAlgorithm.withName(options("ma")) else conf.getMatchingAlgorithm
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
-        val relation = conf.getRelation
+
+        budget = if (options.contains("budget")) options("budget").toInt else conf.getBudget
+        relation = conf.getRelation
 
         log.info("DS-JEDAI: Input Budget: " + budget)
-        log.info("DS-JEDAI: Weighting Strategy: " + ws.toString)
-        val startTime = Calendar.getInstance().getTimeInMillis
 
         val reader = SpatialReader(conf.source, partitions, gridType)
         val sourceRDD = reader.load()
@@ -91,36 +86,38 @@ object GiantExp {
         val targetRDD = reader.load(conf.target)
         val partitioner = reader.partitioner
 
-        val matchingStartTime = Calendar.getInstance().getTimeInMillis
-        val pm = DMFactory.getMatchingAlgorithm(ma, sourceRDD, targetRDD, partitioner, budget, ws)
-        if (relation.equals(Relation.DE9IM)) {
-            val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-            totalOverlaps, totalTouches, totalWithin, verifications, qualifiedPairs) = pm.countAllRelations
+        val (_, _, _, _, _, _, _, _, _, totalVerifications, totalRelatedPairs) = GIAnt(sourceRDD, targetRDD, WeightStrategy.JS, budget, partitioner).countAllRelations
+        val qpWithinBudget = (if (totalRelatedPairs < budget) totalRelatedPairs else budget).toDouble
 
-            val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
-                totalIntersects + totalOverlaps + totalTouches + totalWithin
-            log.info("DS-JEDAI: Total Verifications: " + verifications)
-            log.info("DS-JEDAI: Interlinked Geometries : " + qualifiedPairs)
+        log.info("DS-JEDAI: Total Verifications: " + totalVerifications)
+        log.info("DS-JEDAI: Total Interlinked Geometries: " + totalRelatedPairs)
+        log.info("DS-JEDAI: Qualifying Pairs within budget: " + qpWithinBudget)
+        log.info("\n")
 
-            log.info("DS-JEDAI: CONTAINS: " + totalContains)
-            log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
-            log.info("DS-JEDAI: COVERS: " + totalCovers)
-            log.info("DS-JEDAI: CROSSES: " + totalCrosses)
-            log.info("DS-JEDAI: EQUALS: " + totalEquals)
-            log.info("DS-JEDAI: INTERSECTS: " + totalIntersects)
-            log.info("DS-JEDAI: OVERLAPS: " + totalOverlaps)
-            log.info("DS-JEDAI: TOUCHES: " + totalTouches)
-            log.info("DS-JEDAI: WITHIN: " + totalWithin)
-            log.info("DS-JEDAI: Total Relations Discovered: " + totalRelations)
-        }
-        else{
-            val totalMatches = pm.countRelation(relation)
-            log.info("DS-JEDAI: " + relation.toString +": " + totalMatches)
-        }
-        val matchingEndTime = Calendar.getInstance().getTimeInMillis
-        log.info("DS-JEDAI: Interlinking Time: " + (matchingEndTime - matchingStartTime) / 1000.0)
-
-        val endTime = Calendar.getInstance().getTimeInMillis
-        log.info("DS-JEDAI: Total Execution Time: " + (endTime - startTime) / 1000.0)
+        val algorithms = Seq(MatchingAlgorithm.GIANT, MatchingAlgorithm.PROGRESSIVE_GIANT, MatchingAlgorithm.TOPK, MatchingAlgorithm.RECIPROCAL_TOPK, MatchingAlgorithm.GEOMETRY_CENTRIC)
+        val weightingSchemes = Seq(WeightStrategy.CBS, WeightStrategy.JS, WeightStrategy.PEARSON_X2)
+        for (a <- algorithms ; ws <- weightingSchemes)
+            printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, a, ws)
     }
+
+
+    def printResults(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], partitioner: Partitioner, totalRelations: Int,
+                    ma: MatchingAlgorithm, ws: WeightStrategy, n: Int = 10): Unit ={
+
+        val pma = DMFactory.getMatchingAlgorithm(ma, source, target, partitioner, budget, ws)
+        val (auc, interlinkedGeometries, totalVerifications, (verifications, qualifiedPairs)) = pma.getAUC(relation, n, totalRelations)
+        val qualifiedPairsWithinBudget = if (totalRelations < totalVerifications) totalRelations else totalVerifications
+        log.info(s"DS-JEDAI: ${ma.toString} Weighting Scheme: ${ws.toString}")
+        log.info(s"DS-JEDAI: ${ma.toString} Total Verifications: $totalVerifications")
+        log.info(s"DS-JEDAI: ${ma.toString} Qualifying Pairs within budget: $qualifiedPairsWithinBudget")
+        log.info(s"DS-JEDAI: ${ma.toString} Interlinked Geometries: $interlinkedGeometries")
+        log.info(s"DS-JEDAI: ${ma.toString} Recall: ${interlinkedGeometries.toDouble/qualifiedPairsWithinBudget.toDouble}")
+        log.info(s"DS-JEDAI: ${ma.toString} Precision: ${interlinkedGeometries.toDouble/totalVerifications.toDouble}")
+        log.info(s"DS-JEDAI: ${ma.toString} AUC: $auc")
+        log.info(s"DS-JEDAI: ${ma.toString}: \nQualified Pairs\tVerified Pairs\n" + qualifiedPairs.zip(verifications)
+            .map{ case (qp: Int, vp: Int) => qp.toDouble/qualifiedPairsWithinBudget.toDouble +"\t"+vp.toDouble/totalVerifications.toDouble}
+            .mkString("\n"))
+        log.info("\n")
+    }
+
 }
