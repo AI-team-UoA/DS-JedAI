@@ -93,7 +93,8 @@ object allDatasetsExp {
         log.info("DS-JEDAI: Total Interlinked Geometries: " + totalRelatedPairs)
         log.info("\n")
 
-        val algorithms = Seq(MatchingAlgorithm.GIANT, MatchingAlgorithm.PROGRESSIVE_GIANT, MatchingAlgorithm.TOPK, MatchingAlgorithm.RECIPROCAL_TOPK, MatchingAlgorithm.GEOMETRY_CENTRIC)
+        printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, MatchingAlgorithm.GIANT,  WeightStrategy.CBS)
+        val algorithms = Seq(MatchingAlgorithm.PROGRESSIVE_GIANT, MatchingAlgorithm.TOPK, MatchingAlgorithm.RECIPROCAL_TOPK, MatchingAlgorithm.GEOMETRY_CENTRIC)
         val weightingSchemes = Seq(WeightStrategy.CBS, WeightStrategy.JS, WeightStrategy.PEARSON_X2)
         for (a <- algorithms ; ws <- weightingSchemes)
             printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, a, ws)
@@ -106,7 +107,7 @@ object allDatasetsExp {
         val pma = DMFactory.getMatchingAlgorithm(ma, source, target, partitioner, budget, ws)
         val results = pma.getAUC(relation, n, totalRelations, takeBudget)
 
-        results.zip(takeBudget).foreach { case ((auc, interlinkedGeometries, totalVerifications, (verifications, qualifiedPairs)), b) =>
+        results.zip(takeBudget).foreach { case ((pgr, interlinkedGeometries, totalVerifications, (verifications, qualifiedPairs)), b) =>
             val qualifiedPairsWithinBudget = if (totalRelations < totalVerifications) totalRelations else totalVerifications
             log.info(s"DS-JEDAI: ${ma.toString} Budget : $b")
             log.info(s"DS-JEDAI: ${ma.toString} Weighting Scheme: ${ws.toString}")
@@ -115,12 +116,28 @@ object allDatasetsExp {
             log.info(s"DS-JEDAI: ${ma.toString} Interlinked Geometries: $interlinkedGeometries")
             log.info(s"DS-JEDAI: ${ma.toString} Recall: ${interlinkedGeometries.toDouble / qualifiedPairsWithinBudget.toDouble}")
             log.info(s"DS-JEDAI: ${ma.toString} Precision: ${interlinkedGeometries.toDouble / totalVerifications.toDouble}")
-            log.info(s"DS-JEDAI: ${ma.toString} AUC: $auc")
+            log.info(s"DS-JEDAI: ${ma.toString} PGR(R): $pgr")
             log.info(s"DS-JEDAI: ${ma.toString}: \nQualified Pairs\tVerified Pairs\n" + qualifiedPairs.zip(verifications)
                 .map { case (qp: Int, vp: Int) => qp.toDouble / qualifiedPairsWithinBudget.toDouble + "\t" + vp.toDouble / totalVerifications.toDouble }
                 .mkString("\n"))
             log.info("\n")
         }
+    }
+
+
+    /**
+     * compute Precision and PGR only for cases when bu > qp
+     * @param bu budget
+     * @param qp total qualifying pairs
+     * @return PGR and qp
+     */
+    def computeOptimalMetrics(bu: Double, qp: Double): (Double, Double) ={
+        val qpSum = (1d to qp by 1d).sum
+        val rest = bu - qp
+        val pgr = ((qpSum + (rest*qp))/qp.toDouble)/bu.toDouble
+        val precision = qp.toDouble/bu.toDouble
+
+        (pgr, precision)
     }
 
 }
