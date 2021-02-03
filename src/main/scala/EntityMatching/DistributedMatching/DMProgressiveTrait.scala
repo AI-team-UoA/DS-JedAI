@@ -3,9 +3,11 @@ package EntityMatching.DistributedMatching
 import DataStructures.{ComparisonPQ, Entity, IM, MBB}
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
 import utils.Constants.Relation.Relation
 import utils.Constants.{Relation, WeightStrategy}
 
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.math.{ceil, floor, max, min}
 
@@ -103,13 +105,8 @@ trait DMProgressiveTrait extends DMTrait{
      * @param relation the examined relation
      * @return (AUC, total interlinked Geometries (TP), total comparisons)
      */
-    def getAUC(relation: Relation, n: Int = 10, totalQualifiedPairs: Double): (Double, Long, Long, (List[Int], List[Int]) )  ={
-        var progressiveTP: Double = 0
-        var TP = 0
-        val verifiedPairs = ListBuffer[Int]()
-        val qualifiedParis = ListBuffer[Int]()
-
-        // computes weighted the weighted comparisons
+    def getAUC(relation: Relation, n: Int = 10, totalQualifiedPairs: Double, takeBudget: Seq[Int]): Seq[(Double, Long, Long, (List[Int], List[Int]))]  ={
+       // computes weighted the weighted comparisons
         val matches: RDD[(Double, Boolean)] = joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
@@ -129,30 +126,39 @@ trait DMProgressiveTrait extends DMTrait{
                         }
                     }.takeWhile(_ => !pq.isEmpty)
                 else Iterator()
-            }
+            }.persist(StorageLevel.MEMORY_AND_DISK)
 
-        val step = math.ceil(budget/n)
-        // compute AUC prioritizing the comparisons based on their weight
-        val sorted = matches.takeOrdered(budget.toInt)(Ordering.by[(Double, Boolean), Double](_._1).reverse)
-        val counter = sorted.length
-        sorted
-            .map(_._2)
-            .zipWithIndex
-            .foreach{
-                case (r, i) =>
-                    if (r) TP += 1
-                    progressiveTP += TP
-                    if (i % step == 0){
-                        qualifiedParis += TP
-                        verifiedPairs += i
-                    }
+        var results = mutable.ListBuffer[(Double, Long, Long, (List[Int], List[Int]))]()
+        for(b <- takeBudget){
+            // compute AUC prioritizing the comparisons based on their weight
+            val sorted = matches.takeOrdered(b)(Ordering.by[(Double, Boolean), Double](_._1).reverse)
+            val counter = sorted.length
+            val step = math.ceil(counter/n)
 
-            }
-        qualifiedParis += TP
-        verifiedPairs += counter
-        val qualifiedPairsWithinBudget = if (totalQualifiedPairs < counter) totalQualifiedPairs else counter
-        val auc = (progressiveTP/qualifiedPairsWithinBudget)/counter.toDouble
-        (auc, TP, counter, (verifiedPairs.toList, qualifiedParis.toList))
+            var progressiveTP: Double = 0
+            var TP = 0
+            val verifiedPairs = ListBuffer[Int]()
+            val qualifiedParis = ListBuffer[Int]()
+
+            sorted
+                .map(_._2)
+                .zipWithIndex
+                .foreach{
+                    case (r, i) =>
+                        if (r) TP += 1
+                        progressiveTP += TP
+                        if (i % step == 0){
+                            qualifiedParis += TP
+                            verifiedPairs += i
+                        }
+                }
+            qualifiedParis += TP
+            verifiedPairs += counter
+            val qualifiedPairsWithinBudget = if (totalQualifiedPairs < counter) totalQualifiedPairs else counter
+            val auc = (progressiveTP/qualifiedPairsWithinBudget)/counter.toDouble
+            results += ((auc, TP, counter, (verifiedPairs.toList, qualifiedParis.toList)))
+        }
+        results
     }
 
 }

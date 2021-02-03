@@ -23,6 +23,7 @@ object allDatasetsExp {
     log.setLevel(Level.INFO)
 
     var budget: Int = 10000
+    var takeBudget: Seq[Int] = Seq(5000000, 10000000)
     var relation: Relation = Relation.DE9IM
 
     def main(args: Array[String]): Unit = {
@@ -87,11 +88,9 @@ object allDatasetsExp {
         val partitioner = reader.partitioner
 
         val (_, _, _, _, _, _, _, _, _, totalVerifications, totalRelatedPairs) = GIAnt(sourceRDD, targetRDD, WeightStrategy.JS, budget, partitioner).countAllRelations
-        val qpWithinBudget = (if (totalRelatedPairs < budget) totalRelatedPairs else budget).toDouble
 
         log.info("DS-JEDAI: Total Verifications: " + totalVerifications)
         log.info("DS-JEDAI: Total Interlinked Geometries: " + totalRelatedPairs)
-        log.info("DS-JEDAI: Qualifying Pairs within budget: " + qpWithinBudget)
         log.info("\n")
 
         val algorithms = Seq(MatchingAlgorithm.GIANT, MatchingAlgorithm.PROGRESSIVE_GIANT, MatchingAlgorithm.TOPK, MatchingAlgorithm.RECIPROCAL_TOPK, MatchingAlgorithm.GEOMETRY_CENTRIC)
@@ -102,22 +101,26 @@ object allDatasetsExp {
 
 
     def printResults(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], partitioner: Partitioner, totalRelations: Int,
-                    ma: MatchingAlgorithm, ws: WeightStrategy, n: Int = 10): Unit ={
+                    ma: MatchingAlgorithm, ws: WeightStrategy, n: Int = 10): Unit = {
 
         val pma = DMFactory.getMatchingAlgorithm(ma, source, target, partitioner, budget, ws)
-        val (auc, interlinkedGeometries, totalVerifications, (verifications, qualifiedPairs)) = pma.getAUC(relation, n, totalRelations)
-        val qualifiedPairsWithinBudget = if (totalRelations < totalVerifications) totalRelations else totalVerifications
-        log.info(s"DS-JEDAI: ${ma.toString} Weighting Scheme: ${ws.toString}")
-        log.info(s"DS-JEDAI: ${ma.toString} Total Verifications: $totalVerifications")
-        log.info(s"DS-JEDAI: ${ma.toString} Qualifying Pairs within budget: $qualifiedPairsWithinBudget")
-        log.info(s"DS-JEDAI: ${ma.toString} Interlinked Geometries: $interlinkedGeometries")
-        log.info(s"DS-JEDAI: ${ma.toString} Recall: ${interlinkedGeometries.toDouble/qualifiedPairsWithinBudget.toDouble}")
-        log.info(s"DS-JEDAI: ${ma.toString} Precision: ${interlinkedGeometries.toDouble/totalVerifications.toDouble}")
-        log.info(s"DS-JEDAI: ${ma.toString} AUC: $auc")
-        log.info(s"DS-JEDAI: ${ma.toString}: \nQualified Pairs\tVerified Pairs\n" + qualifiedPairs.zip(verifications)
-            .map{ case (qp: Int, vp: Int) => qp.toDouble/qualifiedPairsWithinBudget.toDouble +"\t"+vp.toDouble/totalVerifications.toDouble}
-            .mkString("\n"))
-        log.info("\n")
+        val results = pma.getAUC(relation, n, totalRelations, takeBudget)
+
+        results.zip(takeBudget).foreach { case ((auc, interlinkedGeometries, totalVerifications, (verifications, qualifiedPairs)), b) =>
+            val qualifiedPairsWithinBudget = if (totalRelations < totalVerifications) totalRelations else totalVerifications
+            log.info(s"DS-JEDAI: ${ma.toString} Budget : $b")
+            log.info(s"DS-JEDAI: ${ma.toString} Weighting Scheme: ${ws.toString}")
+            log.info(s"DS-JEDAI: ${ma.toString} Total Verifications: $totalVerifications")
+            log.info(s"DS-JEDAI: ${ma.toString} Qualifying Pairs within budget: $qualifiedPairsWithinBudget")
+            log.info(s"DS-JEDAI: ${ma.toString} Interlinked Geometries: $interlinkedGeometries")
+            log.info(s"DS-JEDAI: ${ma.toString} Recall: ${interlinkedGeometries.toDouble / qualifiedPairsWithinBudget.toDouble}")
+            log.info(s"DS-JEDAI: ${ma.toString} Precision: ${interlinkedGeometries.toDouble / totalVerifications.toDouble}")
+            log.info(s"DS-JEDAI: ${ma.toString} AUC: $auc")
+            log.info(s"DS-JEDAI: ${ma.toString}: \nQualified Pairs\tVerified Pairs\n" + qualifiedPairs.zip(verifications)
+                .map { case (qp: Int, vp: Int) => qp.toDouble / qualifiedPairsWithinBudget.toDouble + "\t" + vp.toDouble / totalVerifications.toDouble }
+                .mkString("\n"))
+            log.info("\n")
+        }
     }
 
 }
