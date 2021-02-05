@@ -158,6 +158,7 @@ trait DMProgressiveTrait extends DMTrait{
             val auc = (progressiveTP/qualifiedPairsWithinBudget)/counter.toDouble
             results += ((auc, TP, counter, (verifiedPairs.toList, qualifiedParis.toList)))
         }
+        matches.unpersist()
         results
     }
 
