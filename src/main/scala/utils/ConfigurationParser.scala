@@ -1,6 +1,5 @@
 package utils
 
-import java.nio.file.{Files, Paths}
 
 import net.jcazevedo.moultingyaml.{DefaultYamlProtocol, _}
 import org.apache.log4j.{LogManager, Logger}
@@ -96,7 +95,7 @@ case class Configuration(source: DatasetConfigurations, target:DatasetConfigurat
 
 	def getGridType: GridType = GridType.withName(configurations.getOrElse(YamlConfiguration.CONF_GRIDTYPE, "QUADTREE"))
 
-	def getBudget: Int = configurations.getOrElse(YamlConfiguration.CONF_BUDGET, "10000").toInt
+	def getBudget: Int = configurations.getOrElse(YamlConfiguration.CONF_BUDGET, "0").toInt
 
 	def getSpatialPartitioning: Boolean = configurations.getOrElse(YamlConfiguration.CONF_SPATIAL_PARTITION, "false").toBoolean
 

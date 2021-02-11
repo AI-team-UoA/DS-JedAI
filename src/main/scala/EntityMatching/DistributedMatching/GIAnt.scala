@@ -3,7 +3,6 @@ package EntityMatching.DistributedMatching
 import DataStructures.{ComparisonPQ, Entity, IM, MBB}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
-import org.spark_project.guava.collect.MinMaxPriorityQueue
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightStrategy.WeightStrategy
@@ -49,26 +48,30 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
      * @return an RDD of intersection matrix
      */
     override def getDE9IM: RDD[IM] ={
-        joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
-            .flatMap { p =>
-            val pid = p._1
-            val partition = partitionsZones(pid)
-            val source: Array[Entity] = p._2._1.toArray
-            val target: Iterable[Entity] = p._2._2
-            val sourceIndex = index(source)
-            val filteringFunction = (b:(Int, Int)) => sourceIndex.contains(b)
+        if (budget > 0)
+            super.getDE9IM
+        else {
+            joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
+                .flatMap { p =>
+                    val pid = p._1
+                    val partition = partitionsZones(pid)
+                    val source: Array[Entity] = p._2._1.toArray
+                    val target: Iterable[Entity] = p._2._2
+                    val sourceIndex = index(source)
+                    val filteringFunction = (b: (Int, Int)) => sourceIndex.contains(b)
 
-           target.flatMap { e2 =>
-               e2
-                    .index(thetaXY, filteringFunction)
-                    .view
-                    .flatMap(c => sourceIndex.get(c).map(i => (c, i)))
-                    .filter{ case(block, i) => source(i).filter(e2, Relation.DE9IM, block, thetaXY, Some(partition))}
-                    .map(_._2)
-                    .map(i => IM(source(i), e2))
-                    .filter(_.relate)
-                    .force
-            }
+                    target.flatMap { e2 =>
+                        e2
+                            .index(thetaXY, filteringFunction)
+                            .view
+                            .flatMap(c => sourceIndex.get(c).map(i => (c, i)))
+                            .filter { case (block, i) => source(i).filter(e2, Relation.DE9IM, block, thetaXY, Some(partition)) }
+                            .map(_._2)
+                            .map(i => IM(source(i), e2))
+                            .filter(_.relate)
+                            .force
+                    }
+                }
         }
     }
 
