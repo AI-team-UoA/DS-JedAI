@@ -38,13 +38,13 @@ case class Block(id: Long, coords: (Int, Int), source: Array[Entity], target: Ar
 	def getTotalComparisons: Int = source.length * target.length
 
 	/**
-	 * Return only the comparisons that their MBBs relate and that their\
+	 * Return only the comparisons that their MBRs relate and that their\
 	 * reference points are inside the block
 	 *
 	 * @return blocks comparisons after filtering
 	 */
 	def getFilteredComparisons(relation: Relation): Array[(Entity, Entity)] =
-		for (s <-source; t <- target; if s.testMBB(t, relation) && s.referencePointFiltering(t, coords, Utils.thetaXY))
+		for (s <-source; t <- target; if s.testMBR(t, relation) && s.referencePointFiltering(t, coords, Utils.thetaXY))
 			yield (s, t)
 
 	def getSourceIDs: Array[String] = source.map(se => se.originalID)

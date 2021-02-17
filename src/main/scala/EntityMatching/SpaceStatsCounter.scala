@@ -1,6 +1,6 @@
 package EntityMatching
 
-import DataStructures.{IM, MBB, Entity, SpatialIndex}
+import DataStructures.{IM, MBR, Entity, SpatialIndex}
 import org.apache.log4j.{Level, LogManager}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partitioner, TaskContext}
@@ -12,8 +12,8 @@ import scala.collection.mutable.ListBuffer
 
 case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[Entity],  Iterable[Entity]))], thetaXY: (Double, Double)){
 
-    val partitionsZones: Array[MBB] = Utils.getZones
-    val spaceEdges: MBB = Utils.getSpaceEdges
+    val partitionsZones: Array[MBR] = Utils.getZones
+    val spaceEdges: MBR = Utils.getSpaceEdges
 
     def printSpaceInfo(): Unit ={
         val log = LogManager.getRootLogger
@@ -68,8 +68,8 @@ case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[Entity],  Iterable[E
                 }
             }.setName("ComparisonsRDD")
 
-        val intersectingTiles = comparisonsRDD.filter{ case (sSE, tSE) => sSE.testMBB(tSE, Relation.INTERSECTS, Relation.TOUCHES)}
-        val truePairs = comparisonsRDD.filter{ case (sSE, tSE) => sSE.testMBB(tSE, Relation.INTERSECTS, Relation.TOUCHES)}.filter{case (sSE, tSE) => IM(sSE, tSE).relate}
+        val intersectingTiles = comparisonsRDD.filter{ case (sSE, tSE) => sSE.testMBR(tSE, Relation.INTERSECTS, Relation.TOUCHES)}
+        val truePairs = comparisonsRDD.filter{ case (sSE, tSE) => sSE.testMBR(tSE, Relation.INTERSECTS, Relation.TOUCHES)}.filter{case (sSE, tSE) => IM(sSE, tSE).relate}
 
         log.info("Intersecting Pairs: " + intersectingTiles.count())
         log.info("True Pairs: " + truePairs.count())

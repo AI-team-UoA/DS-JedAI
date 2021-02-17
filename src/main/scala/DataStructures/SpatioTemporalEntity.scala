@@ -7,7 +7,7 @@ import org.joda.time.{DateTime, Days}
 import utils.Constants
 import utils.Constants.Relation.Relation
 
-case class SpatioTemporalEntity(originalID: String = "", geometry: Geometry, mbb: MBB, dateStr: String)  extends Entity {
+case class SpatioTemporalEntity(originalID: String = "", geometry: Geometry, mbr: MBR, dateStr: String)  extends Entity {
 
     lazy val dateTime: DateTime = {
         val formatter = DateTimeFormat.forPattern(Constants.defaultDatePattern)
@@ -20,7 +20,7 @@ case class SpatioTemporalEntity(originalID: String = "", geometry: Geometry, mbb
         days < 2
     }
 
-    override def filter(se: Entity, relation: Relation, block: (Int, Int), thetaXY: (Double, Double), partition: Option[MBB]): Boolean = {
+    override def filter(se: Entity, relation: Relation, block: (Int, Int), thetaXY: (Double, Double), partition: Option[MBR]): Boolean = {
         val spatialFilter = super.filter(se, relation, block, thetaXY, partition)
         se match {
             case entity: SpatioTemporalEntity => spatialFilter && temporalFiltering(entity.dateTime)
@@ -39,14 +39,14 @@ object SpatioTemporalEntity {
     def apply(originalID: String, wkt: String, dateStr: String): SpatioTemporalEntity ={
         val wktReader = new WKTReader()
         val geometry: Geometry = wktReader.read(wkt)
-        val mbb = MBB(geometry)
+        val mbb = MBR(geometry)
 
         SpatioTemporalEntity(originalID, geometry, mbb, dateStr)
     }
 
     def apply(originalID: String, geom: Geometry, dateStr: String): SpatioTemporalEntity ={
         val geometry: Geometry = geom
-        val mbb = MBB(geometry)
+        val mbb = MBR(geometry)
 
         SpatioTemporalEntity(originalID, geometry, mbb, dateStr)
     }

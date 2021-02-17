@@ -13,7 +13,7 @@ trait Entity extends Serializable {
 
     val originalID: String
     val geometry: Geometry
-    val mbb: MBB
+    val mbr: MBR
 
     /**
      * Find the relation with another SpatialEntity
@@ -39,12 +39,12 @@ trait Entity extends Serializable {
 
 
     /**
-     *  checks if the MBB intersects
+     *  checks if MBRs relate
      * @param se target spatial entity
      * @param relation examining relation
-     * @return true if the MBBs intersect
+     * @return true if the MBRs relate
      */
-    def testMBB(se: Entity, relation: Relation*): Boolean = mbb.testMBB(se.mbb, relation)
+    def testMBR(se: Entity, relation: Relation*): Boolean = mbr.testMBR(se.mbr, relation)
 
     /**
      *  Reference point techniques. Remove duplicate comparisons by allowing the comparison
@@ -55,10 +55,10 @@ trait Entity extends Serializable {
      * @param partition the partition it belongs to
      * @return true if the comparison is in the block that contains the RF
      */
-    def referencePointFiltering(se: Entity, block: (Int, Int), thetaXY: (Double, Double), partition: Option[MBB]=None): Boolean =
+    def referencePointFiltering(se: Entity, block: (Int, Int), thetaXY: (Double, Double), partition: Option[MBR]=None): Boolean =
         partition match {
-            case Some(p) => mbb.referencePointFiltering(se.mbb, block, thetaXY, p)
-            case None => mbb.referencePointFiltering(se.mbb, block, thetaXY)
+            case Some(p) => mbr.referencePointFiltering(se.mbr, block, thetaXY, p)
+            case None => mbr.referencePointFiltering(se.mbr, block, thetaXY)
         }
 
     /**
@@ -70,8 +70,8 @@ trait Entity extends Serializable {
      * @param partition the partition the comparisons belong to
      * @return true if comparison is necessary
      */
-    def filter(se: Entity, relation: Relation, block: (Int, Int), thetaXY: (Double, Double), partition: Option[MBB]=None): Boolean =
-        testMBB(se, relation) && referencePointFiltering(se, block, thetaXY, partition)
+    def filter(se: Entity, relation: Relation, block: (Int, Int), thetaXY: (Double, Double), partition: Option[MBR]=None): Boolean =
+        testMBR(se, relation) && referencePointFiltering(se, block, thetaXY, partition)
 
     /**
      * Get the blocks of the spatial entity
@@ -83,11 +83,11 @@ trait Entity extends Serializable {
     def index(thetaXY: (Double, Double), filter: ((Int, Int)) => Boolean = (_:(Int,Int)) => true): Seq[(Int, Int)] = {
         val (thetaX, thetaY) = thetaXY
 
-        if (mbb.minX == 0 && mbb.maxX == 0 && mbb.minY == 0 && mbb.maxY == 0) Seq((0, 0))
-        val maxX = math.ceil(mbb.maxX / thetaX).toInt
-        val minX = math.floor(mbb.minX / thetaX).toInt
-        val maxY = math.ceil(mbb.maxY / thetaY).toInt
-        val minY = math.floor(mbb.minY / thetaY).toInt
+        if (mbr.minX == 0 && mbr.maxX == 0 && mbr.minY == 0 && mbr.maxY == 0) Seq((0, 0))
+        val maxX = math.ceil(mbr.maxX / thetaX).toInt
+        val minX = math.floor(mbr.minX / thetaX).toInt
+        val maxY = math.ceil(mbr.maxY / thetaY).toInt
+        val minY = math.floor(mbr.minY / thetaY).toInt
 
         for (x <- minX to maxX; y <- minY to maxY; if filter((x, y))) yield (x, y)
     }
@@ -99,10 +99,10 @@ trait Entity extends Serializable {
      */
     def getIntersectionMatrix(se: Entity): IntersectionMatrix = geometry.relate(se.geometry)
 
-    override def toString: String = s"$originalID, ${MBB.toString}"
+    override def toString: String = s"$originalID, ${MBR.toString}"
 }
 
-case class SpatialEntity(originalID: String = "", geometry: Geometry, mbb: MBB) extends Entity
+case class SpatialEntity(originalID: String = "", geometry: Geometry, mbr: MBR) extends Entity
 
 
 /**
@@ -113,14 +113,14 @@ object SpatialEntity {
     def apply(originalID: String, wkt: String): Entity ={
         val wktReader = new WKTReader()
         val geometry: Geometry = wktReader.read(wkt)
-        val mbb = MBB(geometry)
+        val mbb = MBR(geometry)
 
         SpatialEntity(originalID, geometry, mbb)
     }
 
     def apply(originalID: String, geom: Geometry): Entity ={
         val geometry: Geometry = geom
-        val mbb = MBB(geometry)
+        val mbb = MBR(geometry)
 
         SpatialEntity(originalID, geometry, mbb)
     }

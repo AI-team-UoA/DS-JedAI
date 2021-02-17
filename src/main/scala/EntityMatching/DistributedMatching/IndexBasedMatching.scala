@@ -19,7 +19,7 @@ case class IndexBasedMatching(source:RDD[Entity], target:RDD[Entity], thetaXY: (
 
     /**
      * First index the Source and then use the index to find the comparisons with target's entities.
-     * Filter the redundant comparisons using testMBB and RF
+     * Filter the redundant comparisons using testMBR and RF
      *
      * @param relation the examining relation
      * @return an RDD containing the matching pairs

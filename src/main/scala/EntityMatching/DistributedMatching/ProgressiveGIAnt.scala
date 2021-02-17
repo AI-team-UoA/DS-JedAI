@@ -1,7 +1,7 @@
 package EntityMatching.DistributedMatching
 
 
-import DataStructures.{ComparisonPQ, Entity, MBB}
+import DataStructures.{ComparisonPQ, Entity, MBR}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
@@ -17,12 +17,12 @@ case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Ent
      * First index source and then for each entity of target, find its comparisons using source's index.
      * Weight the comparisons according to the input weighting scheme and sort them using a PQ.
      *
-     * @param partition the MBB of the partition
+     * @param partition the MBR: of the partition
      * @param source source
      * @param target target
      * @return a PQ with the top comparisons
      */
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBB, relation: Relation): ComparisonPQ[(Int, Int)] ={
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): ComparisonPQ[(Int, Int)] ={
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
         val pq: ComparisonPQ[(Int, Int)] = ComparisonPQ[(Int, Int)](budget)

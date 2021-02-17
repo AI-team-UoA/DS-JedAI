@@ -84,7 +84,7 @@ object LightExp {
         log.info("DS-JEDAI: Number of profiles of Source: " + sourceCount + " in " + sourceRDD.getNumPartitions +" partitions")
 
 
-        Utils(sourceRDD.map(_.mbb), conf.getTheta, reader.partitionsZones)
+        Utils(sourceRDD.map(_.mbr), conf.getTheta, reader.partitionsZones)
 
         val targetRDD = reader.load(conf.target).map(_._2)
         val targetCount = targetRDD.setName("TargetRDD").persist(StorageLevel.MEMORY_AND_DISK).count().toInt

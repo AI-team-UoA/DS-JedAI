@@ -18,7 +18,7 @@ import scala.math._
  * @param maxY max y
  * @param minY min y
  */
-case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
+case class MBR(maxX:Double, minX:Double, maxY:Double, minY:Double){
 
 
     /**
@@ -31,7 +31,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @return true if the reference point is in the block
      */
     private[DataStructures]
-    def referencePointFiltering(mbb:MBB, b:(Int, Int), thetaXY: (Double, Double)): Boolean ={
+    def referencePointFiltering(mbb:MBR, b:(Int, Int), thetaXY: (Double, Double)): Boolean ={
         val (thetaX, thetaY) = thetaXY
 
         val minX1 = minX / thetaX
@@ -54,7 +54,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @return  true if the reference point is in the block and in partition
      */
     private[DataStructures]
-    def referencePointFiltering(mbb:MBB, b:(Int, Int), thetaXY: (Double, Double), partition: MBB): Boolean ={
+    def referencePointFiltering(mbb:MBR, b:(Int, Int), thetaXY: (Double, Double), partition: MBR): Boolean ={
         val (thetaX, thetaY) = thetaXY
 
         val minX1 = minX / thetaX
@@ -69,25 +69,25 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
 
 
     /**
-     *  check relation among MBBs
+     *  check relation among MBRs
      *
-     * @param mbb MBB to examine
+     * @param mbr MBR to examine
      * @param relations requested relations
      * @return whether the relation is true
      */
     private[DataStructures]
-    def testMBB(mbb:MBB, relations: Seq[Relation]): Boolean =
+    def testMBR(mbr:MBR, relations: Seq[Relation]): Boolean =
         relations.map {
             case Relation.CONTAINS | Relation.COVERS =>
-                contains(mbb)
+                contains(mbr)
             case Relation.WITHIN | Relation.COVEREDBY =>
-                within(mbb)
+                within(mbr)
             case Relation.INTERSECTS | Relation.CROSSES | Relation.OVERLAPS =>
-                intersects(mbb)
-            case Relation.TOUCHES => touches(mbb)
-            case Relation.DISJOINT => disjoint(mbb)
-            case Relation.EQUALS => equals(mbb)
-            case Relation.DE9IM => intersects(mbb)
+                intersects(mbr)
+            case Relation.TOUCHES => touches(mbr)
+            case Relation.DISJOINT => disjoint(mbr)
+            case Relation.EQUALS => equals(mbr)
+            case Relation.DE9IM => intersects(mbr)
             case _ => false
         }.reduce( _ || _)
 
@@ -98,7 +98,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @return whether it's true
      */
     private[DataStructures]
-    def equals(mbb:MBB): Boolean = minX == mbb.minX && maxX == mbb.maxX && minY == mbb.minY && maxY == mbb.maxY
+    def equals(mbb:MBR): Boolean = minX == mbb.minX && maxX == mbb.maxX && minY == mbb.minY && maxY == mbb.maxY
 
 
     /**
@@ -107,7 +107,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @return whether it's true
      */
     private[DataStructures]
-    def contains(mbb:MBB): Boolean = minX <= mbb.minX && maxX >= mbb.maxX && minY <= mbb.minY && maxY >= mbb.maxY
+    def contains(mbb:MBR): Boolean = minX <= mbb.minX && maxX >= mbb.maxX && minY <= mbb.minY && maxY >= mbb.maxY
 
     private[DataStructures]
     def contains(minX: Double, maxX: Double, minY: Double, maxY: Double): Boolean = minX <= minX && maxX >= maxX && minY <= minY && maxY >= maxY
@@ -123,7 +123,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @return whether it's true
      */
     private[DataStructures]
-    def within(mbb: MBB):Boolean = mbb.contains(this)
+    def within(mbb: MBR):Boolean = mbb.contains(this)
 
 
     /**
@@ -132,7 +132,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @return whether it's true
      */
     private[DataStructures]
-    def touches(mbb: MBB): Boolean = maxX == mbb.maxX || minX == mbb.minX || maxY == mbb.maxY || minY == mbb.minY
+    def touches(mbb: MBR): Boolean = maxX == mbb.maxX || minX == mbb.minX || maxY == mbb.maxY || minY == mbb.minY
 
 
     /**
@@ -141,7 +141,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @return whether it's true
      */
     private[DataStructures]
-    def intersects(mbb:MBB): Boolean = ! disjoint(mbb)
+    def intersects(mbb:MBR): Boolean = ! disjoint(mbb)
 
 
     /**
@@ -150,10 +150,10 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @return whether it's true
      */
     private[DataStructures]
-    def disjoint(mbb:MBB): Boolean = minX > mbb.maxX || maxX < mbb.minX || minY > mbb.maxY || maxY < mbb.minY
+    def disjoint(mbb:MBR): Boolean = minX > mbb.maxX || maxX < mbb.minX || minY > mbb.maxY || maxY < mbb.minY
 
 
-    def adjust(thetaXY: (Double, Double)) : MBB ={
+    def adjust(thetaXY: (Double, Double)) : MBR ={
         val (thetaX, thetaY) = thetaXY
 
         val maxX = this.maxX / thetaX
@@ -161,12 +161,12 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
         val maxY = this.maxY / thetaY
         val minY = this.minY / thetaY
 
-        MBB(maxX, minX, maxY, minY)
+        MBR(maxX, minX, maxY, minY)
     }
 
 
     /**
-     * convert MBB into jts.Geometry
+     * convert MBR into jts.Geometry
      * @return jts.Geometry
      */
     def getGeometry: Geometry = {
@@ -180,6 +180,7 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
         }
     }
 
+    def getArea: Double = (maxX - minX) * (maxY - minY)
 
     override def toString: String = "(" + minX.toString  + ", " + maxX.toString +"), ("+ minY.toString  + ", " + maxY.toString +")"
 
@@ -187,17 +188,17 @@ case class MBB(maxX:Double, minX:Double, maxY:Double, minY:Double){
 
 
 
-object  MBB {
-    def apply(geom: Geometry): MBB ={
+object  MBR {
+    def apply(geom: Geometry): MBR ={
         val env = geom.getEnvelopeInternal
-        MBB(env.getMaxX, env.getMinX, env.getMaxY, env.getMinY)
+        MBR(env.getMaxX, env.getMinX, env.getMaxY, env.getMinY)
     }
 
-    def apply(env: Envelope): MBB ={
-        MBB(env.getMaxX, env.getMinX, env.getMaxY, env.getMinY)
+    def apply(env: Envelope): MBR ={
+        MBR(env.getMaxX, env.getMinX, env.getMaxY, env.getMinY)
     }
 
-    def apply(x:Double, y:Double): MBB ={
-       MBB(x, x, y, y)
+    def apply(x:Double, y:Double): MBR ={
+       MBR(x, x, y, y)
     }
 }

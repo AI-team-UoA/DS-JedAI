@@ -1,6 +1,6 @@
 package EntityMatching.DistributedMatching
 
-import DataStructures.{IM, MBB, Entity, SpatialIndex}
+import DataStructures.{IM, MBR, Entity, SpatialIndex}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
@@ -17,14 +17,14 @@ trait DMTrait {
     val thetaXY: (Double, Double)
     val ws: WeightStrategy
 
-    val partitionsZones: Array[MBB] = SparkContext.getOrCreate().broadcast(Utils.getZones).value
-    val spaceEdges: MBB = SparkContext.getOrCreate().broadcast(Utils.getSpaceEdges).value
+    val partitionsZones: Array[MBR] = SparkContext.getOrCreate().broadcast(Utils.getZones).value
+    val spaceEdges: MBR = SparkContext.getOrCreate().broadcast(Utils.getSpaceEdges).value
 
     val totalBlocks: Double = if (ws == WeightStrategy.ECBS || ws == WeightStrategy.PEARSON_X2){
-        val globalMinX = joinedRDD.flatMap(p => p._2._1.map(_.mbb.minX/thetaXY._1)).min()
-        val globalMaxX = joinedRDD.flatMap(p => p._2._1.map(_.mbb.maxX/thetaXY._1)).max()
-        val globalMinY = joinedRDD.flatMap(p => p._2._1.map(_.mbb.minY/thetaXY._2)).min()
-        val globalMaxY = joinedRDD.flatMap(p => p._2._1.map(_.mbb.maxY/thetaXY._2)).max()
+        val globalMinX = joinedRDD.flatMap(p => p._2._1.map(_.mbr.minX/thetaXY._1)).min()
+        val globalMaxX = joinedRDD.flatMap(p => p._2._1.map(_.mbr.maxX/thetaXY._1)).max()
+        val globalMinY = joinedRDD.flatMap(p => p._2._1.map(_.mbr.minY/thetaXY._2)).min()
+        val globalMaxY = joinedRDD.flatMap(p => p._2._1.map(_.mbr.maxY/thetaXY._2)).max()
         (globalMaxX - globalMinX + 1) * (globalMaxY - globalMinY + 1)
     } else -1
 

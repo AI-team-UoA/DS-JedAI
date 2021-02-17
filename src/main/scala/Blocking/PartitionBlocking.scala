@@ -1,6 +1,6 @@
 package Blocking
 
-import DataStructures.{Block, Entity, MBB}
+import DataStructures.{Block, Entity, MBR}
 import org.apache.spark.{SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -11,8 +11,8 @@ import utils.Utils
 case class PartitionBlocking(source: RDD[Entity], target: RDD[Entity], thetaXY: (Double,Double))
     extends  Blocking with Serializable {
 
-    val partitionsZones: Array[MBB] = Utils.getZones
-    val spaceEdges: MBB = Utils.getSpaceEdges
+    val partitionsZones: Array[MBR] = Utils.getZones
+    val spaceEdges: MBR = Utils.getSpaceEdges
 
     /**
      * Check if the block is inside the zone of the partition.

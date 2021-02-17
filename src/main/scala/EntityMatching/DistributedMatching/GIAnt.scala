@@ -1,6 +1,6 @@
 package EntityMatching.DistributedMatching
 
-import DataStructures.{ComparisonPQ, Entity, IM, MBB}
+import DataStructures.{ComparisonPQ, Entity, IM, MBR}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation
@@ -14,7 +14,7 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
 
     /**
      * First index the Source and then use the index to find the comparisons with target's entities.
-     * Filter the redundant comparisons using testMBB and RF
+     * Filter the redundant comparisons using testMBR and RF
      *
      * @param relation the examining relation
      * @return an RDD containing the matching pairs
@@ -84,7 +84,7 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
      * @param relation examining relation
      * @return a PQ containing pseudo-prioritized comparisons
      */
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBB, relation: Relation): ComparisonPQ[(Int, Int)] ={
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): ComparisonPQ[(Int, Int)] ={
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
         val pq: ComparisonPQ[(Int, Int)] = ComparisonPQ[(Int, Int)](budget)

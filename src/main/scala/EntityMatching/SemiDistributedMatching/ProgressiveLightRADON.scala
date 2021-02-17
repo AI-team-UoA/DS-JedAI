@@ -23,7 +23,7 @@ case class ProgressiveLightRADON(source: RDD[Entity], target: Array[Entity], the
      * @param source Partition's Source
      * @param target Target (collected)
      * @param targetIndex targets index
-     * @param relations the relation the MBBs must hold
+     * @param relations the relation the MBRs must hold
      * @return a PQ of weighted comparisons
      */
     private def compute(source: Array[Entity], target: Array[Entity], targetIndex: mutable.HashMap[(Int, Int), ListBuffer[Int]],
@@ -48,7 +48,7 @@ case class ProgressiveLightRADON(source: RDD[Entity], target: Array[Entity], the
 
                         targetEntities.foreach { j =>
                             val e2 = target(j)
-                            if (relations.forall(r => source(i).testMBB(e2, r))) {
+                            if (relations.forall(r => source(i).testMBR(e2, r))) {
                                 val e2Blocks = e2.index(thetaXY) // easier to re-index than to retrieve from targetIndexBD
                                 val w = getWeight(totalBlocks, coords, e2Blocks, ws)
                                 if (minW < w) {

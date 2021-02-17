@@ -34,7 +34,7 @@ case class IterativeGeometryCentric(source: RDD[Entity], target: Array[Entity], 
                             candidates ++= targetEntities
 
                             targetEntities
-                                .filter(j => e1.testMBB(targetBD.value(j), relation))
+                                .filter(j => e1.testMBR(targetBD.value(j), relation))
                                 .map { j =>
                                     val e2 = targetBD.value(j)
                                     val e2Blocks = e2.index(thetaXY)
@@ -87,7 +87,7 @@ case class IterativeGeometryCentric(source: RDD[Entity], target: Array[Entity], 
                             candidates ++= targetEntities
 
                             targetEntities
-                                .filter(j => e1.testMBB(targetBD.value(j), Relation.INTERSECTS, Relation.TOUCHES))
+                                .filter(j => e1.testMBR(targetBD.value(j), Relation.INTERSECTS, Relation.TOUCHES))
                                 .map { j =>
                                     val e2 = targetBD.value(j)
                                     val e2Blocks = e2.index(thetaXY)

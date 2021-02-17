@@ -1,6 +1,6 @@
 package utils
 
-import DataStructures.{Entity, MBB, SpatialEntity, SpatioTemporalEntity}
+import DataStructures.{Entity, MBR, SpatialEntity, SpatioTemporalEntity}
 import com.vividsolutions.jts.geom.Geometry
 import org.apache.jena.query.ARQ
 import net.sansa_stack.rdf.spark.io._
@@ -56,8 +56,8 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
     // we partitioning using HashPartitioning with the spatial indexes as keys
     lazy val partitioner = new HashPartitioner(spatialPartitioner.numPartitions)
 
-    lazy val partitionsZones: Array[MBB] =
-        spatialPartitioner.getGrids.asScala.map(e => MBB(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY)).toArray
+    lazy val partitionsZones: Array[MBR] =
+        spatialPartitioner.getGrids.asScala.map(e => MBR(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY)).toArray
 
     /**
      *  Employ the appropriate reader based the FileType

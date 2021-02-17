@@ -1,7 +1,7 @@
 package utils
 
 
-import DataStructures.{MBB, Entity}
+import DataStructures.{MBR, Entity}
 import com.vividsolutions.jts.geom.Geometry
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.TaskContext
@@ -23,12 +23,12 @@ object Utils {
 	val spark: SparkSession = SparkSession.builder().getOrCreate()
 	val log: Logger = LogManager.getRootLogger
 	var thetaOption: ThetaOption = _
-	var source: RDD[MBB] = _
-	var partitionsZones: Array[MBB] = _
+	var source: RDD[MBR] = _
+	var partitionsZones: Array[MBR] = _
 	lazy val sourceCount: Long = source.count()
 	lazy val thetaXY: (Double, Double) = initTheta()
 
-	def apply(sourceRDD: RDD[MBB], thetaOpt: ThetaOption = Constants.ThetaOption.AVG, pz: Array[MBB]=Array()): Unit ={
+	def apply(sourceRDD: RDD[MBR], thetaOpt: ThetaOption = Constants.ThetaOption.AVG, pz: Array[MBR]=Array()): Unit ={
 		source = sourceRDD
 		thetaOption = thetaOpt
 		partitionsZones = pz
@@ -68,7 +68,7 @@ object Utils {
 	 * @param count number of the entities
 	 * @return Estimation of the Total Hyper-volume
 	 */
-	def getETH(seRDD: RDD[MBB], count: Double): Double ={
+	def getETH(seRDD: RDD[MBR], count: Double): Double ={
 		val denom = 1/count
 		val coords_sum = seRDD
 			.map(mbb => (mbb.maxX - mbb.minX, mbb.maxY - mbb.minY))
@@ -127,7 +127,7 @@ object Utils {
 	}
 
 	// todo fix spaghetti code
-	def getZones: Array[MBB] ={
+	def getZones: Array[MBR] ={
 		val (thetaX, thetaY) = thetaXY
 
 		val globalMinX = partitionsZones.map(p => p.minX / thetaX).min
@@ -146,17 +146,17 @@ object Utils {
 			val minY = if (mbb.minY / thetaY == globalMinY) spaceMinY else mbb.minY / thetaY
 			val maxY = if (mbb.maxY / thetaY == globalMaxY) spaceMaxY else 	mbb.maxY / thetaY
 
-			MBB(maxX, minX, maxY, minY)
+			MBR(maxX, minX, maxY, minY)
 		})
 	}
 
-	def getSpaceEdges: MBB ={
+	def getSpaceEdges: MBR ={
 		val (thetaX, thetaY) = thetaXY
 		val minX = math.floor(partitionsZones.map(p => p.minX / thetaX).min).toInt - 1
 		val maxX = math.ceil(partitionsZones.map(p => p.maxX / thetaX).max).toInt + 1
 		val minY = math.floor(partitionsZones.map(p => p.minY / thetaY).min).toInt - 1
 		val maxY = math.ceil(partitionsZones.map(p => p.maxY / thetaY).max).toInt + 1
-		MBB(maxX, minX, maxY, minY)
+		MBR(maxX, minX, maxY, minY)
 	}
 
 	def normalizeWeight(weight: Double, geom1: Geometry, geom2: Geometry): Double ={

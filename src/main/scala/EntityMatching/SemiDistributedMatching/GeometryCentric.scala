@@ -66,7 +66,7 @@ case class GeometryCentric(source: RDD[Entity], target: Array[Entity], thetaXY: 
                         candidates ++= targetEntities
 
                         targetEntities
-                            .filter(j => relations.forall(r => e1.testMBB(target(j), r)))
+                            .filter(j => relations.forall(r => e1.testMBR(target(j), r)))
                             .foreach { j =>
                                 val e2 = target(j)
                                 val e2Blocks = e2.index(thetaXY)

@@ -91,7 +91,7 @@ object WellBalancedExp {
         val reader = SpatialReader(conf.source, partitions, gridType)
         val sourceRDD = reader.load()
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
-        Utils(sourceRDD.map(_._2.mbb), conf.getTheta, reader.partitionsZones)
+        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
 
         val targetRDD = reader.load(conf.target)
         val partitioner = reader.partitioner

@@ -24,7 +24,7 @@ case class LightRADON(source: RDD[Entity], target: Array[Entity], thetaXY: (Doub
         * Get the matching pairs which the relation holds.
         * Broadcast target's index and the collected dataset.
         * Then index the distributed dataset and compare the entities with common blocks
-        * and intersecting MBBs. To avoid duplicate comparisons maintain a Set with the
+        * and intersecting MBRs. To avoid duplicate comparisons maintain a Set with the
         * compared entities.
         *
         * @param relation the testing relation
@@ -48,7 +48,7 @@ case class LightRADON(source: RDD[Entity], target: Array[Entity], thetaXY: (Doub
                        compared ++= entitiesIDs
                        entitiesIDs
                            .map(i => targetBD.value(i))
-                           .filter(e2 => e1.testMBB(e2, relation) && e1.relate(e2, relation))
+                           .filter(e2 => e1.testMBR(e2, relation) && e1.relate(e2, relation))
                            .map(e2 => (e1.originalID, e2.originalID))
                    }
            }
@@ -76,7 +76,7 @@ case class LightRADON(source: RDD[Entity], target: Array[Entity], thetaXY: (Doub
                        compared ++= entitiesIDs
                        entitiesIDs
                            .map(i => targetBD.value(i))
-                           .filter(e2 => e1.testMBB(e2, Constants.Relation.INTERSECTS, Constants.Relation.TOUCHES))
+                           .filter(e2 => e1.testMBR(e2, Constants.Relation.INTERSECTS, Constants.Relation.TOUCHES))
                            .map(e2 => IM(e1, e2))
                    }
            }

@@ -1,6 +1,6 @@
 package EntityMatching.DistributedMatching
 
-import DataStructures.{ComparisonPQ, Entity, MBB}
+import DataStructures.{ComparisonPQ, Entity, MBR}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
@@ -20,7 +20,7 @@ case class GeometryCentric(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Enti
      *
      * @return  an RDD of Intersection Matrices
      */
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBB, relation: Relation): ComparisonPQ[(Int, Int)] = {
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): ComparisonPQ[(Int, Int)] = {
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
         val k = (math.ceil(budget / target.length).toInt + 1) * 2 // +1 to avoid k=0
