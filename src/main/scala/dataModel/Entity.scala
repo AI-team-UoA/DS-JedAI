@@ -1,4 +1,4 @@
-package DataStructures
+package dataModel
 
 import com.vividsolutions.jts.geom.{Geometry, IntersectionMatrix}
 import com.vividsolutions.jts.io.WKTReader

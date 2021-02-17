@@ -1,18 +1,29 @@
-package EntityMatching.DistributedMatching
+package geospatialInterlinking.progressive
 
-import DataStructures.{ComparisonPQ, Entity, IM, MBR}
+import dataModel.{ComparisonPQ, Entity, IM, MBR}
+import geospatialInterlinking.GeospatialInterlinkingT
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 import utils.Constants.Relation.Relation
+import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Constants.{Relation, WeightStrategy}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.math.{ceil, floor, max, min}
 
-trait DMProgressiveTrait extends DMTrait{
+trait ProgressiveGeospatialInterlinkingT extends GeospatialInterlinkingT{
     val budget: Int
+    val ws: WeightStrategy
+
+    val totalBlocks: Double = if (ws == WeightStrategy.PEARSON_X2){
+        val globalMinX = joinedRDD.flatMap(p => p._2._1.map(_.mbr.minX/thetaXY._1)).min()
+        val globalMaxX = joinedRDD.flatMap(p => p._2._1.map(_.mbr.maxX/thetaXY._1)).max()
+        val globalMinY = joinedRDD.flatMap(p => p._2._1.map(_.mbr.minY/thetaXY._2)).min()
+        val globalMaxY = joinedRDD.flatMap(p => p._2._1.map(_.mbr.maxY/thetaXY._2)).max()
+        (globalMaxX - globalMinX + 1) * (globalMaxY - globalMinY + 1)
+    } else -1
 
     def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): ComparisonPQ[(Int, Int)]
 
@@ -46,7 +57,7 @@ trait DMProgressiveTrait extends DMTrait{
                 val chiTest = new ChiSquareTest()
                 chiTest.chiSquare(Array(v1, v2))
 
-            case WeightStrategy.CBS | _ =>
+            case WeightStrategy.CF | _ =>
                 cb.toDouble
         }
     }
@@ -103,13 +114,13 @@ trait DMProgressiveTrait extends DMTrait{
 
 
     /**
-     * Compute AUC - first weight and perform the comparisons in each partition,
-     * then collect them in order and compute the progressive True Positives.
+     * Compute PGR - first weight and perform the comparisons in each partition,
+     * then collect them in descending order and compute the progressive True Positives.
      *
      * @param relation the examined relation
-     * @return (AUC, total interlinked Geometries (TP), total comparisons)
+     * @return (PGR, total interlinked Geometries (TP), total comparisons)
      */
-    def getAUC(relation: Relation, n: Int = 10, totalQualifiedPairs: Double, takeBudget: Seq[Int]): Seq[(Double, Long, Long, (List[Int], List[Int]))]  ={
+    def evaluate(relation: Relation, n: Int = 10, totalQualifiedPairs: Double, takeBudget: Seq[Int]): Seq[(Double, Long, Long, (List[Int], List[Int]))]  ={
        // computes weighted the weighted comparisons
         val matches: RDD[(Double, Boolean)] = joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
@@ -136,31 +147,31 @@ trait DMProgressiveTrait extends DMTrait{
         for(b <- takeBudget){
             // compute AUC prioritizing the comparisons based on their weight
             val sorted = matches.takeOrdered(b)(Ordering.by[(Double, Boolean), Double](_._1).reverse)
-            val counter = sorted.length
-            val step = math.ceil(counter/n)
+            val verifications = sorted.length
+            val step = math.ceil(verifications/n)
 
-            var progressiveTP: Double = 0
-            var TP = 0
-            val verifiedPairs = ListBuffer[Int]()
-            val qualifiedParis = ListBuffer[Int]()
+            var progressiveQP: Double = 0
+            var qp = 0
+            val verificationSteps = ListBuffer[Int]()
+            val qualifiedPairsSteps = ListBuffer[Int]()
 
             sorted
                 .map(_._2)
                 .zipWithIndex
                 .foreach{
                     case (r, i) =>
-                        if (r) TP += 1
-                        progressiveTP += TP
+                        if (r) qp += 1
+                        progressiveQP += qp
                         if (i % step == 0){
-                            qualifiedParis += TP
-                            verifiedPairs += i
+                            qualifiedPairsSteps += qp
+                            verificationSteps += i
                         }
                 }
-            qualifiedParis += TP
-            verifiedPairs += counter
-            val qualifiedPairsWithinBudget = if (totalQualifiedPairs < counter) totalQualifiedPairs else counter
-            val auc = (progressiveTP/qualifiedPairsWithinBudget)/counter.toDouble
-            results += ((auc, TP, counter, (verifiedPairs.toList, qualifiedParis.toList)))
+            qualifiedPairsSteps += qp
+            verificationSteps += verifications
+            val qualifiedPairsWithinBudget = if (totalQualifiedPairs < verifications) totalQualifiedPairs else verifications
+            val pgr = (progressiveQP/qualifiedPairsWithinBudget)/verifications.toDouble
+            results += ((pgr, qp, verifications, (verificationSteps.toList, qualifiedPairsSteps.toList)))
         }
         matches.unpersist()
         results

@@ -5,9 +5,8 @@ import net.jcazevedo.moultingyaml.{DefaultYamlProtocol, _}
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.SparkContext
 import org.joda.time.format.DateTimeFormat
-import utils.Constants.BlockingAlgorithm.BlockingAlgorithm
 import utils.Constants.GridType.GridType
-import utils.Constants.MatchingAlgorithm.MatchingAlgorithm
+import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.Relation.Relation
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Constants.WeightStrategy.WeightStrategy
@@ -30,10 +29,6 @@ case class DatasetConfigurations(path: String, geometryField: String, realIdFiel
 		val log: Logger = LogManager.getRootLogger
 
 		// checks path and geometry filed
-//		if (! Files.exists(Paths.get(path))){
-//			log.error(s"DS-JEDAI: Path: \'$path\' does not exist")
-//			false
-//		}
 		if (geometryField == ""){
 			log.error(s"DS-JEDAI: Path: \'$path\' does not exist")
 			false
@@ -97,17 +92,7 @@ case class Configuration(source: DatasetConfigurations, target:DatasetConfigurat
 
 	def getBudget: Int = configurations.getOrElse(YamlConfiguration.CONF_BUDGET, "0").toInt
 
-	def getSpatialPartitioning: Boolean = configurations.getOrElse(YamlConfiguration.CONF_SPATIAL_PARTITION, "false").toBoolean
-
-	def getMatchingAlgorithm: MatchingAlgorithm = MatchingAlgorithm.withName(configurations.getOrElse(YamlConfiguration.CONF_MATCHING_ALG, "GIANT"))
-
-	def getBlockingAlgorithm: BlockingAlgorithm = BlockingAlgorithm.withName(configurations.getOrElse(YamlConfiguration.CONF_BLOCK_ALG, "RADON"))
-
-	def getBlockingFactor: Int = configurations.getOrElse(YamlConfiguration.CONF_SPATIAL_BLOCKING_FACTOR, "10").toInt
-
-	def getBlockingDistance: Double = configurations.getOrElse(YamlConfiguration.CONF_STATIC_BLOCKING_DISTANCE, "0.0").toDouble
-
-	def partitionBySource: Boolean =  configurations.getOrElse(YamlConfiguration.CONF_PARTITION_BY, Constants.DT_SOURCE)  == Constants.DT_SOURCE
+	def getMatchingAlgorithm: ProgressiveAlgorithm = ProgressiveAlgorithm.withName(configurations.getOrElse(YamlConfiguration.CONF_MATCHING_ALG, "GIANT"))
 
 }
 
@@ -154,21 +139,6 @@ object ConfigurationParser {
 							log.error("DS-JEDAI: Partitions must be an Integer")
 							false
 						}
-					case YamlConfiguration.CONF_BLOCK_ALG =>
-						if (! BlockingAlgorithm.exists(value)) {
-							log.error(s"DS-JEDAI: Blocking Algorithm \'$value\' is not supported")
-							false
-						}
-					case YamlConfiguration.CONF_SPATIAL_BLOCKING_FACTOR =>
-						if (!(value forall Character.isDigit)) {
-							log.error("DS-JEDAI: Spatial Blocking Factor must be an Integer")
-							false
-						}
-					case YamlConfiguration.CONF_STATIC_BLOCKING_DISTANCE =>
-						if (! value.matches("[+-]?\\d+.?\\d+")){
-							log.error("DS-JEDAI: Static Blocking's distance must be a Number")
-							false
-						}
 					case YamlConfiguration.CONF_THETA_GRANULARITY =>
 						if (!ThetaOption.exists(value)) {
 							log.error("DS-JEDAI: Not valid measure for theta")
@@ -181,7 +151,7 @@ object ConfigurationParser {
 							false
 						}
 					case YamlConfiguration.CONF_MATCHING_ALG =>
-						if (!MatchingAlgorithm.exists(value)) {
+						if (!ProgressiveAlgorithm.exists(value)) {
 							log.error(s"DS-JEDAI: Prioritization Algorithm \'$value\' is not supported")
 							false
 						}
@@ -193,12 +163,6 @@ object ConfigurationParser {
 					case YamlConfiguration.CONF_GRIDTYPE=>
 						if (! GridType.exists(value)){
 							log.error(s"DS-JEDAI: Grid Type \'$value\' is not supported")
-							false
-						}
-
-					case YamlConfiguration.CONF_PARTITION_BY=>
-						if (!(value == Constants.DT_SOURCE || value == Constants.DT_TARGET)) {
-							log.error("DS-JEDAI: Error in partitionBy conf, accepted values are \"source\" or \"target\"")
 							false
 						}
 				}

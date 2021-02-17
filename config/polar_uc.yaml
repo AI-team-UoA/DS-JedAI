@@ -22,6 +22,5 @@ relation: "DE9IM"
 configurations:
   partitions: "12"
   thetaGranularity: "avg"
-  matchingAlg: "GIANT"
   gridType: "QUADTREE"
   weightingStrategy: "JS"

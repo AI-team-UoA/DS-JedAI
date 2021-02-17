@@ -1,7 +1,7 @@
 package utils
 
 
-import DataStructures.{MBR, Entity}
+import dataModel.{MBR, Entity}
 import com.vividsolutions.jts.geom.Geometry
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.TaskContext
@@ -37,46 +37,6 @@ object Utils {
 	def getTheta: (Double, Double)= thetaXY
 	def getSourceCount: Long = sourceCount
 
-	/**
-	 * Cantor Pairing function. Map two positive integers to a unique integer number.
-	 *
-	 * @param a Long
-	 * @param b Long
-	 * @return the unique mapping of the integers
-	 */
-	def cantorPairing(a: Long, b: Long): Long =  (((a + b) * (a + b + 1))/2) + b
-
-	/**
-	 * Apply cantor pairing for negative integers
-	 *
-	 * @param x integer
-	 * @param y integer
-	 * @return the unique mapping of the integers
-	 */
-	def signedPairing(x: Long, y: Long): Long ={
-		val a = if (x < 0) (-2)*x - 1 else 2*x
-		val b = if (y < 0) (-2)*y - 1 else 2*y
-
-		cantorPairing(a, b)
-	}
-
-
-	/**
-	 * Compute the Estimation of the Total Hyper-volume
-	 *
-	 * @param seRDD Spatial Entities
-	 * @param count number of the entities
-	 * @return Estimation of the Total Hyper-volume
-	 */
-	def getETH(seRDD: RDD[MBR], count: Double): Double ={
-		val denom = 1/count
-		val coords_sum = seRDD
-			.map(mbb => (mbb.maxX - mbb.minX, mbb.maxY - mbb.minY))
-			.fold((0, 0)) { case ((x1, y1), (x2, y2)) => (x1 + x2, y1 + y2) }
-
-		val eth = count * ( (denom * coords_sum._1) * (denom * coords_sum._2) )
-		eth
-	}
 
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
 	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt

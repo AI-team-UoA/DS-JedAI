@@ -1,6 +1,6 @@
-package EntityMatching.DistributedMatching
+package geospatialInterlinking.progressive
 
-import DataStructures.{ComparisonPQ, Entity, MBR}
+import dataModel.{ComparisonPQ, Entity, MBR}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
@@ -10,7 +10,7 @@ import utils.Utils
 
 case class GeometryCentric(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
                            thetaXY: (Double, Double), ws: WeightStrategy, budget: Int, sourceCount: Long)
-   extends DMProgressiveTrait {
+   extends ProgressiveGeospatialInterlinkingT {
 
 
     /**

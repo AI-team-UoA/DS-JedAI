@@ -1,4 +1,4 @@
-package DataStructures
+package dataModel
 
 import scala.collection.{Set, mutable}
 import scala.collection.mutable.ListBuffer

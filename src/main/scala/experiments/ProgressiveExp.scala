@@ -1,19 +1,20 @@
 package experiments
 
-
 import java.util.Calendar
 
-import geospatialInterlinking.GIAnt
+import geospatialInterlinking.progressive.ProgressiveAlgorithmsFactory
 import org.apache.log4j.{Level, LogManager, Logger}
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.{SparkConf, SparkContext}
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import utils.Constants.{GridType, Relation}
+import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
+import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightStrategy}
+import utils.Constants.WeightStrategy.WeightStrategy
 import utils.{ConfigurationParser, SpatialReader, Utils}
 
-object GiantExp {
+object ProgressiveExp {
 
     def main(args: Array[String]): Unit = {
         Logger.getLogger("org").setLevel(Level.ERROR)
@@ -36,8 +37,20 @@ object GiantExp {
                 case Nil => map
                 case ("-c" | "-conf") :: value :: tail =>
                     nextOption(map ++ Map("conf" -> value), tail)
+                case ("-f" | "-fraction") :: value :: tail =>
+                    nextOption(map ++ Map("fraction" -> value), tail)
+                case ("-s" | "-stats") :: tail =>
+                    nextOption(map ++ Map("stats" -> "true"), tail)
+                case "-auc" :: tail =>
+                    nextOption(map ++ Map("auc" -> "true"), tail)
                 case ("-p" | "-partitions") :: value :: tail =>
                     nextOption(map ++ Map("partitions" -> value), tail)
+                case ("-b" | "-budget") :: value :: tail =>
+                    nextOption(map ++ Map("budget" -> value), tail)
+                case "-ws" :: value :: tail =>
+                    nextOption(map ++ Map("ws" -> value), tail)
+                case "-ma" :: value :: tail =>
+                    nextOption(map ++ Map("ma" -> value), tail)
                 case "-gt" :: value :: tail =>
                     nextOption(map ++ Map("gt" -> value), tail)
                 case _ :: tail =>
@@ -58,8 +71,15 @@ object GiantExp {
         val confPath = options("conf")
         val conf = ConfigurationParser.parse(confPath)
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
+        val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
+        val ws: WeightStrategy = if (options.contains("ws")) WeightStrategy.withName(options("ws")) else conf.getWeightingScheme
+        val pa: ProgressiveAlgorithm = if (options.contains("ma")) ProgressiveAlgorithm.withName(options("ma")) else conf.getMatchingAlgorithm
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
         val relation = conf.getRelation
+
+        log.info("DS-JEDAI: Input Budget: " + budget)
+        log.info("DS-JEDAI: Weighting Strategy: " + ws.toString)
+        log.info("DS-JEDAI: Progressive Algorithm: " + ws.toString)
 
         val startTime = Calendar.getInstance().getTimeInMillis
 
@@ -73,10 +93,10 @@ object GiantExp {
         val partitioner = reader.partitioner
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
-        val giant = GIAnt(sourceRDD, targetRDD, partitioner)
+        val method = ProgressiveAlgorithmsFactory.get(pa, sourceRDD, targetRDD, partitioner, budget, ws)
         if (relation.equals(Relation.DE9IM)) {
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-            totalOverlaps, totalTouches, totalWithin, verifications, qp) = giant.countAllRelations
+            totalOverlaps, totalTouches, totalWithin, verifications, qp) = method.countAllRelations
 
             val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
                 totalIntersects + totalOverlaps + totalTouches + totalWithin
@@ -95,7 +115,7 @@ object GiantExp {
             log.info("DS-JEDAI: Total Relations Discovered: " + totalRelations)
         }
         else{
-            val totalMatches = giant.countRelation(relation)
+            val totalMatches = method.countRelation(relation)
             log.info("DS-JEDAI: " + relation.toString +": " + totalMatches)
         }
         val matchingEndTime = Calendar.getInstance().getTimeInMillis
@@ -104,4 +124,5 @@ object GiantExp {
         val endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Total Execution Time: " + (endTime - startTime) / 1000.0)
     }
+
 }

@@ -1,4 +1,4 @@
-package DataStructures
+package dataModel
 
 import org.spark_project.guava.collect.MinMaxPriorityQueue
 import scala.collection.JavaConverters._

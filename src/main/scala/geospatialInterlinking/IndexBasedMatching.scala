@@ -1,6 +1,6 @@
-package EntityMatching.DistributedMatching
+package geospatialInterlinking
 
-import DataStructures.{Entity, IM}
+import dataModel.{Entity, IM}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation
@@ -9,7 +9,7 @@ import utils.Constants.WeightStrategy.WeightStrategy
 
 import scala.collection.mutable.ListBuffer
 
-case class IndexBasedMatching(source:RDD[Entity], target:RDD[Entity], thetaXY: (Double, Double)) extends DMTrait {
+case class IndexBasedMatching(source:RDD[Entity], target:RDD[Entity], thetaXY: (Double, Double)) extends GeospatialInterlinkingT {
 
     val joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))] = null
     val ws: WeightStrategy = null

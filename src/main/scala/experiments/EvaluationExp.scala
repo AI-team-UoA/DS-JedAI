@@ -1,8 +1,9 @@
 package experiments
 
 
-import DataStructures.Entity
-import EntityMatching.DistributedMatching.{DMFactory, GIAnt}
+import dataModel.Entity
+import geospatialInterlinking.GIAnt
+import geospatialInterlinking.progressive.ProgressiveAlgorithmsFactory
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partitioner, SparkConf, SparkContext}
@@ -10,14 +11,14 @@ import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import utils.Constants.MatchingAlgorithm.MatchingAlgorithm
+import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightStrategy.WeightStrategy
-import utils.Constants.{GridType, MatchingAlgorithm, Relation, WeightStrategy}
+import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightStrategy}
 import utils.{ConfigurationParser, SpatialReader, Utils}
 
 
-object allDatasetsExp {
+object EvaluationExp {
 
     private val log: Logger = LogManager.getRootLogger
     log.setLevel(Level.INFO)
@@ -87,14 +88,14 @@ object allDatasetsExp {
         val targetRDD = reader.load(conf.target)
         val partitioner = reader.partitioner
 
-        val (_, _, _, _, _, _, _, _, _, totalVerifications, totalRelatedPairs) = GIAnt(sourceRDD, targetRDD, WeightStrategy.JS, budget, partitioner).countAllRelations
+        val (_, _, _, _, _, _, _, _, _, totalVerifications, totalRelatedPairs) = GIAnt(sourceRDD, targetRDD, partitioner).countAllRelations
 
         log.info("DS-JEDAI: Total Verifications: " + totalVerifications)
         log.info("DS-JEDAI: Total Interlinked Geometries: " + totalRelatedPairs)
         log.info("\n")
 
-        printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, MatchingAlgorithm.GIANT,  WeightStrategy.CBS)
-        val algorithms = Seq(MatchingAlgorithm.PROGRESSIVE_GIANT, MatchingAlgorithm.TOPK, MatchingAlgorithm.RECIPROCAL_TOPK, MatchingAlgorithm.GEOMETRY_CENTRIC)
+        printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, ProgressiveAlgorithm.RANDOM,  WeightStrategy.CF)
+        val algorithms = Seq(ProgressiveAlgorithm.PROGRESSIVE_GIANT, ProgressiveAlgorithm.TOPK, ProgressiveAlgorithm.RECIPROCAL_TOPK, ProgressiveAlgorithm.GEOMETRY_CENTRIC)
         val weightingSchemes = Seq(WeightStrategy.MBR_INTERSECTION, WeightStrategy.POINTS)
         for (a <- algorithms ; ws <- weightingSchemes)
             printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, a, ws)
@@ -102,23 +103,23 @@ object allDatasetsExp {
 
 
     def printResults(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], partitioner: Partitioner, totalRelations: Int,
-                    ma: MatchingAlgorithm, ws: WeightStrategy, n: Int = 10): Unit = {
+                     ma: ProgressiveAlgorithm, ws: WeightStrategy, n: Int = 10): Unit = {
 
-        val pma = DMFactory.getMatchingAlgorithm(ma, source, target, partitioner, budget, ws)
-        val results = pma.getAUC(relation, n, totalRelations, takeBudget)
+        val pma = ProgressiveAlgorithmsFactory.get(ma, source, target, partitioner, budget, ws)
+        val results = pma.evaluate(relation, n, totalRelations, takeBudget)
 
-        results.zip(takeBudget).foreach { case ((pgr, interlinkedGeometries, totalVerifications, (verifications, qualifiedPairs)), b) =>
-            val qualifiedPairsWithinBudget = if (totalRelations < totalVerifications) totalRelations else totalVerifications
+        results.zip(takeBudget).foreach { case ((pgr, qp, verifications, (verificationSteps, qualifiedPairsSteps)), b) =>
+            val qualifiedPairsWithinBudget = if (totalRelations < verifications) totalRelations else verifications
             log.info(s"DS-JEDAI: ${ma.toString} Budget : $b")
             log.info(s"DS-JEDAI: ${ma.toString} Weighting Scheme: ${ws.toString}")
-            log.info(s"DS-JEDAI: ${ma.toString} Total Verifications: $totalVerifications")
+            log.info(s"DS-JEDAI: ${ma.toString} Total Verifications: $verifications")
             log.info(s"DS-JEDAI: ${ma.toString} Qualifying Pairs within budget: $qualifiedPairsWithinBudget")
-            log.info(s"DS-JEDAI: ${ma.toString} Interlinked Geometries: $interlinkedGeometries")
-            log.info(s"DS-JEDAI: ${ma.toString} Recall: ${interlinkedGeometries.toDouble / qualifiedPairsWithinBudget.toDouble}")
-            log.info(s"DS-JEDAI: ${ma.toString} Precision: ${interlinkedGeometries.toDouble / totalVerifications.toDouble}")
-            log.info(s"DS-JEDAI: ${ma.toString} PGR(R): $pgr")
-            log.info(s"DS-JEDAI: ${ma.toString}: \nQualified Pairs\tVerified Pairs\n" + qualifiedPairs.zip(verifications)
-                .map { case (qp: Int, vp: Int) => qp.toDouble / qualifiedPairsWithinBudget.toDouble + "\t" + vp.toDouble / totalVerifications.toDouble }
+            log.info(s"DS-JEDAI: ${ma.toString} Qualifying Pairs: $qp")
+            log.info(s"DS-JEDAI: ${ma.toString} Recall: ${qp.toDouble / qualifiedPairsWithinBudget.toDouble}")
+            log.info(s"DS-JEDAI: ${ma.toString} Precision: ${qp.toDouble / verifications.toDouble}")
+            log.info(s"DS-JEDAI: ${ma.toString} PGR: $pgr")
+            log.info(s"DS-JEDAI: ${ma.toString}: \nQualified Pairs\tVerified Pairs\n" + qualifiedPairsSteps.zip(verificationSteps)
+                .map { case (qp: Int, vp: Int) => qp.toDouble / qualifiedPairsWithinBudget.toDouble + "\t" + vp.toDouble / verifications.toDouble }
                 .mkString("\n"))
             log.info("\n")
         }

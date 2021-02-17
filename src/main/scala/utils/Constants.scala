@@ -5,23 +5,8 @@ package utils
  */
 object Constants {
 
-	final val DT_SOURCE = "source"
-	final val DT_TARGET = "target"
-
-	final val MAX_LAT: Double = 90.0
-	final val MIN_LAT: Double = -90.0
-	final val MAX_LONG: Double = 180.0
-	final val MIN_LONG: Double = -180.0
-	final val LAT_RANGE: Double = MAX_LAT - MIN_LAT
-	final val LONG_RANGE: Double = MAX_LONG - MIN_LONG
-
 	final val defaultDatePattern = "yyyy-MM-dd HH:mm:ss"
 
-	/**
-	 * Earth circumferences (in meters).
-	 */
-	val EARTH_CIRCUMFERENCE_EQUATORIAL = 40075160.0
-	val EARTH_CIRCUMFERENCE_MERIDIONAL = 40008000.0
 
 	/**
 	 * Relations
@@ -84,11 +69,9 @@ object Constants {
 	 */
 	object WeightStrategy extends Enumeration {
 		type WeightStrategy = Value
-		val ARCS: Constants.WeightStrategy.Value = Value("ARCS")
-		val CBS: Constants.WeightStrategy.Value = Value("CBS")
-		val ECBS: Constants.WeightStrategy.Value = Value("ECBS")
+
+		val CF: Constants.WeightStrategy.Value = Value("CF")
 		val JS: Constants.WeightStrategy.Value = Value("JS")
-		val EJS: Constants.WeightStrategy.Value = Value("EJS")
 		val PEARSON_X2: Constants.WeightStrategy.Value = Value("PEARSON_X2")
 		val MBR_INTERSECTION: Constants.WeightStrategy.Value = Value("MBR_INTERSECTION")
 		val POINTS: Constants.WeightStrategy.Value = Value("POINTS")
@@ -101,17 +84,12 @@ object Constants {
 	 */
 	object YamlConfiguration extends Enumeration {
 		type YamlConfiguration = String
-		val CONF_BLOCK_ALG = "blockingAlg"
 		val CONF_PARTITIONS = "partitions"
-		val CONF_SPATIAL_PARTITION = "spatialPartition"
 		val CONF_THETA_GRANULARITY = "thetaGranularity"
-		val CONF_STATIC_BLOCKING_DISTANCE = "static_blocking_distance"
-		val CONF_SPATIAL_BLOCKING_FACTOR = "spatial_blocking_factor"
 		val CONF_MATCHING_ALG = "matchingAlg"
 		val CONF_WEIGHTING_STRG = "weightingStrategy"
 		val CONF_BUDGET = "budget"
 		val CONF_GRIDTYPE = "gridType"
-		val CONF_PARTITION_BY = "partitionBy"
 	}
 
 	object GridType extends Enumeration{
@@ -124,33 +102,16 @@ object Constants {
 
 
 	/**
-	 * Blocking Algorithms
+	 * Progressive Algorithms
 	 */
-	object BlockingAlgorithm extends Enumeration {
-		type BlockingAlgorithm = Value
-		val RADON: BlockingAlgorithm.Value = Value("RADON")
-		val STATIC_BLOCKING: BlockingAlgorithm.Value = Value("STATIC_BLOCKING")
-
-		def exists(s: String): Boolean = values.exists(_.toString == s)
-	}
-
-	/**
-	 * Matching Algorithms
-	 */
-	object MatchingAlgorithm extends Enumeration {
-		type MatchingAlgorithm = Value
-		val GIANT: Constants.MatchingAlgorithm.Value = Value("GIANT")
-		val BLOCK_CENTRIC: Constants.MatchingAlgorithm.Value = Value("BLOCK_CENTRIC")
-		val PROGRESSIVE_GIANT: Constants.MatchingAlgorithm.Value = Value("PROGRESSIVE_GIANT")
-		val GEOMETRY_CENTRIC: Constants.MatchingAlgorithm.Value = Value("GEOMETRY_CENTRIC")
-		val ITERATIVE_GEOMETRY_CENTRIC: Constants.MatchingAlgorithm.Value = Value("ITERATIVE_GEOMETRY_CENTRIC")
-
-		val TOPK: Constants.MatchingAlgorithm.Value = Value("TOPK")
-		val RECIPROCAL_TOPK: Constants.MatchingAlgorithm.Value = Value("RECIPROCAL_TOPK")
-
-		val LIGHT_RADON: Constants.MatchingAlgorithm.Value = Value("LIGHT_RADON")
-		val PROGRESSIVE_LIGHT_RADON: Constants.MatchingAlgorithm.Value = Value("PROGRESSIVE_LIGHT_RADON")
-
+	object ProgressiveAlgorithm extends Enumeration {
+		type ProgressiveAlgorithm = Value
+		val PROGRESSIVE_GIANT: Constants.ProgressiveAlgorithm.Value = Value("PROGRESSIVE_GIANT")
+		val GEOMETRY_CENTRIC: Constants.ProgressiveAlgorithm.Value = Value("GEOMETRY_CENTRIC")
+		val ITERATIVE_GEOMETRY_CENTRIC: Constants.ProgressiveAlgorithm.Value = Value("ITERATIVE_GEOMETRY_CENTRIC")
+		val TOPK: Constants.ProgressiveAlgorithm.Value = Value("TOPK")
+		val RECIPROCAL_TOPK: Constants.ProgressiveAlgorithm.Value = Value("RECIPROCAL_TOPK")
+		val RANDOM: Constants.ProgressiveAlgorithm.Value = Value("RANDOM")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}

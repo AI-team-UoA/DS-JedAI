@@ -1,11 +1,10 @@
-package EntityMatching
+package utils
 
-import DataStructures.{IM, MBR, Entity, SpatialIndex}
+import dataModel.{Entity, IM, MBR, SpatialIndex}
 import org.apache.log4j.{Level, LogManager}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partitioner, TaskContext}
 import utils.Constants.Relation
-import utils.Utils
 
 import scala.collection.mutable.ListBuffer
 

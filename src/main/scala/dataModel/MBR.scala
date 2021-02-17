@@ -1,4 +1,4 @@
-package DataStructures
+package dataModel
 
 import com.vividsolutions.jts.geom.{Coordinate, Envelope, Geometry, GeometryFactory}
 import utils.Constants.Relation
@@ -30,7 +30,7 @@ case class MBR(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param thetaXY blocks' granularity
      * @return true if the reference point is in the block
      */
-    private[DataStructures]
+    private[dataModel]
     def referencePointFiltering(mbb:MBR, b:(Int, Int), thetaXY: (Double, Double)): Boolean ={
         val (thetaX, thetaY) = thetaXY
 
@@ -53,7 +53,7 @@ case class MBR(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param partition the examining partition
      * @return  true if the reference point is in the block and in partition
      */
-    private[DataStructures]
+    private[dataModel]
     def referencePointFiltering(mbb:MBR, b:(Int, Int), thetaXY: (Double, Double), partition: MBR): Boolean ={
         val (thetaX, thetaY) = thetaXY
 
@@ -75,7 +75,7 @@ case class MBR(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param relations requested relations
      * @return whether the relation is true
      */
-    private[DataStructures]
+    private[dataModel]
     def testMBR(mbr:MBR, relations: Seq[Relation]): Boolean =
         relations.map {
             case Relation.CONTAINS | Relation.COVERS =>
@@ -97,7 +97,7 @@ case class MBR(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param mbb given mbb
      * @return whether it's true
      */
-    private[DataStructures]
+    private[dataModel]
     def equals(mbb:MBR): Boolean = minX == mbb.minX && maxX == mbb.maxX && minY == mbb.minY && maxY == mbb.maxY
 
 
@@ -106,14 +106,14 @@ case class MBR(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param mbb given mbb
      * @return whether it's true
      */
-    private[DataStructures]
+    private[dataModel]
     def contains(mbb:MBR): Boolean = minX <= mbb.minX && maxX >= mbb.maxX && minY <= mbb.minY && maxY >= mbb.maxY
 
-    private[DataStructures]
+    private[dataModel]
     def contains(minX: Double, maxX: Double, minY: Double, maxY: Double): Boolean = minX <= minX && maxX >= maxX && minY <= minY && maxY >= maxY
 
 
-    private[DataStructures]
+    private[dataModel]
     def contains(c: (Double, Double)): Boolean = minX <= c._1 && maxX >= c._1 && minY <= c._2 && maxY >= c._2
 
 
@@ -122,7 +122,7 @@ case class MBR(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param mbb given mbb
      * @return whether it's true
      */
-    private[DataStructures]
+    private[dataModel]
     def within(mbb: MBR):Boolean = mbb.contains(this)
 
 
@@ -131,7 +131,7 @@ case class MBR(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param mbb given mbb
      * @return whether it's true
      */
-    private[DataStructures]
+    private[dataModel]
     def touches(mbb: MBR): Boolean = maxX == mbb.maxX || minX == mbb.minX || maxY == mbb.maxY || minY == mbb.minY
 
 
@@ -140,7 +140,7 @@ case class MBR(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param mbb given mbb
      * @return whether it's true
      */
-    private[DataStructures]
+    private[dataModel]
     def intersects(mbb:MBR): Boolean = ! disjoint(mbb)
 
 
@@ -149,7 +149,7 @@ case class MBR(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * @param mbb given mbb
      * @return whether it's true
      */
-    private[DataStructures]
+    private[dataModel]
     def disjoint(mbb:MBR): Boolean = minX > mbb.maxX || maxX < mbb.minX || minY > mbb.maxY || maxY < mbb.minY
 
 

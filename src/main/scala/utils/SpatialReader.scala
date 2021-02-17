@@ -1,6 +1,6 @@
 package utils
 
-import DataStructures.{Entity, MBR, SpatialEntity, SpatioTemporalEntity}
+import dataModel.{Entity, MBR, SpatialEntity, SpatioTemporalEntity}
 import com.vividsolutions.jts.geom.Geometry
 import org.apache.jena.query.ARQ
 import net.sansa_stack.rdf.spark.io._

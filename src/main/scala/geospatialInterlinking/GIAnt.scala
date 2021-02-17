@@ -1,16 +1,14 @@
-package EntityMatching.DistributedMatching
+package geospatialInterlinking
 
-import DataStructures.{ComparisonPQ, Entity, IM, MBR}
+import dataModel.{Entity, IM}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
-import utils.Constants.WeightStrategy.WeightStrategy
 import utils.Utils
 
 
-case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
-                 thetaXY: (Double, Double), ws: WeightStrategy, budget: Int, sourceCount: Long) extends DMProgressiveTrait {
+case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double)) extends GeospatialInterlinkingT {
 
     /**
      * First index the Source and then use the index to find the comparisons with target's entities.
@@ -47,10 +45,7 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
      * compute the Intersection Matrix of the input datasets
      * @return an RDD of intersection matrix
      */
-    override def getDE9IM: RDD[IM] ={
-        if (budget > 0)
-            super.getDE9IM
-        else {
+    override def getDE9IM: RDD[IM] =
             joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
                 .flatMap { p =>
                     val pid = p._1
@@ -72,37 +67,6 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
                             .force
                     }
                 }
-        }
-    }
-
-    /**
-     * No prioritization, the comparisons are performed in the same
-     * order as provided
-     * @param source source dataset
-     * @param target target dataset
-     * @param partition current partition
-     * @param relation examining relation
-     * @return a PQ containing pseudo-prioritized comparisons
-     */
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): ComparisonPQ[(Int, Int)] ={
-        val sourceIndex = index(source)
-        val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
-        val pq: ComparisonPQ[(Int, Int)] = ComparisonPQ[(Int, Int)](budget)
-
-       // put comparisons in the PQ in the provided order
-        target
-            .indices
-            .map {j =>
-                val e2 = target(j)
-                e2.index(thetaXY, filterIndices)
-                    .foreach { block =>
-                        sourceIndex.get(block)
-                            .filter(i => source(i).filter(e2, relation, block, thetaXY, Some(partition)))
-                            .foreach { i =>  pq.enqueue(1d, (i, j)) }
-                    }
-            }.takeWhile(_ => pq.size() <= budget)
-        pq
-    }
 }
 
 /**
@@ -110,10 +74,9 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
  */
 object GIAnt{
 
-    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightStrategy, budget: Int, partitioner: Partitioner): GIAnt ={
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], partitioner: Partitioner): GIAnt ={
         val thetaXY = Utils.getTheta
         val joinedRDD = source.cogroup(target, partitioner)
-        val sourceCount = Utils.getSourceCount
-        GIAnt(joinedRDD, thetaXY, ws, budget, sourceCount)
+        GIAnt(joinedRDD, thetaXY)
     }
 }

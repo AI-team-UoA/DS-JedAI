@@ -1,6 +1,6 @@
-package EntityMatching.DistributedMatching
+package geospatialInterlinking.progressive
 
-import DataStructures.{ComparisonPQ, Entity, MBR}
+import dataModel.{ComparisonPQ, Entity, MBR}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
@@ -10,7 +10,7 @@ import utils.Utils
 
 
 case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
-                          thetaXY: (Double, Double), ws: WeightStrategy, budget: Int, sourceCount: Long) extends DMProgressiveTrait {
+                          thetaXY: (Double, Double), ws: WeightStrategy, budget: Int, sourceCount: Long) extends ProgressiveGeospatialInterlinkingT {
 
     /**
      * Find the top-K comparisons of target and source and keep only the comparison (i, j) that belongs to both
