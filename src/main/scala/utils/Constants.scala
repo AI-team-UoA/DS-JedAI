@@ -90,6 +90,8 @@ object Constants {
 		val JS: Constants.WeightStrategy.Value = Value("JS")
 		val EJS: Constants.WeightStrategy.Value = Value("EJS")
 		val PEARSON_X2: Constants.WeightStrategy.Value = Value("PEARSON_X2")
+		val MBR_INTERSECTION: Constants.WeightStrategy.Value = Value("MBR_INTERSECTION")
+		val POINTS: Constants.WeightStrategy.Value = Value("POINTS")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}

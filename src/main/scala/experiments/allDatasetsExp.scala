@@ -95,7 +95,7 @@ object allDatasetsExp {
 
         printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, MatchingAlgorithm.GIANT,  WeightStrategy.CBS)
         val algorithms = Seq(MatchingAlgorithm.PROGRESSIVE_GIANT, MatchingAlgorithm.TOPK, MatchingAlgorithm.RECIPROCAL_TOPK, MatchingAlgorithm.GEOMETRY_CENTRIC)
-        val weightingSchemes = Seq(WeightStrategy.CBS, WeightStrategy.JS, WeightStrategy.PEARSON_X2)
+        val weightingSchemes = Seq(WeightStrategy.MBR_INTERSECTION, WeightStrategy.POINTS)
         for (a <- algorithms ; ws <- weightingSchemes)
             printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, a, ws)
     }

@@ -29,10 +29,13 @@ trait DMProgressiveTrait extends DMTrait{
         val cb = (min(ceil(e1.mbr.maxX/thetaXY._1), ceil(e2.mbr.maxX/thetaXY._1)).toInt - max(floor(e1.mbr.minX/thetaXY._1), floor(e2.mbr.minX/thetaXY._1)).toInt + 1) *
             (min(ceil(e1.mbr.maxY/thetaXY._2), ceil(e2.mbr.maxY/thetaXY._2)).toInt - max(floor(e1.mbr.minY/thetaXY._2), floor(e2.mbr.minY/thetaXY._2)).toInt + 1)
 
-
         ws match {
-            case WeightStrategy.ECBS =>
-                cb * math.log10(totalBlocks / e1Blocks) * math.log10(totalBlocks / e2Blocks)
+            case WeightStrategy.MBR_INTERSECTION =>
+                val intersectionArea = MBR(e1.geometry.getEnvelopeInternal.intersection(e2.geometry.getEnvelopeInternal)).getArea
+                intersectionArea / (e1.mbr.getArea + e2.mbr.getArea - intersectionArea)
+
+            case WeightStrategy.POINTS =>
+                1d / (e1.geometry.getNumPoints + e2.geometry.getNumPoints);
 
             case WeightStrategy.JS =>
                 cb / (e1Blocks + e2Blocks - cb)
