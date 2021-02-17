@@ -37,20 +37,12 @@ object ProgressiveExp {
                 case Nil => map
                 case ("-c" | "-conf") :: value :: tail =>
                     nextOption(map ++ Map("conf" -> value), tail)
-                case ("-f" | "-fraction") :: value :: tail =>
-                    nextOption(map ++ Map("fraction" -> value), tail)
-                case ("-s" | "-stats") :: tail =>
-                    nextOption(map ++ Map("stats" -> "true"), tail)
-                case "-auc" :: tail =>
-                    nextOption(map ++ Map("auc" -> "true"), tail)
-                case ("-p" | "-partitions") :: value :: tail =>
-                    nextOption(map ++ Map("partitions" -> value), tail)
                 case ("-b" | "-budget") :: value :: tail =>
                     nextOption(map ++ Map("budget" -> value), tail)
                 case "-ws" :: value :: tail =>
                     nextOption(map ++ Map("ws" -> value), tail)
-                case "-ma" :: value :: tail =>
-                    nextOption(map ++ Map("ma" -> value), tail)
+                case "-pa" :: value :: tail =>
+                    nextOption(map ++ Map("pa" -> value), tail)
                 case "-gt" :: value :: tail =>
                     nextOption(map ++ Map("gt" -> value), tail)
                 case _ :: tail =>
@@ -73,13 +65,13 @@ object ProgressiveExp {
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
         val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
         val ws: WeightStrategy = if (options.contains("ws")) WeightStrategy.withName(options("ws")) else conf.getWeightingScheme
-        val pa: ProgressiveAlgorithm = if (options.contains("ma")) ProgressiveAlgorithm.withName(options("ma")) else conf.getMatchingAlgorithm
+        val pa: ProgressiveAlgorithm = if (options.contains("ma")) ProgressiveAlgorithm.withName(options("ma")) else conf.getProgressiveAlgorithm
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
         val relation = conf.getRelation
 
         log.info("DS-JEDAI: Input Budget: " + budget)
         log.info("DS-JEDAI: Weighting Strategy: " + ws.toString)
-        log.info("DS-JEDAI: Progressive Algorithm: " + ws.toString)
+        log.info("DS-JEDAI: Progressive Algorithm: " + pa.toString)
 
         val startTime = Calendar.getInstance().getTimeInMillis
 

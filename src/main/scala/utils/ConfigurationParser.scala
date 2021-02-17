@@ -92,7 +92,7 @@ case class Configuration(source: DatasetConfigurations, target:DatasetConfigurat
 
 	def getBudget: Int = configurations.getOrElse(YamlConfiguration.CONF_BUDGET, "0").toInt
 
-	def getMatchingAlgorithm: ProgressiveAlgorithm = ProgressiveAlgorithm.withName(configurations.getOrElse(YamlConfiguration.CONF_MATCHING_ALG, "GIANT"))
+	def getProgressiveAlgorithm: ProgressiveAlgorithm = ProgressiveAlgorithm.withName(configurations.getOrElse(YamlConfiguration.CONF_PROGRESSIVE_ALG, "PROGRESSIVE_GIANT"))
 
 }
 
@@ -150,7 +150,7 @@ object ConfigurationParser {
 							log.error("DS-JEDAI: Not valid value for budget")
 							false
 						}
-					case YamlConfiguration.CONF_MATCHING_ALG =>
+					case YamlConfiguration.CONF_PROGRESSIVE_ALG =>
 						if (!ProgressiveAlgorithm.exists(value)) {
 							log.error(s"DS-JEDAI: Prioritization Algorithm \'$value\' is not supported")
 							false

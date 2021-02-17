@@ -86,7 +86,7 @@ object Constants {
 		type YamlConfiguration = String
 		val CONF_PARTITIONS = "partitions"
 		val CONF_THETA_GRANULARITY = "thetaGranularity"
-		val CONF_MATCHING_ALG = "matchingAlg"
+		val CONF_PROGRESSIVE_ALG = "progressiveAlgorithm"
 		val CONF_WEIGHTING_STRG = "weightingStrategy"
 		val CONF_BUDGET = "budget"
 		val CONF_GRIDTYPE = "gridType"
@@ -108,7 +108,6 @@ object Constants {
 		type ProgressiveAlgorithm = Value
 		val PROGRESSIVE_GIANT: Constants.ProgressiveAlgorithm.Value = Value("PROGRESSIVE_GIANT")
 		val GEOMETRY_CENTRIC: Constants.ProgressiveAlgorithm.Value = Value("GEOMETRY_CENTRIC")
-		val ITERATIVE_GEOMETRY_CENTRIC: Constants.ProgressiveAlgorithm.Value = Value("ITERATIVE_GEOMETRY_CENTRIC")
 		val TOPK: Constants.ProgressiveAlgorithm.Value = Value("TOPK")
 		val RECIPROCAL_TOPK: Constants.ProgressiveAlgorithm.Value = Value("RECIPROCAL_TOPK")
 		val RANDOM: Constants.ProgressiveAlgorithm.Value = Value("RANDOM")

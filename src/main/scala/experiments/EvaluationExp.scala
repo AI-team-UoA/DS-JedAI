@@ -50,8 +50,6 @@ object EvaluationExp {
                     nextOption(map ++ Map("partitions" -> value), tail)
                 case ("-b" | "-budget") :: value :: tail =>
                     nextOption(map ++ Map("budget" -> value), tail)
-                case "-ws" :: value :: tail =>
-                    nextOption(map ++ Map("ws" -> value), tail)
                 case "-gt" :: value :: tail =>
                     nextOption(map ++ Map("gt" -> value), tail)
                 case _ :: tail =>
