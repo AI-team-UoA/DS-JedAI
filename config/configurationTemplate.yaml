@@ -1,0 +1,25 @@
+
+source:
+  path: "/path/to/source-dataset"
+  realIdField: "field with id"
+  geometryField: "filed with geometry"
+  dateField: "field with datetime - optional"
+  datePattern: "pattern of datetime (i.e., yyyy-MM-dd'T'HH:mm:ss) - optional"
+
+target:
+  path: "/path/to/target-dataset"
+  realIdField: "field with id"
+  geometryField: "filed with geometry"
+  dateField: "field with datetime - optional"
+  datePattern: "pattern of datetime (i.e., yyyy-MM-dd'T'HH:mm:ss) - optional"
+
+relation: "DE9IM"                                       # the target relation. With DE-9IM will discover all topological relations
+
+# optional configurations
+configurations:
+  partitions: "number of partitions"
+  thetaGranularity: "avg"                               # define the extend of dynamic tiling based on the geometries of source - Experiments have shown that "avg" is the best option
+  gridType: "spatial paritioner grid Type algorithm"    # allowed values:  KDBTREE, QUADTREE
+  weightingStrategy: "WS"                               # specify weighting scheme - allowed values: CF, JS, MBR_INTERSECTION, PEARSON_X2, POINTS
+  progressiveAlgorithm : "PA"                           # specify progressive algorithm - allowed values: PROGRESSIVE_GIANT, TOPK, RECIPROCAL_TOPK, GEOMETRY_CENTRIC, RANDOM
+  budget: "BU"                                          # the budget of progressive algorithms

@@ -20,6 +20,7 @@ project/plugins/project/
 .worksheet
 .idea/*
 
-config/*
+
 /config/polar_uc.yaml
-/config/
+/config/rdf_exp.yaml
+
