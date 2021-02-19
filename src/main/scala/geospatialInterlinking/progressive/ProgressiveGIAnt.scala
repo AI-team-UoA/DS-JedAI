@@ -4,12 +4,12 @@ import dataModel.{ComparisonPQ, Entity, MBR}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
-import utils.Constants.WeightStrategy.WeightStrategy
+import utils.Constants.WeightingScheme.WeightingScheme
 import utils.Utils
 
 
 case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
-                            thetaXY: (Double, Double), ws: WeightStrategy, budget: Int, sourceCount: Long) extends ProgressiveGeospatialInterlinkingT {
+                            thetaXY: (Double, Double), ws: WeightingScheme, budget: Int, sourceCount: Long) extends ProgressiveGeospatialInterlinkingT {
 
 
     /**
@@ -53,7 +53,7 @@ case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Ent
  */
 object ProgressiveGIAnt {
 
-    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightStrategy, budget: Int, partitioner: Partitioner): ProgressiveGIAnt ={
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightingScheme, budget: Int, partitioner: Partitioner): ProgressiveGIAnt ={
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.getSourceCount
         val joinedRDD = source.cogroup(target, partitioner)

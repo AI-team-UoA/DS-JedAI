@@ -12,8 +12,8 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
-import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightStrategy}
-import utils.Constants.WeightStrategy.WeightStrategy
+import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingScheme}
+import utils.Constants.WeightingScheme.WeightingScheme
 import utils.{ConfigurationParser, SpatialReader, Utils}
 
 
@@ -81,13 +81,13 @@ object WellBalancedExp {
         val conf = ConfigurationParser.parse(confPath)
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
         val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
-        val ws: WeightStrategy = if (options.contains("ws")) WeightStrategy.withName(options("ws")) else conf.getWeightingScheme
+        val ws: WeightingScheme = if (options.contains("ws")) WeightingScheme.withName(options("ws")) else conf.getWeightingScheme
         val ma: ProgressiveAlgorithm = if (options.contains("ma")) ProgressiveAlgorithm.withName(options("ma")) else conf.getProgressiveAlgorithm
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
         val relation = conf.getRelation
 
         log.info("DS-JEDAI: Input Budget: " + budget)
-        log.info("DS-JEDAI: Weighting Strategy: " + ws.toString)
+        log.info("DS-JEDAI: Weighting Scheme: " + ws.toString)
 
         val startTime = Calendar.getInstance().getTimeInMillis
         val reader = SpatialReader(conf.source, partitions, gridType)

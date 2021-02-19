@@ -14,7 +14,6 @@ trait GeospatialInterlinkingT {
     val thetaXY: (Double, Double)
 
     val partitionsZones: Array[MBR] = SparkContext.getOrCreate().broadcast(Utils.getZones).value
-    val spaceEdges: MBR = SparkContext.getOrCreate().broadcast(Utils.getSpaceEdges).value
 
 
     /**

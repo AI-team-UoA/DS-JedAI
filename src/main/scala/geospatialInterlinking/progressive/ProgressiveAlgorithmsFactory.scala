@@ -5,14 +5,14 @@ import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
-import utils.Constants.WeightStrategy.WeightStrategy
-import utils.Constants.{ProgressiveAlgorithm, WeightStrategy}
+import utils.Constants.WeightingScheme.WeightingScheme
+import utils.Constants.{ProgressiveAlgorithm, WeightingScheme}
 
 object ProgressiveAlgorithmsFactory {
 
 
     def get(matchingAlgorithm: ProgressiveAlgorithm, source: RDD[(Int, Entity)], target: RDD[(Int, Entity)],
-            partitioner: Partitioner, budget: Int = 0, ws: WeightStrategy = WeightStrategy.JS): ProgressiveGeospatialInterlinkingT ={
+            partitioner: Partitioner, budget: Int = 0, ws: WeightingScheme = WeightingScheme.JS): ProgressiveGeospatialInterlinkingT ={
 
         matchingAlgorithm match {
             case ProgressiveAlgorithm.RANDOM =>

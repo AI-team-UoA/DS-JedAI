@@ -5,14 +5,14 @@ import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
-import utils.Constants.WeightStrategy.WeightStrategy
+import utils.Constants.WeightingScheme.WeightingScheme
 
 import scala.collection.mutable.ListBuffer
 
 case class IndexBasedMatching(source:RDD[Entity], target:RDD[Entity], thetaXY: (Double, Double)) extends GeospatialInterlinkingT {
 
     val joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))] = null
-    val ws: WeightStrategy = null
+    val ws: WeightingScheme = null
 
     val filteringFunction: ((Entity, Int), (Entity, Int), (Int, Int), Relation) => Boolean =
         (e1: (Entity, Int), e2: (Entity, Int), c: (Int, Int), r: Relation) => e1._2 == e2._2 && e1._1.filter(e2._1, r, c, thetaXY)

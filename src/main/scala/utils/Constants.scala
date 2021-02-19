@@ -67,14 +67,14 @@ object Constants {
 	/**
 	 * Weighting Strategies
 	 */
-	object WeightStrategy extends Enumeration {
-		type WeightStrategy = Value
+	object WeightingScheme extends Enumeration {
+		type WeightingScheme = Value
 
-		val CF: Constants.WeightStrategy.Value = Value("CF")
-		val JS: Constants.WeightStrategy.Value = Value("JS")
-		val PEARSON_X2: Constants.WeightStrategy.Value = Value("PEARSON_X2")
-		val MBR_INTERSECTION: Constants.WeightStrategy.Value = Value("MBR_INTERSECTION")
-		val POINTS: Constants.WeightStrategy.Value = Value("POINTS")
+		val CF: Constants.WeightingScheme.Value = Value("CF")
+		val JS: Constants.WeightingScheme.Value = Value("JS")
+		val PEARSON_X2: Constants.WeightingScheme.Value = Value("PEARSON_X2")
+		val MBR_INTERSECTION: Constants.WeightingScheme.Value = Value("MBR_INTERSECTION")
+		val POINTS: Constants.WeightingScheme.Value = Value("POINTS")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
@@ -87,7 +87,7 @@ object Constants {
 		val CONF_PARTITIONS = "partitions"
 		val CONF_THETA_GRANULARITY = "thetaGranularity"
 		val CONF_PROGRESSIVE_ALG = "progressiveAlgorithm"
-		val CONF_WEIGHTING_STRG = "weightingStrategy"
+		val CONF_WEIGHTING_SCHM = "weightingScheme"
 		val CONF_BUDGET = "budget"
 		val CONF_GRIDTYPE = "gridType"
 	}

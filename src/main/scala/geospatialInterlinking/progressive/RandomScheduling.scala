@@ -4,11 +4,11 @@ import dataModel.{ComparisonPQ, Entity, MBR}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
-import utils.Constants.WeightStrategy.WeightStrategy
+import utils.Constants.WeightingScheme.WeightingScheme
 import utils.Utils
 
 case class RandomScheduling(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
-                             thetaXY: (Double, Double), ws: WeightStrategy, budget: Int, sourceCount: Long) extends ProgressiveGeospatialInterlinkingT {
+                             thetaXY: (Double, Double), ws: WeightingScheme, budget: Int, sourceCount: Long) extends ProgressiveGeospatialInterlinkingT {
 
 
     /**
@@ -33,7 +33,7 @@ case class RandomScheduling(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Ent
                     .foreach { block =>
                         sourceIndex.get(block)
                             .filter(i => source(i).filter(e2, relation, block, thetaXY, Some(partition)))
-                            .foreach { i => pq.enqueue(1d, (i,j)) }
+                            .foreach { i => pq.enqueue(1f, (i,j)) }
                     }
             }
         pq
@@ -47,7 +47,7 @@ case class RandomScheduling(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Ent
  */
 object RandomScheduling {
 
-    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightStrategy, budget: Int, partitioner: Partitioner): RandomScheduling ={
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightingScheme, budget: Int, partitioner: Partitioner): RandomScheduling ={
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.getSourceCount
         val joinedRDD = source.cogroup(target, partitioner)

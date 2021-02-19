@@ -25,19 +25,19 @@ case class MBR(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * return true if the reference point is in the block.
      * The reference point is the upper left point of their intersection
      *
-     * @param mbb the mbb that intersects
+     * @param mbr the mbr that intersects
      * @param b the examined block
      * @param thetaXY blocks' granularity
      * @return true if the reference point is in the block
      */
     private[dataModel]
-    def referencePointFiltering(mbb:MBR, b:(Int, Int), thetaXY: (Double, Double)): Boolean ={
+    def referencePointFiltering(mbr:MBR, b:(Int, Int), thetaXY: (Double, Double)): Boolean ={
         val (thetaX, thetaY) = thetaXY
 
         val minX1 = minX / thetaX
-        val minX2 = mbb.minX / thetaX
+        val minX2 = mbr.minX / thetaX
         val maxY1 = maxY / thetaY
-        val maxY2 = mbb.maxY / thetaY
+        val maxY2 = mbr.maxY / thetaY
 
         val rf: (Double, Double) =(max(minX1, minX2), min(maxY1, maxY2))
         rf._1 < b._1 && rf._1+1 >= b._1 && rf._2 < b._2 && rf._2+1 >= b._2
@@ -47,20 +47,20 @@ case class MBR(maxX:Double, minX:Double, maxY:Double, minY:Double){
      * return true if the reference point is in the block and inside the partition
      * The reference point is the upper left point of their intersection
      *
-     * @param mbb the mbb that intersects
+     * @param mbr the mbr that intersects
      * @param b the examined block
      * @param thetaXY blocks' granularity
      * @param partition the examining partition
      * @return  true if the reference point is in the block and in partition
      */
     private[dataModel]
-    def referencePointFiltering(mbb:MBR, b:(Int, Int), thetaXY: (Double, Double), partition: MBR): Boolean ={
+    def referencePointFiltering(mbr:MBR, b:(Int, Int), thetaXY: (Double, Double), partition: MBR): Boolean ={
         val (thetaX, thetaY) = thetaXY
 
         val minX1 = minX / thetaX
-        val minX2 = mbb.minX / thetaX
+        val minX2 = mbr.minX / thetaX
         val maxY1 = maxY / thetaY
-        val maxY2 = mbb.maxY / thetaY
+        val maxY2 = mbr.maxY / thetaY
 
         val rf: (Double, Double) =(max(minX1, minX2)+.0000001, min(maxY1, maxY2)+.0000001)
         val blockContainsRF: Boolean =  b._1 <= rf._1 && b._1+1 >= rf._1 && b._2 <= rf._2 && b._2+1 >= rf._2
@@ -91,23 +91,24 @@ case class MBR(maxX:Double, minX:Double, maxY:Double, minY:Double){
             case _ => false
         }.reduce( _ || _)
 
+    def getIntersectingMBR(mbr:MBR): MBR = MBR(min(maxX, mbr.maxX), max(minX, mbr.minX), min(maxY, mbr.maxY), max(minY, mbr.minY))
 
     /**
-     * check if the mbb is equal to the given one
-     * @param mbb given mbb
+     * check if the mbr is equal to the given one
+     * @param mbr given mbr
      * @return whether it's true
      */
     private[dataModel]
-    def equals(mbb:MBR): Boolean = minX == mbb.minX && maxX == mbb.maxX && minY == mbb.minY && maxY == mbb.maxY
+    def equals(mbr:MBR): Boolean = minX == mbr.minX && maxX == mbr.maxX && minY == mbr.minY && maxY == mbr.maxY
 
 
     /**
-     * check if the mbb contains the given one
-     * @param mbb given mbb
+     * check if the mbr contains the given one
+     * @param mbr given mbr
      * @return whether it's true
      */
     private[dataModel]
-    def contains(mbb:MBR): Boolean = minX <= mbb.minX && maxX >= mbb.maxX && minY <= mbb.minY && maxY >= mbb.maxY
+    def contains(mbr:MBR): Boolean = minX <= mbr.minX && maxX >= mbr.maxX && minY <= mbr.minY && maxY >= mbr.maxY
 
     private[dataModel]
     def contains(minX: Double, maxX: Double, minY: Double, maxY: Double): Boolean = minX <= minX && maxX >= maxX && minY <= minY && maxY >= maxY
@@ -118,39 +119,39 @@ case class MBR(maxX:Double, minX:Double, maxY:Double, minY:Double){
 
 
     /**
-     * check if the mbb is within to the given one
-     * @param mbb given mbb
+     * check if the mbr is within to the given one
+     * @param mbr given mbr
      * @return whether it's true
      */
     private[dataModel]
-    def within(mbb: MBR):Boolean = mbb.contains(this)
+    def within(mbr: MBR):Boolean = mbr.contains(this)
 
 
     /**
-     * check if the mbb touches the given one
-     * @param mbb given mbb
+     * check if the mbr touches the given one
+     * @param mbr given mbr
      * @return whether it's true
      */
     private[dataModel]
-    def touches(mbb: MBR): Boolean = maxX == mbb.maxX || minX == mbb.minX || maxY == mbb.maxY || minY == mbb.minY
+    def touches(mbr: MBR): Boolean = maxX == mbr.maxX || minX == mbr.minX || maxY == mbr.maxY || minY == mbr.minY
 
 
     /**
-     * check if the mbb intersects the given one
-     * @param mbb given mbb
+     * check if the mbr intersects the given one
+     * @param mbr given mbr
      * @return whether it's true
      */
     private[dataModel]
-    def intersects(mbb:MBR): Boolean = ! disjoint(mbb)
+    def intersects(mbr:MBR): Boolean = ! disjoint(mbr)
 
 
     /**
-     * check if the mbb disjoints the given one
-     * @param mbb given mbb
+     * check if the mbr disjoints the given one
+     * @param mbr given mbr
      * @return whether it's true
      */
     private[dataModel]
-    def disjoint(mbb:MBR): Boolean = minX > mbb.maxX || maxX < mbb.minX || minY > mbb.maxY || maxY < mbb.minY
+    def disjoint(mbr:MBR): Boolean = minX > mbr.maxX || maxX < mbr.minX || minY > mbr.maxY || maxY < mbr.minY
 
 
     def adjust(thetaXY: (Double, Double)) : MBR ={
@@ -180,7 +181,7 @@ case class MBR(maxX:Double, minX:Double, maxY:Double, minY:Double){
         }
     }
 
-    def getArea: Double = (maxX - minX) * (maxY - minY)
+    def getArea: Float = ((maxX - minX) * (maxY - minY)).toFloat
 
     override def toString: String = "(" + minX.toString  + ", " + maxX.toString +"), ("+ minY.toString  + ", " + maxY.toString +")"
 

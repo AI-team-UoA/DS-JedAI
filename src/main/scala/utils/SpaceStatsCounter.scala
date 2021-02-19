@@ -12,7 +12,6 @@ import scala.collection.mutable.ListBuffer
 case class SpaceStatsCounter(joinedRDD: RDD[(Int, (Iterable[Entity],  Iterable[Entity]))], thetaXY: (Double, Double)){
 
     val partitionsZones: Array[MBR] = Utils.getZones
-    val spaceEdges: MBR = Utils.getSpaceEdges
 
     def printSpaceInfo(): Unit ={
         val log = LogManager.getRootLogger

@@ -4,13 +4,13 @@ import dataModel.{ComparisonPQ, Entity, MBR}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
-import utils.Constants.WeightStrategy.WeightStrategy
+import utils.Constants.WeightingScheme.WeightingScheme
 import utils.Utils
 
 import scala.collection.mutable
 
 case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
-                     thetaXY: (Double, Double), ws: WeightStrategy, budget: Int, sourceCount: Long) extends ProgressiveGeospatialInterlinkingT {
+                     thetaXY: (Double, Double), ws: WeightingScheme, budget: Int, sourceCount: Long) extends ProgressiveGeospatialInterlinkingT {
 
 
     /**
@@ -68,8 +68,8 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
 
         // putting target comparisons in a HasMap. Source entities will also be added in the HashMap
         // to update wights and avoid duplicate comparisons
-        val partitionPairs: mutable.HashMap[(Int, Int), Double] = mutable.HashMap()
-        partitionPQ.iterator().foreach{ case(w:Double, pair:(Int, Int)) => partitionPairs += (pair -> w) }
+        val partitionPairs: mutable.HashMap[(Int, Int), Float] = mutable.HashMap()
+        partitionPQ.iterator().foreach{ case(w:Float, pair:(Int, Int)) => partitionPairs += (pair -> w) }
 
         // adding source entities' top-K in hashMap
         sourcePQ
@@ -99,7 +99,7 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
 
 object TopKPairs{
 
-    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightStrategy, budget: Int, partitioner: Partitioner): TopKPairs ={
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightingScheme, budget: Int, partitioner: Partitioner): TopKPairs ={
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.getSourceCount
         val joinedRDD = source.cogroup(target, partitioner)

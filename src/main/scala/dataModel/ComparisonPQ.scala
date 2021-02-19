@@ -11,9 +11,9 @@ import scala.collection.JavaConverters._
  */
 case class ComparisonPQ[T](maxSize: Int){
 
-    var minW: Double = 0d
-    val ordering: Ordering[(Double, T)] =  Ordering.by[(Double, T), Double](_._1).reverse
-    lazy val pq: MinMaxPriorityQueue[(Double, T)] = MinMaxPriorityQueue.orderedBy(ordering).maximumSize(maxSize+1).create()
+    var minW: Float = 0f
+    val ordering: Ordering[(Float, T)] =  Ordering.by[(Float, T), Float](_._1).reverse
+    lazy val pq: MinMaxPriorityQueue[(Float, T)] = MinMaxPriorityQueue.orderedBy(ordering).maximumSize(maxSize+1).create()
 
     /**
      * if w is smaller than minW then omit it.
@@ -23,7 +23,7 @@ case class ComparisonPQ[T](maxSize: Int){
      * @param w the weight of the item
      * @param item item to insert
      */
-    def enqueue(w: Double, item: T): Unit ={
+    def enqueue(w: Float, item: T): Unit ={
         if (minW < w) {
             pq.add((w, item))
             if (pq.size > maxSize)
@@ -31,32 +31,32 @@ case class ComparisonPQ[T](maxSize: Int){
         }
     }
 
-    def enqueueAll(items: Iterator[(T, Double)]): Unit = items.foreach{ case(item, w) => enqueue(w, item)}
+    def enqueueAll(items: Iterator[(T, Float)]): Unit = items.foreach{ case(item, w) => enqueue(w, item)}
 
-    def take(n: Option[Int]): Iterator[(Double, T)] =
+    def take(n: Option[Int]): Iterator[(Float, T)] =
         n match {
             case Some(n) => Iterator.continually{ pq.pollFirst() }.take(n)
             case None =>  Iterator.continually{ pq.pollFirst() }.takeWhile(_ => !pq.isEmpty)
         }
 
-    def take(n: Int): Iterator[(Double, T)] = take(Option(n))
+    def take(n: Int): Iterator[(Float, T)] = take(Option(n))
 
-    def dequeueAll: Iterator[(Double, T)] = take(None)
+    def dequeueAll: Iterator[(Float, T)] = take(None)
 
     def clear(): Unit = {
         pq.clear()
-        minW = 0d
+        minW = 0f
     }
 
     def isEmpty: Boolean = pq.isEmpty
 
     def size(): Int = pq.size()
 
-    def dequeueHead(): (Double, T) = pq.pollFirst()
+    def dequeueHead(): (Float, T) = pq.pollFirst()
 
-    def dequeue(): (Double, T) = pq.pollLast()
+    def dequeue(): (Float, T) = pq.pollLast()
 
-    def iterator(): Iterator[(Double, T)] = pq.iterator().asScala
+    def iterator(): Iterator[(Float, T)] = pq.iterator().asScala
 }
 
 

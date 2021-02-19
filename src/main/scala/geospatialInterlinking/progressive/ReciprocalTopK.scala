@@ -4,13 +4,13 @@ import dataModel.{ComparisonPQ, Entity, MBR}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
-import utils.Constants.WeightStrategy.WeightStrategy
+import utils.Constants.WeightingScheme.WeightingScheme
 import utils.Utils
 
 
 
 case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
-                          thetaXY: (Double, Double), ws: WeightStrategy, budget: Int, sourceCount: Long) extends ProgressiveGeospatialInterlinkingT {
+                          thetaXY: (Double, Double), ws: WeightingScheme, budget: Int, sourceCount: Long) extends ProgressiveGeospatialInterlinkingT {
 
     /**
      * Find the top-K comparisons of target and source and keep only the comparison (i, j) that belongs to both
@@ -77,7 +77,7 @@ case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entit
 
 object ReciprocalTopK{
 
-    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightStrategy, budget: Int, partitioner: Partitioner): ReciprocalTopK ={
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightingScheme, budget: Int, partitioner: Partitioner): ReciprocalTopK ={
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.getSourceCount
         val joinedRDD = source.cogroup(target, partitioner)

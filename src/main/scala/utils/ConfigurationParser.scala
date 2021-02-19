@@ -9,7 +9,7 @@ import utils.Constants.GridType.GridType
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.Relation.Relation
 import utils.Constants.ThetaOption.ThetaOption
-import utils.Constants.WeightStrategy.WeightStrategy
+import utils.Constants.WeightingScheme.WeightingScheme
 import utils.Constants.FileTypes.FileTypes
 import utils.Constants._
 
@@ -86,7 +86,7 @@ case class Configuration(source: DatasetConfigurations, target:DatasetConfigurat
 
 	def getTheta: ThetaOption = ThetaOption.withName(configurations.getOrElse(YamlConfiguration.CONF_THETA_GRANULARITY, "avg"))
 
-	def getWeightingScheme: WeightStrategy = WeightStrategy.withName(configurations.getOrElse(YamlConfiguration.CONF_WEIGHTING_STRG, "CBS"))
+	def getWeightingScheme: WeightingScheme = WeightingScheme.withName(configurations.getOrElse(YamlConfiguration.CONF_WEIGHTING_SCHM, "CBS"))
 
 	def getGridType: GridType = GridType.withName(configurations.getOrElse(YamlConfiguration.CONF_GRIDTYPE, "QUADTREE"))
 
@@ -155,8 +155,8 @@ object ConfigurationParser {
 							log.error(s"DS-JEDAI: Prioritization Algorithm \'$value\' is not supported")
 							false
 						}
-					case YamlConfiguration.CONF_WEIGHTING_STRG =>
-						if (! WeightStrategy.exists(value)) {
+					case YamlConfiguration.CONF_WEIGHTING_SCHM =>
+						if (! WeightingScheme.exists(value)) {
 							log.error(s"DS-JEDAI: Weighting algorithm \'$value\' is not supported")
 							false
 						}

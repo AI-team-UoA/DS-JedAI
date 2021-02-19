@@ -4,12 +4,12 @@ import dataModel.{ComparisonPQ, Entity, MBR}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
-import utils.Constants.WeightStrategy.WeightStrategy
+import utils.Constants.WeightingScheme.WeightingScheme
 import utils.Utils
 
 
 case class GeometryCentric(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
-                           thetaXY: (Double, Double), ws: WeightStrategy, budget: Int, sourceCount: Long)
+                           thetaXY: (Double, Double), ws: WeightingScheme, budget: Int, sourceCount: Long)
    extends ProgressiveGeospatialInterlinkingT {
 
 
@@ -30,7 +30,7 @@ case class GeometryCentric(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Enti
         target
             .indices
             .foreach { j =>
-                var wSum = 0d
+                var wSum = 0f
                 val e2 = target(j)
                 e2.index(thetaXY, filterIndices)
                     .foreach { block =>
@@ -58,7 +58,7 @@ case class GeometryCentric(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Enti
 
 object GeometryCentric{
 
-    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightStrategy, budget: Int, partitioner: Partitioner)
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightingScheme, budget: Int, partitioner: Partitioner)
     : GeometryCentric ={
         val thetaXY = Utils.getTheta
         val sourceCount = Utils.getSourceCount

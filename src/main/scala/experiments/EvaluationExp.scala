@@ -13,8 +13,8 @@ import org.apache.spark.storage.StorageLevel
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.Relation.Relation
-import utils.Constants.WeightStrategy.WeightStrategy
-import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightStrategy}
+import utils.Constants.WeightingScheme.WeightingScheme
+import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingScheme}
 import utils.{ConfigurationParser, SpatialReader, Utils}
 
 
@@ -92,16 +92,16 @@ object EvaluationExp {
         log.info("DS-JEDAI: Total Interlinked Geometries: " + totalRelatedPairs)
         log.info("\n")
 
-        printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, ProgressiveAlgorithm.RANDOM,  WeightStrategy.CF)
+        printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, ProgressiveAlgorithm.RANDOM,  WeightingScheme.CF)
         val algorithms = Seq(ProgressiveAlgorithm.PROGRESSIVE_GIANT, ProgressiveAlgorithm.TOPK, ProgressiveAlgorithm.RECIPROCAL_TOPK, ProgressiveAlgorithm.GEOMETRY_CENTRIC)
-        val weightingSchemes = Seq(WeightStrategy.MBR_INTERSECTION, WeightStrategy.POINTS)
+        val weightingSchemes = Seq(WeightingScheme.MBR_INTERSECTION, WeightingScheme.POINTS)
         for (a <- algorithms ; ws <- weightingSchemes)
             printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, a, ws)
     }
 
 
     def printResults(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], partitioner: Partitioner, totalRelations: Int,
-                     ma: ProgressiveAlgorithm, ws: WeightStrategy, n: Int = 10): Unit = {
+                     ma: ProgressiveAlgorithm, ws: WeightingScheme, n: Int = 10): Unit = {
 
         val pma = ProgressiveAlgorithmsFactory.get(ma, source, target, partitioner, budget, ws)
         val results = pma.evaluate(relation, n, totalRelations, takeBudget)
