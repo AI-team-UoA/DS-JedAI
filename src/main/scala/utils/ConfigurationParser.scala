@@ -86,7 +86,7 @@ case class Configuration(source: DatasetConfigurations, target:DatasetConfigurat
 
 	def getTheta: ThetaOption = ThetaOption.withName(configurations.getOrElse(YamlConfiguration.CONF_THETA_GRANULARITY, "avg"))
 
-	def getWeightingScheme: WeightingScheme = WeightingScheme.withName(configurations.getOrElse(YamlConfiguration.CONF_WEIGHTING_SCHM, "CBS"))
+	def getWeightingScheme: WeightingScheme = WeightingScheme.withName(configurations.getOrElse(YamlConfiguration.CONF_WEIGHTING_SCHM, "JS"))
 
 	def getGridType: GridType = GridType.withName(configurations.getOrElse(YamlConfiguration.CONF_GRIDTYPE, "QUADTREE"))
 
