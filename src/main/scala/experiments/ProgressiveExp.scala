@@ -39,8 +39,10 @@ object ProgressiveExp {
                     nextOption(map ++ Map("conf" -> value), tail)
                 case ("-b" | "-budget") :: value :: tail =>
                     nextOption(map ++ Map("budget" -> value), tail)
-                case "-ws" :: value :: tail =>
-                    nextOption(map ++ Map("ws" -> value), tail)
+                case "-mws" :: value :: tail =>
+                    nextOption(map ++ Map("mws" -> value), tail)
+                case "-sws" :: value :: tail =>
+                    nextOption(map ++ Map("sws" -> value), tail)
                 case "-pa" :: value :: tail =>
                     nextOption(map ++ Map("pa" -> value), tail)
                 case "-gt" :: value :: tail =>
@@ -64,13 +66,14 @@ object ProgressiveExp {
         val conf = ConfigurationParser.parse(confPath)
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
         val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
-        val ws: WeightingScheme = if (options.contains("ws")) WeightingScheme.withName(options("ws")) else conf.getWeightingScheme
+        val mainWS: WeightingScheme = if (options.contains("mws")) WeightingScheme.withName(options("mws")) else conf.getMainWS
+        val secondaryWS: WeightingScheme = if (options.contains("sws")) WeightingScheme.withName(options("sws")) else conf.getSecondaryWS
         val pa: ProgressiveAlgorithm = if (options.contains("pa")) ProgressiveAlgorithm.withName(options("pa")) else conf.getProgressiveAlgorithm
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
         val relation = conf.getRelation
 
         log.info("DS-JEDAI: Input Budget: " + budget)
-        log.info("DS-JEDAI: Weighting Scheme: " + ws.toString)
+        log.info("DS-JEDAI: Weighting Scheme: " + mainWS.toString)
         log.info("DS-JEDAI: Progressive Algorithm: " + pa.toString)
 
         val startTime = Calendar.getInstance().getTimeInMillis
@@ -85,7 +88,7 @@ object ProgressiveExp {
         val partitioner = reader.partitioner
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
-        val method = ProgressiveAlgorithmsFactory.get(pa, sourceRDD, targetRDD, partitioner, budget, ws)
+        val method = ProgressiveAlgorithmsFactory.get(pa, sourceRDD, targetRDD, partitioner, budget, mainWS, secondaryWS)
         if (relation.equals(Relation.DE9IM)) {
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
             totalOverlaps, totalTouches, totalWithin, verifications, qp) = method.countAllRelations

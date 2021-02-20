@@ -14,12 +14,9 @@ import utils.Constants.FileTypes.FileTypes
 import utils.Constants._
 
 
-
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-
-
 case class DatasetConfigurations(path: String, geometryField: String, realIdField: Option[String] = None, dateField: Option[String] = None, datePattern: Option[String] = None){
 
 
@@ -86,7 +83,9 @@ case class Configuration(source: DatasetConfigurations, target:DatasetConfigurat
 
 	def getTheta: ThetaOption = ThetaOption.withName(configurations.getOrElse(YamlConfiguration.CONF_THETA_GRANULARITY, "avg"))
 
-	def getWeightingScheme: WeightingScheme = WeightingScheme.withName(configurations.getOrElse(YamlConfiguration.CONF_WEIGHTING_SCHM, "JS"))
+	def getMainWS: WeightingScheme = WeightingScheme.withName(configurations.getOrElse(YamlConfiguration.CONF_MAIN_WS, "JS"))
+
+	def getSecondaryWS: WeightingScheme = WeightingScheme.withName(configurations.getOrElse(YamlConfiguration.CONF_SECONDARY_WS, "MBR_INTERSECTION"))
 
 	def getGridType: GridType = GridType.withName(configurations.getOrElse(YamlConfiguration.CONF_GRIDTYPE, "QUADTREE"))
 
@@ -155,9 +154,9 @@ object ConfigurationParser {
 							log.error(s"DS-JEDAI: Prioritization Algorithm \'$value\' is not supported")
 							false
 						}
-					case YamlConfiguration.CONF_WEIGHTING_SCHM =>
+					case YamlConfiguration.CONF_MAIN_WS | YamlConfiguration.CONF_SECONDARY_WS=>
 						if (! WeightingScheme.exists(value)) {
-							log.error(s"DS-JEDAI: Weighting algorithm \'$value\' is not supported")
+							log.error(s"DS-JEDAI: Weighting Scheme \'$value\' is not supported")
 							false
 						}
 					case YamlConfiguration.CONF_GRIDTYPE=>

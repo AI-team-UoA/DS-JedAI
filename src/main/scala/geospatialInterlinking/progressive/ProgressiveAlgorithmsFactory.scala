@@ -12,19 +12,20 @@ object ProgressiveAlgorithmsFactory {
 
 
     def get(matchingAlgorithm: ProgressiveAlgorithm, source: RDD[(Int, Entity)], target: RDD[(Int, Entity)],
-            partitioner: Partitioner, budget: Int = 0, ws: WeightingScheme = WeightingScheme.JS): ProgressiveGeospatialInterlinkingT ={
+            partitioner: Partitioner, budget: Int = 0, mainWS: WeightingScheme,  secondaryWS: WeightingScheme):
+    ProgressiveGeospatialInterlinkingT ={
 
         matchingAlgorithm match {
             case ProgressiveAlgorithm.RANDOM =>
-                RandomScheduling(source, target, ws, budget, partitioner)
-            case ProgressiveAlgorithm.GEOMETRY_CENTRIC =>
-                GeometryCentric(source, target, ws, budget, partitioner)
+                RandomScheduling(source, target, mainWS, Option(secondaryWS), budget, partitioner)
+//            case ProgressiveAlgorithm.GEOMETRY_CENTRIC =>
+//                GeometryCentric(source, target, ws, budget, partitioner)
             case ProgressiveAlgorithm.TOPK =>
-                TopKPairs(source, target, ws, budget, partitioner)
+                TopKPairs(source, target, mainWS, Option(secondaryWS), budget, partitioner)
             case ProgressiveAlgorithm.RECIPROCAL_TOPK =>
-                ReciprocalTopK(source, target, ws, budget, partitioner)
+                ReciprocalTopK(source, target, mainWS, Option(secondaryWS), budget, partitioner)
             case ProgressiveAlgorithm.PROGRESSIVE_GIANT | _ =>
-                ProgressiveGIAnt(source, target, ws, budget, partitioner)
+                ProgressiveGIAnt(source, target, mainWS, Option(secondaryWS), budget, partitioner)
         }
     }
 }

@@ -87,7 +87,8 @@ object Constants {
 		val CONF_PARTITIONS = "partitions"
 		val CONF_THETA_GRANULARITY = "thetaGranularity"
 		val CONF_PROGRESSIVE_ALG = "progressiveAlgorithm"
-		val CONF_WEIGHTING_SCHM = "weightingScheme"
+		val CONF_MAIN_WS = "mainWS"
+		val CONF_SECONDARY_WS = "secondaryWS"
 		val CONF_BUDGET = "budget"
 		val CONF_GRIDTYPE = "gridType"
 	}

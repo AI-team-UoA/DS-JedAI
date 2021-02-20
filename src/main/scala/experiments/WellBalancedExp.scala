@@ -2,9 +2,7 @@ package experiments
 
 import java.util.Calendar
 
-import geospatialInterlinking.IndexBasedMatching
-import geospatialInterlinking.IndexBasedMatching
-import geospatialInterlinking.progressive.ProgressiveAlgorithmsFactory
+import geospatialInterlinking.{GIAnt, IndexBasedMatching}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
@@ -81,7 +79,7 @@ object WellBalancedExp {
         val conf = ConfigurationParser.parse(confPath)
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
         val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
-        val ws: WeightingScheme = if (options.contains("ws")) WeightingScheme.withName(options("ws")) else conf.getWeightingScheme
+        val ws: WeightingScheme = if (options.contains("ws")) WeightingScheme.withName(options("ws")) else conf.getMainWS
         val ma: ProgressiveAlgorithm = if (options.contains("ma")) ProgressiveAlgorithm.withName(options("ma")) else conf.getProgressiveAlgorithm
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
         val relation = conf.getRelation
@@ -108,12 +106,12 @@ object WellBalancedExp {
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
 
-        val pm = ProgressiveAlgorithmsFactory.get(ma, sourceRDD, targetRDD, partitioner, budget, ws)
+        val giant = GIAnt(sourceRDD, targetRDD, partitioner)
         val ibm = IndexBasedMatching(overloadedSource.map(_._2), overloadedTarget.map(_._2), Utils.getTheta)
 
         if (relation.equals(Relation.DE9IM)) {
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-            totalOverlaps, totalTouches, totalWithin, intersectingPairs, interlinkedGeometries) = pm.countAllRelations + ibm.countAllRelations
+            totalOverlaps, totalTouches, totalWithin, intersectingPairs, interlinkedGeometries) = giant.countAllRelations + ibm.countAllRelations
 
             val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
                 totalIntersects + totalOverlaps + totalTouches + totalWithin
@@ -132,7 +130,7 @@ object WellBalancedExp {
             log.info("DS-JEDAI: Total Relations Discovered: " + totalRelations)
         }
         else{
-            val totalMatches = pm.countRelation(relation) + ibm.countRelation(relation)
+            val totalMatches = giant.countRelation(relation) + ibm.countRelation(relation)
             log.info("DS-JEDAI: " + relation.toString +": " + totalMatches)
         }
         val matchingEndTime = Calendar.getInstance().getTimeInMillis

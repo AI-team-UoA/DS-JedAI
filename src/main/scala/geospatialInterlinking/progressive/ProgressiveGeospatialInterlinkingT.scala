@@ -1,6 +1,6 @@
 package geospatialInterlinking.progressive
 
-import dataModel.{ComparisonPQ, Entity, IM, MBR}
+import dataModel.{Entity, IM, MBR, WeightedPair, WeightedPairsPQ}
 import geospatialInterlinking.GeospatialInterlinkingT
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
@@ -14,13 +14,18 @@ import scala.collection.mutable.ListBuffer
 
 trait ProgressiveGeospatialInterlinkingT extends GeospatialInterlinkingT{
     val budget: Int
-    val ws: WeightingScheme
+    val mainWS: WeightingScheme
+    val secondaryWS: Option[WeightingScheme]
 
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): ComparisonPQ[(Int, Int)]
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): WeightedPairsPQ
 
+    def getMainWeight(e1: Entity, e2: Entity): Float = Utils.getWeight(e1, e2, mainWS)
 
-    def getWeight(e1: Entity, e2: Entity): Float = Utils.getWeight(e1, e2, ws)
-
+    def getSecondaryWeight(e1: Entity, e2: Entity): Float =
+        secondaryWS match {
+            case Some(ws) => Utils.getWeight(e1, e2, ws)
+            case None => 0f
+        }
 
     /**
      *  Get the DE-9IM of the top most related entities based
@@ -30,20 +35,20 @@ trait ProgressiveGeospatialInterlinkingT extends GeospatialInterlinkingT{
     def getDE9IM: RDD[IM] ={
         joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
             .flatMap{ p =>
-            val pid = p._1
-            val partition = partitionsZones(pid)
-            val source = p._2._1.toArray
-            val target = p._2._2.toArray
+                val pid = p._1
+                val partition = partitionsZones(pid)
+                val source = p._2._1.toArray
+                val target = p._2._2.toArray
 
-            val pq = prioritize(source, target, partition, Relation.DE9IM)
-            if (!pq.isEmpty)
-                pq.dequeueAll.map{ case (_, (i, j)) =>
-                    val e1 = source(i)
-                    val e2 = target(j)
-                    IM(e1, e2)
-                }.takeWhile(_ => !pq.isEmpty)
-            else Iterator()
-        }
+                val pq = prioritize(source, target, partition, Relation.DE9IM)
+                if (!pq.isEmpty)
+                    pq.dequeueAll.map{ wp =>
+                        val e1 = source(wp.entityId1)
+                        val e2 = target(wp.entityId2)
+                        IM(e1, e2)
+                    }.takeWhile(_ => !pq.isEmpty)
+                else Iterator()
+            }
     }
 
 
@@ -63,9 +68,9 @@ trait ProgressiveGeospatialInterlinkingT extends GeospatialInterlinkingT{
 
             val pq = prioritize(source, target, partition, relation)
             if (!pq.isEmpty)
-                pq.dequeueAll.map{ case (_, (i, j)) =>
-                    val e1 = source(i)
-                    val e2 = target(j)
+                pq.dequeueAll.map{ wp =>
+                    val e1 = source(wp.entityId1)
+                    val e2 = target(wp.entityId2)
                     (e1.relate(e2, relation), (e1.originalID, e2.originalID))
                 }.filter(_._1).map(_._2)
             else Iterator()
@@ -81,8 +86,8 @@ trait ProgressiveGeospatialInterlinkingT extends GeospatialInterlinkingT{
      * @return (PGR, total interlinked Geometries (TP), total comparisons)
      */
     def evaluate(relation: Relation, n: Int = 10, totalQualifiedPairs: Double, takeBudget: Seq[Int]): Seq[(Double, Long, Long, (List[Int], List[Int]))]  ={
-       // computes weighted the weighted comparisons
-        val matches: RDD[(Float, Boolean)] = joinedRDD
+        // computes weighted the weighted comparisons
+        val matches: RDD[(WeightedPair, Boolean)] = joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
                 val pid = p._1
@@ -92,12 +97,12 @@ trait ProgressiveGeospatialInterlinkingT extends GeospatialInterlinkingT{
 
                 val pq = prioritize(source, target, partition, relation)
                 if (!pq.isEmpty)
-                    pq.dequeueAll.map{ case (w, (i, j)) =>
-                        val e1 = source(i)
-                        val e2 = target(j)
+                    pq.dequeueAll.map{  wp =>
+                        val e1 = source(wp.entityId1)
+                        val e2 = target(wp.entityId2)
                         relation match {
-                            case Relation.DE9IM => (w, IM(e1, e2).relate)
-                            case _ => (w, e1.relate(e2, relation))
+                            case Relation.DE9IM => (wp, IM(e1, e2).relate)
+                            case _ => (wp, e1.relate(e2, relation))
                         }
                     }.takeWhile(_ => !pq.isEmpty)
                 else Iterator()
@@ -106,7 +111,7 @@ trait ProgressiveGeospatialInterlinkingT extends GeospatialInterlinkingT{
         var results = mutable.ListBuffer[(Double, Long, Long, (List[Int], List[Int]))]()
         for(b <- takeBudget){
             // compute AUC prioritizing the comparisons based on their weight
-            val sorted = matches.takeOrdered(b)(Ordering.by[(Float, Boolean), Float](_._1).reverse)
+            val sorted = matches.takeOrdered(b)
             val verifications = sorted.length
             val step = math.ceil(verifications/n)
 
