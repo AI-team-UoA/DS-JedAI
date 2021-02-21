@@ -7,9 +7,8 @@ import utils.Constants.Relation.Relation
 import utils.Constants.WeightingScheme.WeightingScheme
 import utils.Utils
 
-case class RandomScheduling(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
-                            thetaXY: (Double, Double), mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme],
-                            budget: Int, sourceCount: Long)
+case class RandomScheduling(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double),
+                            mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme], budget: Int)
     extends ProgressiveGeospatialInterlinkingT {
 
 
@@ -56,9 +55,8 @@ object RandomScheduling {
     def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightingScheme, sws: Option[WeightingScheme] = None,
               budget: Int, partitioner: Partitioner): RandomScheduling ={
         val thetaXY = Utils.getTheta
-        val sourceCount = Utils.getSourceCount
         val joinedRDD = source.cogroup(target, partitioner)
-        RandomScheduling(joinedRDD, thetaXY, ws, sws, budget, sourceCount)
+        RandomScheduling(joinedRDD, thetaXY, ws, sws, budget)
     }
 
 }

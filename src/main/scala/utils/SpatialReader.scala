@@ -306,7 +306,7 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
                     }
         // redistribute based on spatial partitioner
         entitiesRDD
-            .flatMap(se =>  sp.value.placeObject(se.geometry).asScala.map(i => (i._1.toInt, se)))
+            .flatMap(se => sp.value.placeObject(se.geometry).asScala.map(i => (i._1.toInt, se)))
             .partitionBy(partitioner)
     }
 

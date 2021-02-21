@@ -7,9 +7,8 @@ import utils.Constants.Relation.Relation
 import utils.Constants.WeightingScheme.WeightingScheme
 import utils.Utils
 
-case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
-                     thetaXY: (Double, Double), mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme],
-                     budget: Int, sourceCount: Long)
+case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double),
+                     mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme], budget: Int)
     extends ProgressiveGeospatialInterlinkingT {
 
     /**
@@ -88,8 +87,7 @@ object TopKPairs{
     def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightingScheme, sws: Option[WeightingScheme] = None,
               budget: Int, partitioner: Partitioner): TopKPairs ={
         val thetaXY = Utils.getTheta
-        val sourceCount = Utils.getSourceCount
         val joinedRDD = source.cogroup(target, partitioner)
-        TopKPairs(joinedRDD, thetaXY, ws, sws, budget, sourceCount)
+        TopKPairs(joinedRDD, thetaXY, ws, sws, budget)
     }
 }
