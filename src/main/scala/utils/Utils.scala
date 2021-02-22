@@ -48,8 +48,6 @@ object Utils extends Serializable {
 	lazy val globalMinY: Double = partitionsZones.map(p => p.minY / thetaXY._2).min
 	lazy val globalMaxY: Double = partitionsZones.map(p => p.maxY / thetaXY._2).max
 
-	lazy val totalBlocks: Double = (globalMaxX - globalMinX + 1) * (globalMaxY - globalMinY + 1)
-
 
 	/**
 	 * initialize theta based on theta granularity

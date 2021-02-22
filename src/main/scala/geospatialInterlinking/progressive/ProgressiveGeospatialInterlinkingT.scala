@@ -8,7 +8,6 @@ import org.apache.spark.storage.StorageLevel
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightingScheme.WeightingScheme
 import utils.Constants.{Relation, WeightingScheme}
-import utils.Utils.totalBlocks
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -18,6 +17,15 @@ trait ProgressiveGeospatialInterlinkingT extends GeospatialInterlinkingT{
     val budget: Int
     val mainWS: WeightingScheme
     val secondaryWS: Option[WeightingScheme]
+
+    lazy val totalBlocks: Double = {
+        val globalMinX: Double = partitionsZones.map(p => p.minX / thetaXY._1).min
+        val globalMaxX: Double = partitionsZones.map(p => p.maxX / thetaXY._1).max
+        val globalMinY: Double = partitionsZones.map(p => p.minY / thetaXY._2).min
+        val globalMaxY: Double = partitionsZones.map(p => p.maxY / thetaXY._2).max
+
+        (globalMaxX - globalMinX + 1) * (globalMaxY - globalMinY + 1)
+    }
 
     def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): WeightedPairsPQ
 
