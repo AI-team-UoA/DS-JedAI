@@ -2,15 +2,17 @@ package geospatialInterlinking.progressive
 
 import dataModel.{Entity, IM, MBR, WeightedPair, WeightedPairsPQ}
 import geospatialInterlinking.GeospatialInterlinkingT
+import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightingScheme.WeightingScheme
-import utils.Constants.Relation
-import utils.Utils
+import utils.Constants.{Relation, WeightingScheme}
+import utils.Utils.totalBlocks
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.math.{ceil, floor, max, min}
 
 trait ProgressiveGeospatialInterlinkingT extends GeospatialInterlinkingT{
     val budget: Int
@@ -19,13 +21,49 @@ trait ProgressiveGeospatialInterlinkingT extends GeospatialInterlinkingT{
 
     def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): WeightedPairsPQ
 
-    def getMainWeight(e1: Entity, e2: Entity): Float = Utils.getWeight(e1, e2, mainWS)
+    def getMainWeight(e1: Entity, e2: Entity): Float = getWeight(e1, e2, mainWS)
 
     def getSecondaryWeight(e1: Entity, e2: Entity): Float =
         secondaryWS match {
-            case Some(ws) => Utils.getWeight(e1, e2, ws)
+            case Some(ws) => getWeight(e1, e2, ws)
             case None => 0f
         }
+
+    /**
+     * Weight a comparison
+     * TODO: ensure that float does not produce issues
+     *
+     * @param e1        Spatial entity
+     * @param e2        Spatial entity
+     * @return weight
+     */
+    def getWeight(e1: Entity, e2: Entity, ws: WeightingScheme): Float = {
+        val e1Blocks = (ceil(e1.mbr.maxX/thetaXY._1).toInt - floor(e1.mbr.minX/thetaXY._1).toInt + 1) * (ceil(e1.mbr.maxY/thetaXY._2).toInt - floor(e1.mbr.minY/thetaXY._2).toInt + 1)
+        val e2Blocks = (ceil(e2.mbr.maxX/thetaXY._1).toInt - floor(e2.mbr.minX/thetaXY._1).toInt + 1) * (ceil(e2.mbr.maxY/thetaXY._2).toInt - floor(e2.mbr.minY/thetaXY._2).toInt + 1)
+        val cb = (min(ceil(e1.mbr.maxX/thetaXY._1), ceil(e2.mbr.maxX/thetaXY._1)).toInt - max(floor(e1.mbr.minX/thetaXY._1), floor(e2.mbr.minX/thetaXY._1)).toInt + 1) *
+            (min(ceil(e1.mbr.maxY/thetaXY._2), ceil(e2.mbr.maxY/thetaXY._2)).toInt - max(floor(e1.mbr.minY/thetaXY._2), floor(e2.mbr.minY/thetaXY._2)).toInt + 1)
+
+        ws match {
+            case WeightingScheme.MBR_INTERSECTION =>
+                val intersectionArea = e1.mbr.getIntersectingMBR(e2.mbr).getArea
+                intersectionArea / (e1.mbr.getArea + e2.mbr.getArea - intersectionArea)
+
+            case WeightingScheme.POINTS =>
+                1f / (e1.geometry.getNumPoints + e2.geometry.getNumPoints);
+
+            case WeightingScheme.JS =>
+                cb / (e1Blocks + e2Blocks - cb)
+
+            case WeightingScheme.PEARSON_X2 =>
+                val v1: Array[Long] = Array[Long](cb, (e2Blocks - cb).toLong)
+                val v2: Array[Long] = Array[Long]((e1Blocks - cb).toLong, (totalBlocks - (v1(0) + v1(1) + (e1Blocks - cb))).toLong)
+                val chiTest = new ChiSquareTest()
+                chiTest.chiSquare(Array(v1, v2)).toFloat
+
+            case WeightingScheme.CF | _ =>
+                cb.toFloat
+        }
+    }
 
     /**
      *  Get the DE-9IM of the top most related entities based
