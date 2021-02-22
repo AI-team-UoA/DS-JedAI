@@ -92,16 +92,16 @@ object EvaluationExp {
         log.info("DS-JEDAI: Total Qualifying Pairs: " + totalRelatedPairs)
         log.info("\n")
 
-        printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, ProgressiveAlgorithm.RANDOM,  (WeightingScheme.CF, WeightingScheme.CF))
+        printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, ProgressiveAlgorithm.RANDOM,  (WeightingScheme.CF, None))
         val algorithms = Seq(ProgressiveAlgorithm.PROGRESSIVE_GIANT, ProgressiveAlgorithm.TOPK, ProgressiveAlgorithm.RECIPROCAL_TOPK)
-        val weightingSchemes = Seq((WeightingScheme.JS, WeightingScheme.MBR_INTERSECTION), (WeightingScheme.PEARSON_X2, WeightingScheme.POINTS))
+        val weightingSchemes = Seq((WeightingScheme.JS, Option(WeightingScheme.MBR_INTERSECTION)), (WeightingScheme.PEARSON_X2, Option(WeightingScheme.POINTS)))
         for (a <- algorithms ; ws <- weightingSchemes)
             printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, a, ws)
     }
 
 
     def printResults(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], partitioner: Partitioner, totalRelations: Int,
-                     ma: ProgressiveAlgorithm, ws: (WeightingScheme, WeightingScheme), n: Int = 10): Unit = {
+                     ma: ProgressiveAlgorithm, ws: (WeightingScheme, Option[WeightingScheme]), n: Int = 10): Unit = {
 
         val pma = ProgressiveAlgorithmsFactory.get(ma, source, target, partitioner, budget, ws._1, ws._2)
         val results = pma.evaluate(relation, n, totalRelations, takeBudget)

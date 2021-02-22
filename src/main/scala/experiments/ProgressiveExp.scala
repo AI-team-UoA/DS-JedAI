@@ -67,7 +67,7 @@ object ProgressiveExp {
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
         val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
         val mainWS: WeightingScheme = if (options.contains("mws")) WeightingScheme.withName(options("mws")) else conf.getMainWS
-        val secondaryWS: WeightingScheme = if (options.contains("sws")) WeightingScheme.withName(options("sws")) else conf.getSecondaryWS
+        val secondaryWS: Option[WeightingScheme] = if (options.contains("sws")) Option(WeightingScheme.withName(options("sws"))) else conf.getSecondaryWS
         val pa: ProgressiveAlgorithm = if (options.contains("pa")) ProgressiveAlgorithm.withName(options("pa")) else conf.getProgressiveAlgorithm
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
         val relation = conf.getRelation

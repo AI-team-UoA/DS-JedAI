@@ -85,7 +85,10 @@ case class Configuration(source: DatasetConfigurations, target:DatasetConfigurat
 
 	def getMainWS: WeightingScheme = WeightingScheme.withName(configurations.getOrElse(YamlConfiguration.CONF_MAIN_WS, "JS"))
 
-	def getSecondaryWS: WeightingScheme = WeightingScheme.withName(configurations.getOrElse(YamlConfiguration.CONF_SECONDARY_WS, "MBR_INTERSECTION"))
+	def getSecondaryWS: Option[WeightingScheme] = configurations.get(YamlConfiguration.CONF_SECONDARY_WS) match {
+		case Some(ws) => Option(WeightingScheme.withName(ws))
+		case None => None
+	}
 
 	def getGridType: GridType = GridType.withName(configurations.getOrElse(YamlConfiguration.CONF_GRIDTYPE, "QUADTREE"))
 
