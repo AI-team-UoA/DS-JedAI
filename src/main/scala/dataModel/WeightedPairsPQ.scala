@@ -22,6 +22,14 @@ case class WeightedPairsPQ(maxSize: Int){
             case None =>  Iterator.continually{ pq.pollFirst() }.takeWhile(_ => !pq.isEmpty)
         }
 
+    def dynamicUpdate(wp: WeightedPair): Unit ={
+        val exists = pq.remove(wp)
+        if (exists){
+            wp.incrementRelatedMatches()
+            enqueue(wp)
+        }
+    }
+
     def take(n: Int): Iterator[WeightedPair] = take(Option(n))
 
     def dequeueAll: Iterator[WeightedPair] = take(None)

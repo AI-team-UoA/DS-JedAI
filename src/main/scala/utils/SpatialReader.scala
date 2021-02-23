@@ -227,9 +227,8 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
         GeoSparkSQLRegistrator.registerAll(spark)
         ARQ.init()
 
-        val asWKT = "http://www.opengis.net/ont/geosparql#asWKT"
-        val allowedPredicates: mutable.Set[String] = mutable.Set(asWKT)
-        var sparqlQuery = s"SELECT ?Subject ?WKT WHERE { ?Subject $geometryPredicate ?g. ?g <$asWKT> ?WKT.}"
+        val allowedPredicates: mutable.Set[String] = mutable.Set()
+        var sparqlQuery = s"SELECT ?Subject ?WKT WHERE { ?Subject $geometryPredicate ?WKT.}"
         var query = "SELECT ST_GeomFromWKT(GEOMETRIES.WKT),  GEOMETRIES.Subject FROM GEOMETRIES".stripMargin
 
         val cleanGeomPredicate: String =
@@ -245,7 +244,7 @@ case class SpatialReader(sourceDc: DatasetConfigurations, partitions: Int, gt: C
                 datePredicateValue.substring(1, datePredicateValue.length-1)
             else datePredicateValue
             allowedPredicates.add(cleanDatePredicate)
-            sparqlQuery = s"SELECT ?Subject ?WKT ?Date WHERE { ?Subject ${datePredicate.get} ?Date. ?Subject $geometryPredicate ?g. ?g <$asWKT> ?WKT.}"
+            sparqlQuery = s"SELECT ?Subject ?WKT ?Date WHERE { ?Subject ${datePredicate.get} ?Date. ?Subject $geometryPredicate ?WKT.}"
             query = "SELECT ST_GeomFromWKT(GEOMETRIES.WKT),  GEOMETRIES.Subject, GEOMETRIES.Date FROM GEOMETRIES".stripMargin
         }
 

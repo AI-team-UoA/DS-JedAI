@@ -22,7 +22,9 @@ object ProgressiveAlgorithmsFactory {
             case ProgressiveAlgorithm.TOPK =>
                 TopKPairs(source, target, mainWS, secondaryWS, budget, partitioner)
             case ProgressiveAlgorithm.RECIPROCAL_TOPK =>
-                ReciprocalTopK(source, target, mainWS, Option(secondaryWS), budget, partitioner)
+                ReciprocalTopK(source, target, mainWS, secondaryWS, budget, partitioner)
+            case ProgressiveAlgorithm.DYNAMIC_PROGRESSIVE_GIANT =>
+                DynamicProgressiveGIAnt(source, target, mainWS, secondaryWS, budget, partitioner)
             case ProgressiveAlgorithm.PROGRESSIVE_GIANT | _ =>
                 ProgressiveGIAnt(source, target, mainWS, secondaryWS, budget, partitioner)
         }

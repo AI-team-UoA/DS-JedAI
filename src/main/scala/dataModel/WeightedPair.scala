@@ -8,12 +8,12 @@ case class WeightedPair(entityId1: Int, entityId2: Int, mainWeight: Float, secon
         // descendant order
         if (o.entityId1 == entityId1 && o.entityId2 == entityId2) return 0
 
-        val test1 = o.mainWeight - mainWeight
+        val test1 = o.getMainWeight - getMainWeight
         if (0 < test1) return 1
 
         if (test1 < 0) return -1
 
-        val test2 = o.secondaryWeight - secondaryWeight
+        val test2 = o.getSecondaryWeight - getSecondaryWeight
         if (0 < test2) return 1
 
         if (test2 < 0) return -1

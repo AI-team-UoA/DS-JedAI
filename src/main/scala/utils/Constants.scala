@@ -108,6 +108,7 @@ object Constants {
 	object ProgressiveAlgorithm extends Enumeration {
 		type ProgressiveAlgorithm = Value
 		val PROGRESSIVE_GIANT: Constants.ProgressiveAlgorithm.Value = Value("PROGRESSIVE_GIANT")
+		val DYNAMIC_PROGRESSIVE_GIANT: Constants.ProgressiveAlgorithm.Value = Value("DYNAMIC_PROGRESSIVE_GIANT")
 		val GEOMETRY_CENTRIC: Constants.ProgressiveAlgorithm.Value = Value("GEOMETRY_CENTRIC")
 		val TOPK: Constants.ProgressiveAlgorithm.Value = Value("TOPK")
 		val RECIPROCAL_TOPK: Constants.ProgressiveAlgorithm.Value = Value("RECIPROCAL_TOPK")
