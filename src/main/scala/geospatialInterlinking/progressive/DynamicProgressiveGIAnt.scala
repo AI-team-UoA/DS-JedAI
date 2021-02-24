@@ -71,7 +71,7 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
 
                 if (!pq.isEmpty)
                     Iterator.continually{
-                        val wp = pq.dequeue()
+                        val wp = pq.dequeueHead()
                         val e1 = source(wp.entityId1)
                         val e2 = target(wp.entityId2)
                         val im = IM(e1, e2)
@@ -106,7 +106,7 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
                 val targetCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
                 if (!pq.isEmpty)
                     Iterator.continually{
-                        val wp = pq.dequeue()
+                        val wp = pq.dequeueHead()
                         val e1 = source(wp.entityId1)
                         val e2 = target(wp.entityId2)
                         val isRelated = e1.relate(e2, relation)
@@ -143,7 +143,7 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
                 val targetCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
                 if (!pq.isEmpty)
                     Iterator.continually{
-                        val wp = pq.dequeue()
+                        val wp = pq.dequeueHead()
                         val e1 = source(wp.entityId1)
                         val e2 = target(wp.entityId2)
                         val isRelatedAndPair = relation match {

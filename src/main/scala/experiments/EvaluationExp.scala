@@ -93,15 +93,14 @@ object EvaluationExp {
         log.info("\n")
 
         //printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, ProgressiveAlgorithm.RANDOM,  (WeightingScheme.CF, None))
-        val algorithms = Seq(ProgressiveAlgorithm.DYNAMIC_PROGRESSIVE_GIANT)
+        val algorithms = Seq(ProgressiveAlgorithm.PROGRESSIVE_GIANT, ProgressiveAlgorithm.TOPK, ProgressiveAlgorithm.RECIPROCAL_TOPK)
         val weightingSchemes = Seq(
-            (WeightingScheme.CF, None), (WeightingScheme.JS, None), (WeightingScheme.PEARSON_X2, None),
             (WeightingScheme.MBR_INTERSECTION, None), (WeightingScheme.POINTS, None),
             (WeightingScheme.JS, Option(WeightingScheme.MBR_INTERSECTION)), (WeightingScheme.PEARSON_X2, Option(WeightingScheme.POINTS)))
         for (a <- algorithms ; ws <- weightingSchemes)
             printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, a, ws)
     }
-n
+
 
     def printResults(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], partitioner: Partitioner, totalRelations: Int,
                      ma: ProgressiveAlgorithm, ws: (WeightingScheme, Option[WeightingScheme]), n: Int = 10): Unit = {

@@ -17,8 +17,9 @@ case class WeightedPair(entityId1: Int, entityId2: Int, mainWeight: Float, secon
         if (0 < test2) return 1
 
         if (test2 < 0) return -1
-
-        o.entityId1 - entityId1
+        // Note: Returning just the id leads to comparison method violation
+        // as may lead to cases that A > B, B > C and C > A
+        0
     }
 
     /**

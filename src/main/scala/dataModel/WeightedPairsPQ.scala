@@ -11,15 +11,15 @@ case class WeightedPairsPQ(maxSize: Int){
     def enqueue(wp: WeightedPair): Unit ={
             pq.add(wp)
             if (pq.size > maxSize)
-                pq.pollLast()
+                dequeueLast()
     }
 
     def enqueueAll(items: Iterator[WeightedPair]): Unit = items.foreach(wp => enqueue(wp))
 
     def take(n: Option[Int]): Iterator[WeightedPair] =
         n match {
-            case Some(n) => Iterator.continually{ pq.pollFirst() }.take(n)
-            case None =>  Iterator.continually{ pq.pollFirst() }.takeWhile(_ => !pq.isEmpty)
+            case Some(n) => Iterator.continually{ dequeueHead() }.take(n)
+            case None =>  Iterator.continually{ dequeueHead() }.takeWhile(_ => !pq.isEmpty)
         }
 
     def dynamicUpdate(wp: WeightedPair): Unit ={
@@ -42,7 +42,7 @@ case class WeightedPairsPQ(maxSize: Int){
 
     def dequeueHead(): WeightedPair = pq.pollFirst()
 
-    def dequeue(): WeightedPair = pq.pollLast()
+    def dequeueLast(): WeightedPair = pq.pollLast()
 
     def iterator(): Iterator[WeightedPair] = pq.iterator().asScala
 }
