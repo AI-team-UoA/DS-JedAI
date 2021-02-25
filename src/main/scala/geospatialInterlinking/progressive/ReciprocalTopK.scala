@@ -35,7 +35,6 @@ case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entit
         val partitionPQ: WeightedPairsPQ = WeightedPairsPQ(budget)
 
         val targetSet: Array[Set[Int]] = new Array(target.length)
-        var counter: Int = 0
         target.indices
             .foreach{j =>
                 val e2 = target(j)
@@ -47,8 +46,7 @@ case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entit
                                 val e1 = source(i)
                                 val w = getMainWeight(e1, e2)
                                 val secW = getSecondaryWeight(e1, e2)
-                                val wp = WeightedPair(counter, i, j, w, secW)
-                                counter += 1
+                                val wp = WeightedPair( i, j, w, secW)
 
                                 // set top-K PQ for the examining target entity
                                 targetPQ.enqueue(wp)

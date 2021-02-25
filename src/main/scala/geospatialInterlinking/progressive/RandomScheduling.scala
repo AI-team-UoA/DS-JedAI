@@ -25,7 +25,6 @@ case class RandomScheduling(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Ent
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
         val pq: WeightedPairsPQ = WeightedPairsPQ(budget)
         val rnd = new scala.util.Random
-        var counter: Int = 0
         // weight and put the comparisons in a PQ
         target
             .indices
@@ -38,9 +37,8 @@ case class RandomScheduling(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Ent
                             .foreach { i =>
                                 val w = rnd.nextFloat()
                                 val secW = rnd.nextFloat()
-                                val wp = WeightedPair(counter, i, j, w, secW)
+                                val wp = WeightedPair(i, j, w, secW)
                                 pq.enqueue(wp)
-                                counter += 1
                             }
                     }
             }

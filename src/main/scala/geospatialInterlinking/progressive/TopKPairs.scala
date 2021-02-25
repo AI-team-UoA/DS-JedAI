@@ -31,7 +31,6 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
         val sourcePQ: Array[WeightedPairsPQ] = new Array(source.length)
         val targetPQ: WeightedPairsPQ = WeightedPairsPQ(k)
         val partitionPQ: WeightedPairsPQ = WeightedPairsPQ(budget)
-        var counter: Int = 0
 
         target.indices
             .foreach{ j =>
@@ -44,8 +43,7 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
                                 val e1 = source(i)
                                 val w = getMainWeight(e1, e2)
                                 val secW = getSecondaryWeight(e1, e2)
-                                val wp = WeightedPair(counter, i, j, w, secW)
-                                counter += 1
+                                val wp = WeightedPair(i, j, w, secW)
 
                                 // set top-K PQ for the examining target entity
                                 targetPQ.enqueue(wp)
