@@ -39,7 +39,6 @@ trait ProgressiveGeospatialInterlinkingT extends GeospatialInterlinkingT{
 
     /**
      * Weight a comparison
-     * TODO: ensure that float does not produce issues
      *
      * @param e1        Spatial entity
      * @param e2        Spatial entity
@@ -54,7 +53,8 @@ trait ProgressiveGeospatialInterlinkingT extends GeospatialInterlinkingT{
         ws match {
             case WeightingScheme.MBR_INTERSECTION =>
                 val intersectionArea = e1.mbr.getIntersectingMBR(e2.mbr).getArea
-                intersectionArea / (e1.mbr.getArea + e2.mbr.getArea - intersectionArea)
+                val w = intersectionArea / (e1.mbr.getArea + e2.mbr.getArea - intersectionArea)
+                if (!w.isNaN) w else 0f
 
             case WeightingScheme.POINTS =>
                 1f / (e1.geometry.getNumPoints + e2.geometry.getNumPoints);
