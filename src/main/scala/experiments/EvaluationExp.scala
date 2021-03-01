@@ -52,6 +52,12 @@ object EvaluationExp {
                     nextOption(map ++ Map("budget" -> value), tail)
                 case "-gt" :: value :: tail =>
                     nextOption(map ++ Map("gt" -> value), tail)
+                case "-tv" :: value :: tail =>
+                    nextOption(map ++ Map("tv" -> value), tail)
+                case "-qp" :: value :: tail =>
+                    nextOption(map ++ Map("qp" -> value), tail)
+                case "-pa" :: value :: tail =>
+                    nextOption(map ++ Map("pa" -> value), tail)
                 case _ :: tail =>
                     log.warn("DS-JEDAI: Unrecognized argument")
                     nextOption(map, tail)
@@ -86,17 +92,34 @@ object EvaluationExp {
         val targetRDD = reader.load(conf.target)
         val partitioner = reader.partitioner
 
-        val (_, _, _, _, _, _, _, _, _, totalVerifications, totalRelatedPairs) = GIAnt(sourceRDD, targetRDD, partitioner).countAllRelations
+        val (totalVerifications, totalRelatedPairs) =
+            if (options.contains("tv") && options.contains("qp"))
+                (options("tv").toInt, options("qp").toInt)
+            else {
+                val g = GIAnt(sourceRDD, targetRDD, partitioner).countAllRelations
+                (g._10, g._11)
+            }
 
         log.info("DS-JEDAI: Total Verifications: " + totalVerifications)
         log.info("DS-JEDAI: Total Qualifying Pairs: " + totalRelatedPairs)
         log.info("\n")
 
         //printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, ProgressiveAlgorithm.RANDOM,  (WeightingScheme.CF, None))
-        val algorithms = Seq(ProgressiveAlgorithm.PROGRESSIVE_GIANT, ProgressiveAlgorithm.TOPK, ProgressiveAlgorithm.RECIPROCAL_TOPK)
-        val weightingSchemes = Seq(
-            (WeightingScheme.MBR_INTERSECTION, None), (WeightingScheme.POINTS, None),
-            (WeightingScheme.JS, Option(WeightingScheme.MBR_INTERSECTION)), (WeightingScheme.PEARSON_X2, Option(WeightingScheme.POINTS)))
+
+        val algorithms: Seq[ProgressiveAlgorithm] =
+            if (options.contains("pa"))
+                options("pa").split(",").filter(ProgressiveAlgorithm.exists).map(ProgressiveAlgorithm.withName).toSeq
+            else
+                Seq(ProgressiveAlgorithm.DYNAMIC_PROGRESSIVE_GIANT)
+
+        val weightingSchemes = Seq((WeightingScheme.CF, None),
+                                (WeightingScheme.JS, None),
+                                (WeightingScheme.PEARSON_X2,None),
+                                (WeightingScheme.MBR_INTERSECTION, None),
+                                 (WeightingScheme.POINTS, None),
+                                 (WeightingScheme.JS, Option(WeightingScheme.MBR_INTERSECTION)),
+                                 (WeightingScheme.PEARSON_X2, Option(WeightingScheme.MBR_INTERSECTION)))
+
         for (a <- algorithms ; ws <- weightingSchemes)
             printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, a, ws)
     }

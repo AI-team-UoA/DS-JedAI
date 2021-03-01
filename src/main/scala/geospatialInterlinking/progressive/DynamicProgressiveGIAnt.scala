@@ -145,15 +145,15 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
                         val wp = pq.dequeueHead()
                         val e1 = source(wp.entityId1)
                         val e2 = target(wp.entityId2)
-                        val isRelatedAndPair = relation match {
-                            case Relation.DE9IM => (wp, IM(e1, e2).relate)
-                            case _ => (wp, e1.relate(e2, relation))
+                        val isRelated = relation match {
+                            case Relation.DE9IM => IM(e1, e2).relate
+                            case _ => e1.relate(e2, relation)
                         }
-                        if (isRelatedAndPair._2){
+                        if (isRelated){
                             sourceCandidates.getOrElse(wp.entityId1, List()).foreach(wp => pq.dynamicUpdate(wp))
                             targetCandidates.getOrElse(wp.entityId2, List()).foreach(wp => pq.dynamicUpdate(wp))
                         }
-                        isRelatedAndPair
+                        (wp, isRelated)
                     }.takeWhile(_ => !pq.isEmpty)
                 else Iterator()
             }.persist(StorageLevel.MEMORY_AND_DISK)
