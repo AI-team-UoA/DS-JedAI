@@ -1,12 +1,11 @@
 package dataModel
 
-import org.spark_project.guava.collect.MinMaxPriorityQueue
+import java.util
 import scala.collection.JavaConverters._
 
 case class WeightedPairsPQ(maxSize: Int){
 
-    lazy val pq: MinMaxPriorityQueue[WeightedPair] = MinMaxPriorityQueue.maximumSize(maxSize+1).create()
-
+    val pq: util.TreeSet[WeightedPair] = new util.TreeSet[WeightedPair]()
 
     def enqueue(wp: WeightedPair): Unit ={
             pq.add(wp)
