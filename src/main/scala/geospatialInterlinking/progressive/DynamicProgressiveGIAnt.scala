@@ -30,6 +30,7 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
         val pq: WeightedPairsPQ = WeightedPairsPQ(budget)
+        var counter = 0
         // weight and put the comparisons in a PQ
         target
             .indices
@@ -43,8 +44,9 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
                                 val e1 = source(i)
                                 val w = getMainWeight(e1, e2)
                                 val secW = getSecondaryWeight(e1, e2)
-                                val wp = WeightedPair(i, j, w, secW)
+                                val wp = WeightedPair(counter, i, j, w, secW)
                                 pq.enqueue(wp)
+                                counter += 1
                             }
                     }
             }

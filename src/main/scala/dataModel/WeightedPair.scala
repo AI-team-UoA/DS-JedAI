@@ -1,6 +1,6 @@
 package dataModel
 
-case class WeightedPair(entityId1: Int, entityId2: Int, mainWeight: Float, secondaryWeight: Float)  extends Serializable with Comparable[WeightedPair]{
+case class WeightedPair(counter: Int, entityId1: Int, entityId2: Int, mainWeight: Float, secondaryWeight: Float)  extends Serializable with Comparable[WeightedPair]{
 
     var relatedMatches: Int = 0
 
@@ -17,6 +17,8 @@ case class WeightedPair(entityId1: Int, entityId2: Int, mainWeight: Float, secon
      */
     override def compareTo(o: WeightedPair): Int = {
 
+        if (entityId1 == o.entityId1 && entityId2 == o.entityId2) return 0
+
         val test1 = o.getMainWeight - getMainWeight
         if (0 < test1) return 1
 
@@ -27,7 +29,7 @@ case class WeightedPair(entityId1: Int, entityId2: Int, mainWeight: Float, secon
 
         if (test2 < 0) return -1
 
-        0
+        o.counter - counter
     }
 
     /**
