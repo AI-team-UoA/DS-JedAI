@@ -3,7 +3,7 @@ package dataModel
 import java.util
 import scala.collection.JavaConverters._
 
-case class WeightedPairsPQ(maxSize: Int){
+case class WeightedPairsPQ(maxSize: Long){
 
     val pq: util.TreeSet[WeightedPair] = new util.TreeSet[WeightedPair]()
 

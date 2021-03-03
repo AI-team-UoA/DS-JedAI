@@ -10,7 +10,7 @@ import utils.Utils
 
 
 case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double),
-                          mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme], budget: Int)
+                          mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme], budget: Int, sourceEntities: Int)
     extends ProgressiveGeospatialInterlinkingT {
 
     /**
@@ -24,15 +24,16 @@ case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entit
      * @return prioritized comparisons as a PQ
      */
     def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation):  WeightedPairsPQ = {
+        val localBudget = (math.ceil(budget*source.length.toDouble/sourceEntities.toDouble)*2).toLong
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
 
-        val sourceK = (math.ceil(budget / source.length).toInt + 1) * 2 // +1 to avoid k=0
-        val targetK = (math.ceil(budget / target.length).toInt + 1) * 2 // +1 to avoid k=0
+        val sourceK = (math.ceil(localBudget / source.length).toInt + 1) * 2 // +1 to avoid k=0
+        val targetK = (math.ceil(localBudget / target.length).toInt + 1) * 2 // +1 to avoid k=0
 
         val sourcePQ: Array[WeightedPairsPQ] = new Array(source.length)
         val targetPQ: WeightedPairsPQ = WeightedPairsPQ(targetK)
-        val partitionPQ: WeightedPairsPQ = WeightedPairsPQ(budget)
+        val partitionPQ: WeightedPairsPQ = WeightedPairsPQ(localBudget)
         var counter = 0
 
         val targetSet: Array[Set[Int]] = new Array(target.length)
@@ -82,6 +83,7 @@ object ReciprocalTopK{
               budget: Int, partitioner: Partitioner): ReciprocalTopK ={
         val thetaXY = Utils.getTheta
         val joinedRDD = source.cogroup(target, partitioner)
-        ReciprocalTopK(joinedRDD, thetaXY, ws, sws, budget)
+        val sourceEntities = Utils.sourceCount
+        ReciprocalTopK(joinedRDD, thetaXY, ws, sws, budget, sourceEntities.toInt)
     }
 }

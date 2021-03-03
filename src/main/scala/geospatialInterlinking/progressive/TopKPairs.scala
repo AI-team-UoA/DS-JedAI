@@ -8,7 +8,7 @@ import utils.Constants.WeightingScheme.WeightingScheme
 import utils.Utils
 
 case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double),
-                     mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme], budget: Int)
+                     mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme], budget: Int, sourceEntities: Int)
     extends ProgressiveGeospatialInterlinkingT {
 
     /**
@@ -23,14 +23,15 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
      * @return prioritized comparisons in a PQ
      */
     def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): WeightedPairsPQ = {
+        val localBudget = (math.ceil(budget*source.length.toDouble/sourceEntities.toDouble)*2).toLong
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
 
         // the budget is divided based on the number of entities
-        val k = (math.ceil(budget / (source.length + target.length)).toInt + 1) * 2 // +1 to avoid k=0
+        val k = (math.ceil(localBudget / (source.length + target.length)).toInt + 1) * 2 // +1 to avoid k=0
         val sourcePQ: Array[WeightedPairsPQ] = new Array(source.length)
         val targetPQ: WeightedPairsPQ = WeightedPairsPQ(k)
-        val partitionPQ: WeightedPairsPQ = WeightedPairsPQ(budget)
+        val partitionPQ: WeightedPairsPQ = WeightedPairsPQ(localBudget)
         var counter = 0
 
         target.indices
@@ -90,6 +91,7 @@ object TopKPairs{
               budget: Int, partitioner: Partitioner): TopKPairs ={
         val thetaXY = Utils.getTheta
         val joinedRDD = source.cogroup(target, partitioner)
-        TopKPairs(joinedRDD, thetaXY, ws, sws, budget)
+        val sourceEntities = Utils.sourceCount
+        TopKPairs(joinedRDD, thetaXY, ws, sws, budget, sourceEntities.toInt)
     }
 }

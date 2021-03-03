@@ -9,7 +9,7 @@ import utils.Utils
 
 
 case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double),
-                            mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme], budget: Int)
+                            mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme], budget: Int, sourceEntities: Int)
     extends ProgressiveGeospatialInterlinkingT {
 
 
@@ -23,9 +23,10 @@ case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Ent
      * @return a PQ with the top comparisons
      */
     def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): WeightedPairsPQ ={
+        val localBudget = (math.ceil(budget*source.length.toDouble/sourceEntities.toDouble)*2).toLong
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
-        val pq: WeightedPairsPQ = WeightedPairsPQ(budget)
+        val pq: WeightedPairsPQ = WeightedPairsPQ(localBudget)
         var counter = 0
         // weight and put the comparisons in a PQ
         target
@@ -61,7 +62,8 @@ object ProgressiveGIAnt {
               budget: Int, partitioner: Partitioner): ProgressiveGIAnt ={
         val thetaXY = Utils.getTheta
         val joinedRDD = source.cogroup(target, partitioner)
-        ProgressiveGIAnt(joinedRDD, thetaXY, ws, sws, budget)
+        val sourceEntities = Utils.sourceCount
+        ProgressiveGIAnt(joinedRDD, thetaXY, ws, sws, budget, sourceEntities.toInt)
     }
 
 }
