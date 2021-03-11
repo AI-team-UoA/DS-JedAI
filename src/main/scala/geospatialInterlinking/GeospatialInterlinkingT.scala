@@ -15,7 +15,6 @@ trait GeospatialInterlinkingT {
 
     val partitionsZones: Array[MBR] = SparkContext.getOrCreate().broadcast(Utils.getZones).value
 
-
     /**
      * index a list of spatial entities
      *
@@ -65,7 +64,6 @@ trait GeospatialInterlinkingT {
         }
         (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
             totalOverlaps, totalTouches, totalWithin, verifications, qualifiedPairs)
-
     }
 
     def countAllRelations: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =

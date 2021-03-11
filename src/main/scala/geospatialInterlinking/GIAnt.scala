@@ -63,7 +63,7 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], th
                             .filter { case (block, i) => source(i).filter(e2, Relation.DE9IM, block, thetaXY, Some(partition)) }
                             .map(_._2)
                             .map(i => IM(source(i), e2))
-                            //.filter(_.relate)
+                            .filter(_.relate)
                             .force
                     }
                 }

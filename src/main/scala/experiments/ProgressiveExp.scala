@@ -47,6 +47,8 @@ object ProgressiveExp {
                     nextOption(map ++ Map("pa" -> value), tail)
                 case "-gt" :: value :: tail =>
                     nextOption(map ++ Map("gt" -> value), tail)
+                case ("-p" | "-partitions") :: value :: tail =>
+                    nextOption(map ++ Map("partitions" -> value), tail)
                 case _ :: tail =>
                     log.warn("DS-JEDAI: Unrecognized argument")
                     nextOption(map, tail)
