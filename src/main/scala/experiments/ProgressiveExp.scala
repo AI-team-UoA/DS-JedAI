@@ -75,7 +75,8 @@ object ProgressiveExp {
         val relation = conf.getRelation
 
         log.info("DS-JEDAI: Input Budget: " + budget)
-        log.info("DS-JEDAI: Weighting Scheme: " + mainWS.toString)
+        log.info("DS-JEDAI: Main Weighting Scheme: " + mainWS.toString)
+        if (secondaryWS.isDefined) log.info("DS-JEDAI: Secondary Weighting Scheme: " + secondaryWS.get.toString)
         log.info("DS-JEDAI: Progressive Algorithm: " + pa.toString)
 
         val startTime = Calendar.getInstance().getTimeInMillis

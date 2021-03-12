@@ -44,8 +44,6 @@ object BalancingExp {
                 case Nil => map
                 case ("-c" | "-conf") :: value :: tail =>
                     nextOption(map ++ Map("conf" -> value), tail)
-                case "-auc" :: tail =>
-                    nextOption(map ++ Map("auc" -> "true"), tail)
                 case ("-p" | "-partitions") :: value :: tail =>
                     nextOption(map ++ Map("partitions" -> value), tail)
                 case "-gt" :: value :: tail =>
@@ -90,7 +88,7 @@ object BalancingExp {
         val std = Math.sqrt(variance)
         val zScore: (Int, Int) => (Int, Double) = (p: Int, x: Int) => (p, (x - mean).toDouble/std)
 
-        val outliers = entitiesPerPartitions.map{case (p, x) => zScore(p, x)}.filter(_._2 > 1.8)
+        val outliers = entitiesPerPartitions.map{case (p, x) => zScore(p, x)}.filter(_._2 > 2.5)
         val outlierPartitions = outliers.map(_._1).toSet
         log.info("DS-JEDAI: Overloaded partitions: " + outlierPartitions.size)
 

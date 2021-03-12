@@ -125,12 +125,12 @@ object Utils extends Serializable {
 		log.info("Unique blocks: " + pSet.size)
 	}
 
-	def export(rdd: RDD[Entity], path:String): Unit ={
+	def export(rdd: RDD[(String, String)], path:String): Unit ={
 		val schema = StructType(
-			StructField("id", IntegerType, nullable = true) ::
-				StructField("wkt", StringType, nullable = true) :: Nil
+			StructField("id1", StringType, nullable = true) ::
+				StructField("id2", StringType, nullable = true) :: Nil
 		)
-		val rowRDD: RDD[Row] = rdd.map(s => new GenericRowWithSchema(Array(TaskContext.getPartitionId(), s.geometry.toText), schema))
+		val rowRDD: RDD[Row] = rdd.map(s => new GenericRowWithSchema(Array(s._1, s._2), schema))
 		val df = spark.createDataFrame(rowRDD, schema)
 		df.write.option("header", "true").csv(path)
 	}
