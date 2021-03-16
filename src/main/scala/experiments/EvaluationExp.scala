@@ -15,7 +15,8 @@ import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightingScheme.WeightingScheme
 import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingScheme}
-import utils.{ConfigurationParser, SpatialReader, Utils}
+import utils.readers.Reader
+import utils.{ConfigurationParser, Utils}
 
 
 object EvaluationExp {
@@ -24,7 +25,7 @@ object EvaluationExp {
     log.setLevel(Level.INFO)
 
     var budget: Int = 10000
-    var takeBudget: Seq[Int] = Seq(5000000, 10000000)
+    var takeBudget: Seq[Int] = Seq(500000, 1000000)
     var relation: Relation = Relation.DE9IM
 
     def main(args: Array[String]): Unit = {
@@ -83,13 +84,13 @@ object EvaluationExp {
 
         log.info("DS-JEDAI: Input Budget: " + budget)
 
-        val reader = SpatialReader(conf.source, partitions, gridType)
-        val sourceRDD = reader.load()
+        val reader = Reader(conf.source, partitions, gridType)
+        val sourceRDD = reader.spatialLoad()
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
         Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-        val targetRDD = reader.load(conf.target)
+        val targetRDD = reader.spatialLoad(conf.target)
         val partitioner = reader.partitioner
 
         val (totalVerifications, totalRelatedPairs) =
@@ -110,15 +111,16 @@ object EvaluationExp {
             if (options.contains("pa"))
                 options("pa").split(",").filter(ProgressiveAlgorithm.exists).map(ProgressiveAlgorithm.withName).toSeq
             else
-                Seq(ProgressiveAlgorithm.DYNAMIC_PROGRESSIVE_GIANT)
+                Seq(ProgressiveAlgorithm.DYNAMIC_PROGRESSIVE_GIANT, ProgressiveAlgorithm.PROGRESSIVE_GIANT, ProgressiveAlgorithm.TOPK, ProgressiveAlgorithm.RECIPROCAL_TOPK)
 
-        val weightingSchemes = Seq((WeightingScheme.CF, None),
-                                (WeightingScheme.JS, None),
-                                (WeightingScheme.PEARSON_X2,None),
-                                (WeightingScheme.MBR_INTERSECTION, None),
-                                 (WeightingScheme.POINTS, None),
-                                 (WeightingScheme.JS, Option(WeightingScheme.MBR_INTERSECTION)),
-                                 (WeightingScheme.PEARSON_X2, Option(WeightingScheme.MBR_INTERSECTION)))
+        val weightingSchemes = Seq((WeightingScheme.JS, Option(WeightingScheme.MBR_INTERSECTION)))
+//                                (WeightingScheme.CF, None),
+//                                (WeightingScheme.JS, None),
+//                                (WeightingScheme.PEARSON_X2,None),
+//                                (WeightingScheme.MBR_INTERSECTION, None),
+//                                 (WeightingScheme.POINTS, None),
+//                                 (WeightingScheme.JS, Option(WeightingScheme.MBR_INTERSECTION)),
+//                                 (WeightingScheme.PEARSON_X2, Option(WeightingScheme.MBR_INTERSECTION)))
 
         for (a <- algorithms ; ws <- weightingSchemes)
             printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, a, ws)

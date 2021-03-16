@@ -12,7 +12,8 @@ import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingScheme}
 import utils.Constants.WeightingScheme.WeightingScheme
-import utils.{ConfigurationParser, SpatialReader, Utils}
+import utils.readers.Reader
+import utils.{ConfigurationParser, Utils}
 
 object ProgressiveExp {
 
@@ -81,13 +82,13 @@ object ProgressiveExp {
 
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        val reader = SpatialReader(conf.source, partitions, gridType)
-        val sourceRDD = reader.load()
+        val reader = Reader(conf.source, partitions, gridType)
+        val sourceRDD = reader.spatialLoad()
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
         Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-        val targetRDD = reader.load(conf.target)
+        val targetRDD = reader.spatialLoad(conf.target)
         val partitioner = reader.partitioner
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
