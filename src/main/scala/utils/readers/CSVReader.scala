@@ -17,18 +17,11 @@ case class CSVReader(sourceDc: DatasetConfigurations, partitions: Int, gt: Const
         val extension = dc.getExtension
         extension match {
             case FileTypes.CSV =>
-                loadCSV(dc.path, dc.realIdField.getOrElse("id"), dc.geometryField, dc.dateField, header = true)
+                loadDelimitedFile(dc.path, dc.realIdField.getOrElse("id"), dc.geometryField, dc.dateField, ",", header = true)
             case FileTypes.TSV =>
-                loadTSV(dc.path, dc.realIdField.getOrElse("id"), dc.geometryField, dc.dateField, header = true)
+                loadDelimitedFile(dc.path, dc.realIdField.getOrElse("id"), dc.geometryField, dc.dateField, "\t", header = true)
         }
     }
-
-
-    def loadCSV(filepath: String, realIdField: String, geometryField: String, dateField: Option[String], header: Boolean):SpatialRDD[Geometry] =
-        loadDelimitedFile(filepath, realIdField, geometryField, dateField, ",", header)
-
-    def loadTSV(filepath: String, realIdField: String, geometryField: String, dateField: Option[String], header: Boolean): SpatialRDD[Geometry] =
-        loadDelimitedFile(filepath, realIdField, geometryField, dateField, "\t", header)
 
     /**
      * Loads a delimited file
