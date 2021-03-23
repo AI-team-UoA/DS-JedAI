@@ -1,9 +1,9 @@
 package experiments
 
 
-import dataModel.Entity
-import geospatialInterlinking.GIAnt
-import geospatialInterlinking.progressive.ProgressiveAlgorithmsFactory
+import model.Entity
+import interlinkers.GIAnt
+import interlinkers.progressive.ProgressiveAlgorithmsFactory
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partitioner, SparkConf, SparkContext}
@@ -84,14 +84,22 @@ object EvaluationExp {
 
         log.info("DS-JEDAI: Input Budget: " + budget)
 
-        val reader = Reader(conf.source, partitions, gridType)
-        val sourceRDD = reader.spatialLoad()
+        val reader = Reader(partitions, gridType)
+        val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
+
+        val targetRDD: RDD[(Int, Entity)] = reader.load(conf.target) match {
+            case Left(e) =>
+                log.error("Paritioner is not initialized, call first the `loadSource`.")
+                e.printStackTrace()
+                System.exit(1)
+                null
+            case Right(rdd) => rdd
+        }
+        val partitioner = reader.partitioner
+
         Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
-
-        val targetRDD = reader.spatialLoad(conf.target)
-        val partitioner = reader.partitioner
 
         val (totalVerifications, totalRelatedPairs) =
             if (options.contains("tv") && options.contains("qp"))

@@ -1,7 +1,7 @@
 package utils
 
 
-import dataModel.{Entity, MBR}
+import model.{Entity, MBR}
 import com.vividsolutions.jts.geom.Geometry
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.TaskContext
@@ -28,12 +28,13 @@ object Utils extends Serializable {
 	lazy val sourceCount: Long = source.count()
 	lazy val thetaXY: (Double, Double) = initTheta()
 
+
 	def apply(sourceRDD: RDD[MBR], thetaOpt: ThetaOption = Constants.ThetaOption.AVG, pz: Array[MBR]=Array()): Unit ={
 		source = sourceRDD
-		source.cache()
 		thetaOption = thetaOpt
 		partitionsZones = pz
 	}
+
 
 	def getTheta: (Double, Double) = thetaXY
 	def getSourceCount: Long = sourceCount
@@ -42,6 +43,7 @@ object Utils extends Serializable {
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
 	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
 	implicit def tuple[String, Int](implicit e1: Encoder[String], e2: Encoder[Int]): Encoder[(String,Int)] = Encoders.tuple[String,Int](e1, e2)
+
 
 	lazy val globalMinX: Double = partitionsZones.map(p => p.minX / thetaXY._1).min
 	lazy val globalMaxX: Double = partitionsZones.map(p => p.maxX / thetaXY._1).max
@@ -78,7 +80,6 @@ object Utils extends Serializable {
 			case _ =>
 				(1d, 1d)
 		}
-		source.unpersist()
 		(tx, ty)
 	}
 
@@ -134,5 +135,4 @@ object Utils extends Serializable {
 		val df = spark.createDataFrame(rowRDD, schema)
 		df.write.option("header", "true").csv(path)
 	}
-
 }

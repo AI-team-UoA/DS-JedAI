@@ -9,11 +9,11 @@ import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import org.datasyslab.geospark.spatialRDD.SpatialRDD
 import org.datasyslab.geosparksql.utils.{Adapter, GeoSparkSQLRegistrator}
 import utils.Constants.FileTypes
-import utils.{Constants, DatasetConfigurations}
+import utils.DatasetConfigurations
 
-case class CSVReader(sourceDc: DatasetConfigurations, partitions: Int, gt: Constants.GridType.GridType = Constants.GridType.QUADTREE) extends Reader {
+object CSVReader {
 
-    def load(dc: DatasetConfigurations): SpatialRDD[Geometry] = {
+    def extract(dc: DatasetConfigurations): SpatialRDD[Geometry] = {
         val extension = dc.getExtension
         extension match {
             case FileTypes.CSV =>

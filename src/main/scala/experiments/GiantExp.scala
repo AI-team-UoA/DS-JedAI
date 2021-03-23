@@ -3,8 +3,10 @@ package experiments
 
 import java.util.Calendar
 
-import geospatialInterlinking.GIAnt
+import interlinkers.GIAnt
+import model.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
@@ -17,8 +19,8 @@ import utils.{ConfigurationParser, Utils}
 object GiantExp {
 
     def main(args: Array[String]): Unit = {
-        Logger.getLogger("org").setLevel(Level.ERROR)
-        Logger.getLogger("akka").setLevel(Level.ERROR)
+        Logger.getLogger("org").setLevel(Level.INFO)
+        Logger.getLogger("akka").setLevel(Level.INFO)
         val log = LogManager.getRootLogger
         log.setLevel(Level.INFO)
 
@@ -67,14 +69,24 @@ object GiantExp {
 
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        val reader = Reader(conf.source, partitions, gridType)
-        val sourceRDD = reader.spatialLoad()
+        // reading source dataset
+        val reader = Reader(partitions, gridType)
+        val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
+
+        // reading target dataset
+        val targetRDD: RDD[(Int, Entity)] = reader.load(conf.target) match {
+            case Left(e) =>
+                log.error("Paritioner is not initialized, call first the `loadSource`.")
+                e.printStackTrace()
+                System.exit(1)
+                null
+            case Right(rdd) => rdd
+        }
+        val partitioner = reader.partitioner
+
         Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
-
-        val targetRDD = reader.spatialLoad(conf.target)
-        val partitioner = reader.partitioner
 
         if(printCount){
             val sourceCount = sourceRDD.map(_._2.originalID).distinct().count()

@@ -1,8 +1,8 @@
 package utils.readers
 
 import com.vividsolutions.jts.geom.Geometry
-import dataModel.{Entity, MBR, SpatialEntity, SpatioTemporalEntity}
-import org.apache.spark.{HashPartitioner, SparkContext}
+import model.{Entity, MBR, SpatialEntity, SpatioTemporalEntity}
+import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.RDD
 import org.datasyslab.geospark.enums.GridType
 import org.datasyslab.geospark.spatialPartitioning.SpatialPartitioner
@@ -14,51 +14,76 @@ import utils.{Constants, DatasetConfigurations}
 
 import scala.collection.JavaConverters._
 
-trait Reader {
+case class Reader(partitions: Int, gt: Constants.GridType.GridType) {
 
-    val sourceDc: DatasetConfigurations
-    val partitions: Int
-    val gt: Constants.GridType.GridType
+    /**
+     * The transformation of an SRDD into RDD does not preserve partitioning.
+     * Hence we use a spatial partitioner to spatially index the geometries and then
+     * we partition using a HashPartitioner and the spatial indexes as the partition keys
+     */
+    var spatialPartitioner: SpatialPartitioner = _
+    var partitioner: HashPartitioner = _
+    lazy val partitionsZones: Array[MBR] = spatialPartitioner.getGrids.asScala.map(e => MBR(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY)).toArray
 
-    lazy val gridType: GridType = gt match {
+    val gridType: GridType = gt match {
         case Constants.GridType.KDBTREE => GridType.KDBTREE
         case _ => GridType.QUADTREE
     }
 
-    // spatial RDD of source
-    lazy val spatialRDD: SpatialRDD[Geometry] = load(sourceDc)
-
-    // spatial partitioner defined by the source spatial RDD
-    lazy val spatialPartitioner: SpatialPartitioner = {
-        spatialRDD.analyze()
-        if (partitions > 0) spatialRDD.spatialPartitioning(gridType, partitions) else spatialRDD.spatialPartitioning(gridType)
-        spatialRDD.getPartitioner
+    /**
+     * Extract the geometries from the input configurations
+     * @param dc dataset configuration
+     * @return the geometries as a SpatialRDD
+     */
+    def extract(dc: DatasetConfigurations) : SpatialRDD[Geometry] = {
+        val extension = dc.getExtension
+        extension match {
+            case FileTypes.CSV | FileTypes.TSV => CSVReader.extract(dc)
+            case FileTypes.SHP | FileTypes.GEOJSON => GeospatialReader.extract(dc)
+            case FileTypes.NTRIPLES | FileTypes.TURTLE | FileTypes.RDFXML | FileTypes.RDFJSON => RDFGraphReader.extract(dc)
+        }
     }
 
-    // the final partitioner - because the transformation of SRDD into RDD does not preserve partitioning
-    // we partitioning using HashPartitioning with the spatial indexes as keys
-    lazy val partitioner = new HashPartitioner(spatialPartitioner.numPartitions)
+    /**
+     * Load source dataset, the dataset which will initialize the partitioners
+     * @param dc dc dataset configuration
+     * @return an RDD of pairs of partition index and entities
+     */
+    def loadSource(dc: DatasetConfigurations): RDD[(Int, Entity)] ={
+        val sourceRDD = extract(dc)
+        sourceRDD.analyze()
+        if (partitions > 0)
+            sourceRDD.spatialPartitioning(gridType, partitions)
+        else
+            sourceRDD.spatialPartitioning(gridType)
+        spatialPartitioner = sourceRDD.getPartitioner
+        partitioner = new HashPartitioner(spatialPartitioner.numPartitions)
+        distribute(sourceRDD, dc)
+    }
 
-    lazy val partitionsZones: Array[MBR] =
-        spatialPartitioner.getGrids.asScala.map(e => MBR(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY)).toArray
-
-
-    def load(dc: DatasetConfigurations) : SpatialRDD[Geometry]
-
+    /**
+     * Load the input dataset. If the loadSource has not been called, it will result to
+     * a NullPointerException.
+     * @param dc dc dataset configuration
+     * @return an RDD of pairs of partition index and entities
+     */
+    def load(dc: DatasetConfigurations): Either[java.lang.Throwable, RDD[(Int, Entity)]] ={
+        val rdd = extract(dc)
+        try {
+            Right(distribute(rdd, dc))
+        } catch {
+            case ex: Throwable =>Left(ex)
+        }
+    }
 
     /**
      *  Loads a dataset into Spatial Partitioned RDD. The partitioner
      *  is defined by the first dataset (i.e. the source dataset)
-     *
      * @param dc dataset configuration
      * @return a spatial partitioned rdd
      */
-    def spatialLoad(dc: DatasetConfigurations = sourceDc): RDD[(Int, Entity)] = {
-        val srdd = if (dc == sourceDc) spatialRDD else load(dc)
-        val sp = SparkContext.getOrCreate().broadcast(spatialPartitioner)
-
+    def distribute(srdd: SpatialRDD[Geometry], dc: DatasetConfigurations): RDD[(Int, Entity)] = {
         val withTemporal = dc.dateField.isDefined
-
         // remove empty, invalid geometries and geometry collections
         val filteredGeometriesRDD = srdd.rawSpatialRDD.rdd
             .map{ geom =>
@@ -84,22 +109,9 @@ trait Reader {
                             SpatioTemporalEntity(realID, geom, dateStr_)
                     }
                 }
-        // redistribute based on spatial partitioner
+        // redistribute based on spatial index
         entitiesRDD
-            .flatMap(se => sp.value.placeObject(se.geometry).asScala.map(i => (i._1.toInt, se)))
+            .flatMap(se => spatialPartitioner.placeObject(se.geometry).asScala.map(i => (i._1.toInt, se)))
             .partitionBy(partitioner)
-    }
-}
-
-
-object Reader {
-    def apply(sourceDc: DatasetConfigurations, partitions: Int, gt: Constants.GridType.GridType = Constants.GridType.QUADTREE) : Reader = {
-            val extension = sourceDc.getExtension
-            extension match {
-            case FileTypes.CSV | FileTypes.TSV => CSVReader(sourceDc, partitions, gt)
-            case FileTypes.SHP | FileTypes.GEOJSON => GeospatialReader(sourceDc, partitions, gt)
-            case FileTypes.NTRIPLES | FileTypes.TURTLE | FileTypes.RDFXML | FileTypes.RDFJSON => RDFGraphReader(sourceDc, partitions, gt)
-            case _ =>  null
-        }
     }
 }

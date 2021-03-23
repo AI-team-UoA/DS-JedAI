@@ -2,8 +2,10 @@ package experiments
 
 import java.util.Calendar
 
-import geospatialInterlinking.progressive.ProgressiveAlgorithmsFactory
+import interlinkers.progressive.ProgressiveAlgorithmsFactory
+import model.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
@@ -82,14 +84,22 @@ object ProgressiveExp {
 
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        val reader = Reader(conf.source, partitions, gridType)
-        val sourceRDD = reader.spatialLoad()
+        val reader = Reader(partitions, gridType)
+        val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
+
+        val targetRDD: RDD[(Int, Entity)] = reader.load(conf.target) match {
+            case Left(e) =>
+                log.error("Paritioner is not initialized, call first the `loadSource`.")
+                e.printStackTrace()
+                System.exit(1)
+                null
+            case Right(rdd) => rdd
+        }
+        val partitioner = reader.partitioner
+
         Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
-
-        val targetRDD = reader.spatialLoad(conf.target)
-        val partitioner = reader.partitioner
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
         val method = ProgressiveAlgorithmsFactory.get(pa, sourceRDD, targetRDD, partitioner, budget, mainWS, secondaryWS)

@@ -2,8 +2,8 @@ package experiments
 
 import java.util.Calendar
 
-import dataModel.Entity
-import geospatialInterlinking.{GIAnt, IndexedJoinInterlinking}
+import model.Entity
+import interlinkers.{GIAnt, IndexedJoinInterlinking}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
@@ -72,15 +72,22 @@ object BalancingExp {
         val startTime = Calendar.getInstance().getTimeInMillis
 
 
-        val reader = Reader(conf.source, partitions, gridType)
-        val sourceRDD = reader.spatialLoad()
+        // reading source dataset
+        val reader = Reader(partitions, gridType)
+        val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
-        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
-        log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
         val sourcePartitions: RDD[(Int, Iterator[Entity])] = sourceRDD.mapPartitions(si => Iterator((TaskContext.getPartitionId(), si.map(_._2))))
 
 
-        val targetRDD = reader.spatialLoad(conf.target)
+        // reading target dataset
+        val targetRDD: RDD[(Int, Entity)] = reader.load(conf.target) match {
+            case Left(e) =>
+                log.error("Paritioner is not initialized, call first the `loadSource`.")
+                e.printStackTrace()
+                System.exit(1)
+                null
+            case Right(rdd) => rdd
+        }
         val partitioner = reader.partitioner
 
         val entitiesPerPartitions: Seq[(Int, Int)] =  sourcePartitions.map{ case (pid, si) => (pid, si.size)}.collect()
