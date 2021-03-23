@@ -19,8 +19,8 @@ import utils.{ConfigurationParser, Utils}
 object GiantExp {
 
     def main(args: Array[String]): Unit = {
-        Logger.getLogger("org").setLevel(Level.INFO)
-        Logger.getLogger("akka").setLevel(Level.INFO)
+        Logger.getLogger("org").setLevel(Level.ERROR)
+        Logger.getLogger("akka").setLevel(Level.ERROR)
         val log = LogManager.getRootLogger
         log.setLevel(Level.INFO)
 
@@ -70,9 +70,10 @@ object GiantExp {
         val startTime = Calendar.getInstance().getTimeInMillis
 
         // reading source dataset
-        val reader = Reader(partitions, gridType)
+        val reader = Reader(partitions, gridType, printCount)
         val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
+        val sourceCount = reader.counter
 
         // reading target dataset
         val targetRDD: RDD[(Int, Entity)] = reader.load(conf.target) match {
@@ -83,17 +84,16 @@ object GiantExp {
                 null
             case Right(rdd) => rdd
         }
+        val targetCount = reader.counter
         val partitioner = reader.partitioner
 
         Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         if(printCount){
-            val sourceCount = sourceRDD.map(_._2.originalID).distinct().count()
-            val targetCount = targetRDD.map(_._2.originalID).distinct().count()
-            log.info("DS-JEDAI: Source valid geometries: " + sourceCount)
-            log.info("DS-JEDAI: Target valid geometries: " + targetCount)
-            log.info("DS-JEDAI: Cartesian: " + sourceCount*targetCount)
+            log.info(s"DS-JEDAI: Source geometries: $sourceCount")
+            log.info(s"DS-JEDAI: Target geometries: $targetCount")
+            log.info(s"DS-JEDAI: Cartesian: ${sourceCount*targetCount}")
         }
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis

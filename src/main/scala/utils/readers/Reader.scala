@@ -14,7 +14,9 @@ import utils.{Constants, DatasetConfigurations}
 
 import scala.collection.JavaConverters._
 
-case class Reader(partitions: Int, gt: Constants.GridType.GridType) {
+case class Reader(partitions: Int, gt: Constants.GridType.GridType, printStats: Boolean = false) {
+
+    var counter: Long = 0
 
     /**
      * The transformation of an SRDD into RDD does not preserve partitioning.
@@ -32,16 +34,19 @@ case class Reader(partitions: Int, gt: Constants.GridType.GridType) {
 
     /**
      * Extract the geometries from the input configurations
+     * As a side-effect, it also counts the geometries, if requested
      * @param dc dataset configuration
      * @return the geometries as a SpatialRDD
      */
     def extract(dc: DatasetConfigurations) : SpatialRDD[Geometry] = {
         val extension = dc.getExtension
-        extension match {
+        val rdd = extension match {
             case FileTypes.CSV | FileTypes.TSV => CSVReader.extract(dc)
             case FileTypes.SHP | FileTypes.GEOJSON => GeospatialReader.extract(dc)
             case FileTypes.NTRIPLES | FileTypes.TURTLE | FileTypes.RDFXML | FileTypes.RDFJSON => RDFGraphReader.extract(dc)
         }
+        if (printStats) counter = rdd.rawSpatialRDD.count()
+        rdd
     }
 
     /**
