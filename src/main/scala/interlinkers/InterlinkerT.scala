@@ -1,12 +1,12 @@
-package geospatialInterlinking
+package interlinkers
 
-import dataModel.{Entity, IM, MBR, SpatialIndex}
+import model.{Entity, IM, MBR, SpatialIndex}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
 import utils.Utils
 
-trait GeospatialInterlinkingT {
+trait InterlinkerT {
 
     val orderByWeight: Ordering[(Double, (Entity, Entity))] = Ordering.by[(Double, (Entity, Entity)), Double](_._1).reverse
 

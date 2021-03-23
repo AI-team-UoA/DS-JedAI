@@ -1,4 +1,4 @@
-package dataModel
+package model
 
 case class WeightedPair(counter: Int, entityId1: Int, entityId2: Int, mainWeight: Float, secondaryWeight: Float)  extends Serializable with Comparable[WeightedPair]{
 

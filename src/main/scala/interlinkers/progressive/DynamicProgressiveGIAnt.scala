@@ -1,6 +1,6 @@
-package geospatialInterlinking.progressive
+package interlinkers.progressive
 
-import dataModel.{Entity, IM, MBR, WeightedPair, WeightedPairsPQ}
+import model.{ComparisonPQ, DynamicComparisonPQ, Entity, IM, MBR, WeightedPair}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
@@ -14,7 +14,7 @@ import scala.collection.mutable.ListBuffer
 
 case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double),
                                     mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme], budget: Int, sourceEntities: Int)
-    extends ProgressiveGeospatialInterlinkingT {
+    extends ProgressiveInterlinkerT {
 
 
     /**
@@ -26,11 +26,11 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
      * @param target target
      * @return a PQ with the top comparisons
      */
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): WeightedPairsPQ ={
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): ComparisonPQ ={
         val localBudget = (math.ceil(budget*source.length.toDouble/sourceEntities.toDouble)*2).toLong
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
-        val pq: WeightedPairsPQ = WeightedPairsPQ(localBudget)
+        val pq: DynamicComparisonPQ = DynamicComparisonPQ(localBudget)
         var counter = 0
         // weight and put the comparisons in a PQ
         target
@@ -67,7 +67,7 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
                 val source = p._2._1.toArray
                 val target = p._2._2.toArray
 
-                val pq = prioritize(source, target, partition, Relation.DE9IM)
+                val pq: DynamicComparisonPQ = prioritize(source, target, partition, Relation.DE9IM).asInstanceOf[DynamicComparisonPQ]
                 val sourceCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId1, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
                 val targetCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
 
@@ -103,7 +103,7 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
                 val source = p._2._1.toArray
                 val target = p._2._2.toArray
 
-                val pq = prioritize(source, target, partition, relation)
+                val pq: DynamicComparisonPQ = prioritize(source, target, partition, relation).asInstanceOf[DynamicComparisonPQ]
                 val sourceCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId1, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
                 val targetCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
                 if (!pq.isEmpty)
@@ -140,7 +140,7 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
                 val source = p._2._1.toArray
                 val target = p._2._2.toArray
 
-                val pq = prioritize(source, target, partition, relation)
+                val pq: DynamicComparisonPQ = prioritize(source, target, partition, relation).asInstanceOf[DynamicComparisonPQ]
                 val sourceCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId1, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
                 val targetCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
                 if (!pq.isEmpty)

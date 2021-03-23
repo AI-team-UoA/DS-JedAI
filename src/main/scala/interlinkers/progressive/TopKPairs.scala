@@ -1,6 +1,6 @@
-package geospatialInterlinking.progressive
+package interlinkers.progressive
 
-import dataModel.{Entity, MBR, WeightedPair, WeightedPairsPQ}
+import model.{Entity, MBR, WeightedPair, StaticComparisonPQ}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
@@ -9,7 +9,7 @@ import utils.Utils
 
 case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double),
                      mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme], budget: Int, sourceEntities: Int)
-    extends ProgressiveGeospatialInterlinkingT {
+    extends ProgressiveInterlinkerT {
 
     /**
      * First we find the top-k comparisons of each geometry in source and target,
@@ -22,16 +22,16 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
      * @param relation examining relation
      * @return prioritized comparisons in a PQ
      */
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): WeightedPairsPQ = {
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): StaticComparisonPQ = {
         val localBudget = (math.ceil(budget*source.length.toDouble/sourceEntities.toDouble)*2).toLong
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
 
         // the budget is divided based on the number of entities
         val k = (math.ceil(localBudget / (source.length + target.length)).toInt + 1) * 2 // +1 to avoid k=0
-        val sourcePQ: Array[WeightedPairsPQ] = new Array(source.length)
-        val targetPQ: WeightedPairsPQ = WeightedPairsPQ(k)
-        val partitionPQ: WeightedPairsPQ = WeightedPairsPQ(localBudget)
+        val sourcePQ: Array[StaticComparisonPQ] = new Array(source.length)
+        val targetPQ: StaticComparisonPQ = StaticComparisonPQ(k)
+        val partitionPQ: StaticComparisonPQ = StaticComparisonPQ(localBudget)
         var counter = 0
 
         target.indices
@@ -53,7 +53,7 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
 
                                 // update source entities' top-K
                                 if (sourcePQ(i) == null)
-                                    sourcePQ(i) = WeightedPairsPQ(k)
+                                    sourcePQ(i) = StaticComparisonPQ(k)
                                 sourcePQ(i).enqueue(wp)
                             }
                     }

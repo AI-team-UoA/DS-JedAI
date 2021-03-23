@@ -1,6 +1,6 @@
-package geospatialInterlinking
+package interlinkers
 
-import dataModel.{Entity, IM}
+import model.{Entity, IM}
 import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation
@@ -10,7 +10,7 @@ import utils.Constants.WeightingScheme.WeightingScheme
 
 
 
-case class IndexedJoinInterlinking(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], thetaXY: (Double, Double)) extends GeospatialInterlinkingT {
+case class IndexedJoinInterlinking(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], thetaXY: (Double, Double)) extends InterlinkerT {
 
     val joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))] = null
     val ws: WeightingScheme = null

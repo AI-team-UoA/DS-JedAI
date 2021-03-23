@@ -1,6 +1,6 @@
-package geospatialInterlinking.progressive
+package interlinkers.progressive
 
-import dataModel.{Entity, MBR, WeightedPair, WeightedPairsPQ}
+import model.{Entity, MBR, WeightedPair, StaticComparisonPQ}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
@@ -11,7 +11,7 @@ import utils.Utils
 
 case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double),
                           mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme], budget: Int, sourceEntities: Int)
-    extends ProgressiveGeospatialInterlinkingT {
+    extends ProgressiveInterlinkerT {
 
     /**
      * Find the top-K comparisons of target and source and keep only the comparison (i, j) that belongs to both
@@ -23,7 +23,7 @@ case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entit
      * @param relation examining relation
      * @return prioritized comparisons as a PQ
      */
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation):  WeightedPairsPQ = {
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation):  StaticComparisonPQ = {
         val localBudget = (math.ceil(budget*source.length.toDouble/sourceEntities.toDouble)*2).toLong
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
@@ -31,9 +31,9 @@ case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entit
         val sourceK = (math.ceil(localBudget / source.length).toInt + 1) * 2 // +1 to avoid k=0
         val targetK = (math.ceil(localBudget / target.length).toInt + 1) * 2 // +1 to avoid k=0
 
-        val sourcePQ: Array[WeightedPairsPQ] = new Array(source.length)
-        val targetPQ: WeightedPairsPQ = WeightedPairsPQ(targetK)
-        val partitionPQ: WeightedPairsPQ = WeightedPairsPQ(localBudget)
+        val sourcePQ: Array[StaticComparisonPQ] = new Array(source.length)
+        val targetPQ: StaticComparisonPQ = StaticComparisonPQ(targetK)
+        val partitionPQ: StaticComparisonPQ = StaticComparisonPQ(localBudget)
         var counter = 0
 
         val targetSet: Array[Set[Int]] = new Array(target.length)
@@ -56,7 +56,7 @@ case class ReciprocalTopK(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entit
 
                                 // update source entities' top-K
                                 if (sourcePQ(i) == null)
-                                    sourcePQ(i) = WeightedPairsPQ(sourceK)
+                                    sourcePQ(i) = StaticComparisonPQ(sourceK)
                                 sourcePQ(i).enqueue(wp)
                             }
                     }

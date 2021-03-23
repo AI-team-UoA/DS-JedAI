@@ -1,7 +1,7 @@
-package geospatialInterlinking.progressive
+package interlinkers.progressive
 
-import dataModel.{Entity, IM, MBR, WeightedPair, WeightedPairsPQ}
-import geospatialInterlinking.GeospatialInterlinkingT
+import model.{ComparisonPQ, Entity, IM, MBR, WeightedPair}
+import interlinkers.InterlinkerT
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
@@ -13,7 +13,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.math.{ceil, floor, max, min}
 
-trait ProgressiveGeospatialInterlinkingT extends GeospatialInterlinkingT{
+trait ProgressiveInterlinkerT extends InterlinkerT{
     val budget: Int
     val mainWS: WeightingScheme
     val secondaryWS: Option[WeightingScheme]
@@ -27,7 +27,7 @@ trait ProgressiveGeospatialInterlinkingT extends GeospatialInterlinkingT{
         (globalMaxX - globalMinX + 1) * (globalMaxY - globalMinY + 1)
     }
 
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): WeightedPairsPQ
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): ComparisonPQ
 
     def getMainWeight(e1: Entity, e2: Entity): Float = getWeight(e1, e2, mainWS)
 

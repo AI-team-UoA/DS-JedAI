@@ -1,6 +1,6 @@
-package geospatialInterlinking.progressive
+package interlinkers.progressive
 
-import dataModel.Entity
+import model.Entity
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
@@ -12,7 +12,7 @@ object ProgressiveAlgorithmsFactory {
 
     def get(matchingAlgorithm: ProgressiveAlgorithm, source: RDD[(Int, Entity)], target: RDD[(Int, Entity)],
             partitioner: Partitioner, budget: Int = 0, mainWS: WeightingScheme,  secondaryWS: Option[WeightingScheme]):
-    ProgressiveGeospatialInterlinkingT ={
+    ProgressiveInterlinkerT ={
 
         matchingAlgorithm match {
             case ProgressiveAlgorithm.RANDOM =>

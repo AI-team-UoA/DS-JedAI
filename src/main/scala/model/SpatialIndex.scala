@@ -1,4 +1,4 @@
-package dataModel
+package model
 
 import scala.collection.{Set, mutable}
 import scala.collection.mutable.ListBuffer
