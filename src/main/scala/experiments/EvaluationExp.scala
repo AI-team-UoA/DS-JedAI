@@ -1,9 +1,9 @@
 package experiments
 
 
-import dataModel.Entity
-import geospatialInterlinking.GIAnt
-import geospatialInterlinking.progressive.ProgressiveAlgorithmsFactory
+import model.Entity
+import interlinkers.GIAnt
+import interlinkers.progressive.ProgressiveAlgorithmsFactory
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partitioner, SparkConf, SparkContext}
@@ -15,7 +15,8 @@ import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightingScheme.WeightingScheme
 import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingScheme}
-import utils.{ConfigurationParser, SpatialReader, Utils}
+import utils.readers.Reader
+import utils.{ConfigurationParser, Utils}
 
 
 object EvaluationExp {
@@ -24,7 +25,7 @@ object EvaluationExp {
     log.setLevel(Level.INFO)
 
     var budget: Int = 10000
-    var takeBudget: Seq[Int] = Seq(5000000, 10000000)
+    var takeBudget: Seq[Int] = Seq(500000, 1000000)
     var relation: Relation = Relation.DE9IM
 
     def main(args: Array[String]): Unit = {
@@ -52,6 +53,12 @@ object EvaluationExp {
                     nextOption(map ++ Map("budget" -> value), tail)
                 case "-gt" :: value :: tail =>
                     nextOption(map ++ Map("gt" -> value), tail)
+                case "-tv" :: value :: tail =>
+                    nextOption(map ++ Map("tv" -> value), tail)
+                case "-qp" :: value :: tail =>
+                    nextOption(map ++ Map("qp" -> value), tail)
+                case "-pa" :: value :: tail =>
+                    nextOption(map ++ Map("pa" -> value), tail)
                 case _ :: tail =>
                     log.warn("DS-JEDAI: Unrecognized argument")
                     nextOption(map, tail)
@@ -77,33 +84,61 @@ object EvaluationExp {
 
         log.info("DS-JEDAI: Input Budget: " + budget)
 
-        val reader = SpatialReader(conf.source, partitions, gridType)
-        val sourceRDD = reader.load()
+        val reader = Reader(partitions, gridType)
+        val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
+
+        val targetRDD: RDD[(Int, Entity)] = reader.load(conf.target) match {
+            case Left(e) =>
+                log.error("Paritioner is not initialized, call first the `loadSource`.")
+                e.printStackTrace()
+                System.exit(1)
+                null
+            case Right(rdd) => rdd
+        }
+        val partitioner = reader.partitioner
+
         Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-        val targetRDD = reader.load(conf.target)
-        val partitioner = reader.partitioner
-
-        val (_, _, _, _, _, _, _, _, _, totalVerifications, totalRelatedPairs) = GIAnt(sourceRDD, targetRDD, partitioner).countAllRelations
+        val (totalVerifications, totalRelatedPairs) =
+            if (options.contains("tv") && options.contains("qp"))
+                (options("tv").toInt, options("qp").toInt)
+            else {
+                val g = GIAnt(sourceRDD, targetRDD, partitioner).countAllRelations
+                (g._10, g._11)
+            }
 
         log.info("DS-JEDAI: Total Verifications: " + totalVerifications)
-        log.info("DS-JEDAI: Total Interlinked Geometries: " + totalRelatedPairs)
+        log.info("DS-JEDAI: Total Qualifying Pairs: " + totalRelatedPairs)
         log.info("\n")
 
-        printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, ProgressiveAlgorithm.RANDOM,  WeightingScheme.CF)
-        val algorithms = Seq(ProgressiveAlgorithm.PROGRESSIVE_GIANT, ProgressiveAlgorithm.TOPK, ProgressiveAlgorithm.RECIPROCAL_TOPK, ProgressiveAlgorithm.GEOMETRY_CENTRIC)
-        val weightingSchemes = Seq(WeightingScheme.MBR_INTERSECTION, WeightingScheme.POINTS)
+        //printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, ProgressiveAlgorithm.RANDOM,  (WeightingScheme.CF, None))
+
+        val algorithms: Seq[ProgressiveAlgorithm] =
+            if (options.contains("pa"))
+                options("pa").split(",").filter(ProgressiveAlgorithm.exists).map(ProgressiveAlgorithm.withName).toSeq
+            else
+                Seq(ProgressiveAlgorithm.DYNAMIC_PROGRESSIVE_GIANT, ProgressiveAlgorithm.PROGRESSIVE_GIANT, ProgressiveAlgorithm.TOPK, ProgressiveAlgorithm.RECIPROCAL_TOPK)
+
+        val weightingSchemes = Seq((WeightingScheme.JS, Option(WeightingScheme.MBRO)),
+                                (WeightingScheme.CF, None),
+                                (WeightingScheme.JS, None),
+                                (WeightingScheme.PEARSON_X2,None),
+                                (WeightingScheme.MBRO, None),
+                                 (WeightingScheme.ISP, None),
+                                 (WeightingScheme.JS, Option(WeightingScheme.MBRO)),
+                                 (WeightingScheme.PEARSON_X2, Option(WeightingScheme.MBRO)))
+
         for (a <- algorithms ; ws <- weightingSchemes)
             printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, a, ws)
     }
 
 
     def printResults(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], partitioner: Partitioner, totalRelations: Int,
-                     ma: ProgressiveAlgorithm, ws: WeightingScheme, n: Int = 10): Unit = {
+                     ma: ProgressiveAlgorithm, ws: (WeightingScheme, Option[WeightingScheme]), n: Int = 10): Unit = {
 
-        val pma = ProgressiveAlgorithmsFactory.get(ma, source, target, partitioner, budget, ws)
+        val pma = ProgressiveAlgorithmsFactory.get(ma, source, target, partitioner, budget, ws._1, ws._2)
         val results = pma.evaluate(relation, n, totalRelations, takeBudget)
 
         results.zip(takeBudget).foreach { case ((pgr, qp, verifications, (verificationSteps, qualifiedPairsSteps)), b) =>

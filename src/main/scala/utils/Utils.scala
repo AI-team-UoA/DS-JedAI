@@ -1,42 +1,40 @@
 package utils
 
 
-import dataModel.{Entity, MBR}
+import model.{Entity, MBR}
 import com.vividsolutions.jts.geom.Geometry
-import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
 import org.apache.spark.sql.{Encoder, Encoders, Row, SparkSession}
-import utils.Constants.{ThetaOption, WeightingScheme}
+import utils.Constants.ThetaOption
 import utils.Constants.ThetaOption.ThetaOption
-import utils.Constants.WeightingScheme.WeightingScheme
 
 import scala.collection.mutable
-import scala.math.{ceil, floor, max, min}
 import scala.reflect.ClassTag
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-object Utils {
+object Utils extends Serializable {
 
 	val spark: SparkSession = SparkSession.builder().getOrCreate()
 
 	var thetaOption: ThetaOption = _
 	var source: RDD[MBR] = spark.sparkContext.emptyRDD
-	var partitionsZones: Array[MBR] = _
+	var partitionsZones: Array[MBR] = Array()
 	lazy val sourceCount: Long = source.count()
 	lazy val thetaXY: (Double, Double) = initTheta()
 
+
 	def apply(sourceRDD: RDD[MBR], thetaOpt: ThetaOption = Constants.ThetaOption.AVG, pz: Array[MBR]=Array()): Unit ={
 		source = sourceRDD
-		source.cache()
 		thetaOption = thetaOpt
 		partitionsZones = pz
 	}
+
 
 	def getTheta: (Double, Double) = thetaXY
 	def getSourceCount: Long = sourceCount
@@ -46,12 +44,11 @@ object Utils {
 	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
 	implicit def tuple[String, Int](implicit e1: Encoder[String], e2: Encoder[Int]): Encoder[(String,Int)] = Encoders.tuple[String,Int](e1, e2)
 
+
 	lazy val globalMinX: Double = partitionsZones.map(p => p.minX / thetaXY._1).min
 	lazy val globalMaxX: Double = partitionsZones.map(p => p.maxX / thetaXY._1).max
 	lazy val globalMinY: Double = partitionsZones.map(p => p.minY / thetaXY._2).min
 	lazy val globalMaxY: Double = partitionsZones.map(p => p.maxY / thetaXY._2).max
-
-	lazy val totalBlocks: Double = (globalMaxX - globalMinX + 1) * (globalMaxY - globalMinY + 1)
 
 
 	/**
@@ -83,44 +80,7 @@ object Utils {
 			case _ =>
 				(1d, 1d)
 		}
-		source.unpersist()
 		(tx, ty)
-	}
-
-	/**
-	 * Weight a comparison
-	 * TODO: ensure that float does not produce issues
-	 *
-	 * @param e1        Spatial entity
-	 * @param e2        Spatial entity
-	 * @return weight
-	 */
-	def getWeight(e1: Entity, e2: Entity, ws: WeightingScheme): Float = {
-		val e1Blocks = (ceil(e1.mbr.maxX/thetaXY._1).toInt - floor(e1.mbr.minX/thetaXY._1).toInt + 1) * (ceil(e1.mbr.maxY/thetaXY._2).toInt - floor(e1.mbr.minY/thetaXY._2).toInt + 1)
-		val e2Blocks = (ceil(e2.mbr.maxX/thetaXY._1).toInt - floor(e2.mbr.minX/thetaXY._1).toInt + 1) * (ceil(e2.mbr.maxY/thetaXY._2).toInt - floor(e2.mbr.minY/thetaXY._2).toInt + 1)
-		val cb = (min(ceil(e1.mbr.maxX/thetaXY._1), ceil(e2.mbr.maxX/thetaXY._1)).toInt - max(floor(e1.mbr.minX/thetaXY._1), floor(e2.mbr.minX/thetaXY._1)).toInt + 1) *
-			(min(ceil(e1.mbr.maxY/thetaXY._2), ceil(e2.mbr.maxY/thetaXY._2)).toInt - max(floor(e1.mbr.minY/thetaXY._2), floor(e2.mbr.minY/thetaXY._2)).toInt + 1)
-
-		ws match {
-			case WeightingScheme.MBR_INTERSECTION =>
-				val intersectionArea = e1.mbr.getIntersectingMBR(e2.mbr).getArea
-				intersectionArea / (e1.mbr.getArea + e2.mbr.getArea - intersectionArea)
-
-			case WeightingScheme.POINTS =>
-				1f / (e1.geometry.getNumPoints + e2.geometry.getNumPoints);
-
-			case WeightingScheme.JS =>
-				cb / (e1Blocks + e2Blocks - cb)
-
-			case WeightingScheme.PEARSON_X2 =>
-				val v1: Array[Long] = Array[Long](cb, (e2Blocks - cb).toLong)
-				val v2: Array[Long] = Array[Long]((e1Blocks - cb).toLong, (totalBlocks - (v1(0) + v1(1) + (e1Blocks - cb))).toLong)
-				val chiTest = new ChiSquareTest()
-				chiTest.chiSquare(Array(v1, v2)).toFloat
-
-			case WeightingScheme.CF | _ =>
-				cb.toFloat
-		}
 	}
 
 
@@ -166,14 +126,13 @@ object Utils {
 		log.info("Unique blocks: " + pSet.size)
 	}
 
-	def export(rdd: RDD[Entity], path:String): Unit ={
+	def export(rdd: RDD[(String, String)], path:String): Unit ={
 		val schema = StructType(
-			StructField("id", IntegerType, nullable = true) ::
-				StructField("wkt", StringType, nullable = true) :: Nil
+			StructField("id1", StringType, nullable = true) ::
+				StructField("id2", StringType, nullable = true) :: Nil
 		)
-		val rowRDD: RDD[Row] = rdd.map(s => new GenericRowWithSchema(Array(TaskContext.getPartitionId(), s.geometry.toText), schema))
+		val rowRDD: RDD[Row] = rdd.map(s => new GenericRowWithSchema(Array(s._1, s._2), schema))
 		val df = spark.createDataFrame(rowRDD, schema)
 		df.write.option("header", "true").csv(path)
 	}
-
 }

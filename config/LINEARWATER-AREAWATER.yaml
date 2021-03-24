@@ -1,0 +1,17 @@
+
+source:
+  path: "/home/gmandi/Documents/Extreme-Earth/Datasets/SPATIAL-HADOOP/LINEARWATER_100K.tsv"
+  realIdField: "id"
+  geometryField: "WKT"
+
+target:
+  path: "/home/gmandi/Documents/Extreme-Earth/Datasets/SPATIAL-HADOOP/AREAWATER_100K.tsv"
+  realIdField: "id"
+  geometryField: "WKT"
+
+relation: "DE9IM"
+
+configurations:
+  thetaGranularity: "avg"
+  secondaryWS: "MBRO"
+  mainWS: "JS"

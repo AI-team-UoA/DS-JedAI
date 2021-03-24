@@ -20,6 +20,7 @@ configurations:
   partitions: "number of partitions"
   thetaGranularity: "avg"                               # define the extend of dynamic tiling based on the geometries of source - Experiments have shown that "avg" is the best option
   gridType: "spatial paritioner grid Type algorithm"    # allowed values:  KDBTREE, QUADTREE
-  weightingScheme: "WS"                                 # specify weighting scheme - allowed values: CF, JS, MBR_INTERSECTION, PEARSON_X2, POINTS
+  mainWS: "WS"                                          # specify weighting scheme - allowed values: CF, JS, MBRO, PEARSON_X2, ISP
+  secondaryWS: "WS"
   progressiveAlgorithm : "PA"                           # specify progressive algorithm - allowed values: PROGRESSIVE_GIANT, TOPK, RECIPROCAL_TOPK, GEOMETRY_CENTRIC, RANDOM
   budget: "BU"                                          # the budget of progressive algorithms

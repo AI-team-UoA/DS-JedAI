@@ -3,15 +3,18 @@ package experiments
 
 import java.util.Calendar
 
-import geospatialInterlinking.GIAnt
+import interlinkers.GIAnt
+import model.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import utils.Constants.{GridType, Relation}
-import utils.{ConfigurationParser, SpatialReader, Utils}
+import utils.readers.Reader
+import utils.{ConfigurationParser, Utils}
 
 object GiantExp {
 
@@ -40,6 +43,8 @@ object GiantExp {
                     nextOption(map ++ Map("partitions" -> value), tail)
                 case "-gt" :: value :: tail =>
                     nextOption(map ++ Map("gt" -> value), tail)
+                case "-s" :: tail =>
+                    nextOption(map ++ Map("stats" -> "true"), tail)
                 case _ :: tail =>
                     log.warn("DS-JEDAI: Unrecognized argument")
                     nextOption(map, tail)
@@ -60,17 +65,36 @@ object GiantExp {
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
         val relation = conf.getRelation
+        val printCount = options.getOrElse("stats", "false").toBoolean
 
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        val reader = SpatialReader(conf.source, partitions, gridType)
-        val sourceRDD = reader.load()
+        // reading source dataset
+        val reader = Reader(partitions, gridType, printCount)
+        val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
+        val sourceCount = reader.counter
+
+        // reading target dataset
+        val targetRDD: RDD[(Int, Entity)] = reader.load(conf.target) match {
+            case Left(e) =>
+                log.error("Paritioner is not initialized, call first the `loadSource`.")
+                e.printStackTrace()
+                System.exit(1)
+                null
+            case Right(rdd) => rdd
+        }
+        val targetCount = reader.counter
+        val partitioner = reader.partitioner
+
         Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-        val targetRDD = reader.load(conf.target)
-        val partitioner = reader.partitioner
+        if(printCount){
+            log.info(s"DS-JEDAI: Source geometries: $sourceCount")
+            log.info(s"DS-JEDAI: Target geometries: $targetCount")
+            log.info(s"DS-JEDAI: Cartesian: ${sourceCount*targetCount}")
+        }
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
         val giant = GIAnt(sourceRDD, targetRDD, partitioner)
@@ -92,7 +116,7 @@ object GiantExp {
             log.info("DS-JEDAI: OVERLAPS: " + totalOverlaps)
             log.info("DS-JEDAI: TOUCHES: " + totalTouches)
             log.info("DS-JEDAI: WITHIN: " + totalWithin)
-            log.info("DS-JEDAI: Total Relations Discovered: " + totalRelations)
+            log.info("DS-JEDAI: Total Discovered Relations: " + totalRelations)
         }
         else{
             val totalMatches = giant.countRelation(relation)

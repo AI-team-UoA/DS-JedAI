@@ -1,12 +1,12 @@
-package geospatialInterlinking
+package interlinkers
 
-import dataModel.{Entity, IM, MBR, SpatialIndex}
+import model.{Entity, IM, MBR, SpatialIndex}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
 import utils.Utils
 
-trait GeospatialInterlinkingT {
+trait InterlinkerT {
 
     val orderByWeight: Ordering[(Double, (Entity, Entity))] = Ordering.by[(Double, (Entity, Entity)), Double](_._1).reverse
 
@@ -14,7 +14,6 @@ trait GeospatialInterlinkingT {
     val thetaXY: (Double, Double)
 
     val partitionsZones: Array[MBR] = SparkContext.getOrCreate().broadcast(Utils.getZones).value
-
 
     /**
      * index a list of spatial entities
@@ -65,7 +64,6 @@ trait GeospatialInterlinkingT {
         }
         (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
             totalOverlaps, totalTouches, totalWithin, verifications, qualifiedPairs)
-
     }
 
     def countAllRelations: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =

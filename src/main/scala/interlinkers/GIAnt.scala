@@ -1,6 +1,6 @@
-package geospatialInterlinking
+package interlinkers
 
-import dataModel.{Entity, IM}
+import model.{Entity, IM}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation
@@ -8,7 +8,7 @@ import utils.Constants.Relation.Relation
 import utils.Utils
 
 
-case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double)) extends GeospatialInterlinkingT {
+case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double)) extends InterlinkerT {
 
     /**
      * First index the Source and then use the index to find the comparisons with target's entities.

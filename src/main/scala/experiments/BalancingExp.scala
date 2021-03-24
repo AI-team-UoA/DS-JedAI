@@ -2,24 +2,23 @@ package experiments
 
 import java.util.Calendar
 
-import geospatialInterlinking.IndexBasedMatching
-import geospatialInterlinking.IndexBasedMatching
-import geospatialInterlinking.progressive.ProgressiveAlgorithmsFactory
+import model.Entity
+import interlinkers.{GIAnt, IndexedJoinInterlinking}
 import org.apache.log4j.{Level, LogManager, Logger}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
-import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingScheme}
-import utils.Constants.WeightingScheme.WeightingScheme
-import utils.{ConfigurationParser, SpatialReader, Utils}
+import utils.Constants.{GridType, Relation}
+import utils.readers.Reader
+import utils.{ConfigurationParser, Utils}
 
 
-object WellBalancedExp {
+object BalancingExp {
 
-    implicit class TuppleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
+    implicit class TupleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
         def +(p: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int))
         : (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
             (p._1 + t._1, p._2 + t._2, p._3 +t._3, p._4+t._4, p._5+t._5, p._6+t._6, p._7+t._7, p._8+t._8, p._9+t._9, p._10+t._10, p._11+t._11)
@@ -46,20 +45,8 @@ object WellBalancedExp {
                 case Nil => map
                 case ("-c" | "-conf") :: value :: tail =>
                     nextOption(map ++ Map("conf" -> value), tail)
-                case ("-f" | "-fraction") :: value :: tail =>
-                    nextOption(map ++ Map("fraction" -> value), tail)
-                case ("-s" | "-stats") :: tail =>
-                    nextOption(map ++ Map("stats" -> "true"), tail)
-                case "-auc" :: tail =>
-                    nextOption(map ++ Map("auc" -> "true"), tail)
                 case ("-p" | "-partitions") :: value :: tail =>
                     nextOption(map ++ Map("partitions" -> value), tail)
-                case ("-b" | "-budget") :: value :: tail =>
-                    nextOption(map ++ Map("budget" -> value), tail)
-                case "-ws" :: value :: tail =>
-                    nextOption(map ++ Map("ws" -> value), tail)
-                case "-ma" :: value :: tail =>
-                    nextOption(map ++ Map("ma" -> value), tail)
                 case "-gt" :: value :: tail =>
                     nextOption(map ++ Map("gt" -> value), tail)
                 case _ :: tail =>
@@ -80,41 +67,67 @@ object WellBalancedExp {
         val confPath = options("conf")
         val conf = ConfigurationParser.parse(confPath)
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
-        val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
-        val ws: WeightingScheme = if (options.contains("ws")) WeightingScheme.withName(options("ws")) else conf.getWeightingScheme
-        val ma: ProgressiveAlgorithm = if (options.contains("ma")) ProgressiveAlgorithm.withName(options("ma")) else conf.getProgressiveAlgorithm
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
         val relation = conf.getRelation
-
-        log.info("DS-JEDAI: Input Budget: " + budget)
-        log.info("DS-JEDAI: Weighting Scheme: " + ws.toString)
-
         val startTime = Calendar.getInstance().getTimeInMillis
-        val reader = SpatialReader(conf.source, partitions, gridType)
-        val sourceRDD = reader.load()
-        sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
-        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
 
-        val targetRDD = reader.load(conf.target)
+
+        // reading source dataset
+        val reader = Reader(partitions, gridType)
+        val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
+        sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
+        val sourcePartitions: RDD[(Int, Iterator[Entity])] = sourceRDD.mapPartitions(si => Iterator((TaskContext.getPartitionId(), si.map(_._2))))
+
+
+        // reading target dataset
+        val targetRDD: RDD[(Int, Entity)] = reader.load(conf.target) match {
+            case Left(e) =>
+                log.error("Paritioner is not initialized, call first the `loadSource`.")
+                e.printStackTrace()
+                System.exit(1)
+                null
+            case Right(rdd) => rdd
+        }
         val partitioner = reader.partitioner
 
-        val partitionEntitiesAVG = sourceRDD.mapPartitions(si => Iterator(si.toArray.length)).sum()/sourceRDD.getNumPartitions
-        val balancedSource = sourceRDD.mapPartitions(si => Iterator(si.toArray)).filter(_.length < partitionEntitiesAVG*3).flatMap(_.toIterator)
-        val overloadedSource = sourceRDD.mapPartitions(si => Iterator(si.toArray)).filter(_.length >= partitionEntitiesAVG*3).flatMap(_.toIterator)
-        val overloadedPartitionIds = overloadedSource.map(_ => TaskContext.getPartitionId()).collect().toSet
-        val balancedTarget = targetRDD.mapPartitions(ti => Iterator((TaskContext.getPartitionId(), ti))).filter{ case (pid, _) => !overloadedPartitionIds.contains(pid) }.flatMap(_._2)
-        val overloadedTarget = targetRDD.mapPartitions(ti => Iterator((TaskContext.getPartitionId(), ti))).filter{ case (pid, _) => overloadedPartitionIds.contains(pid) }.flatMap(_._2)
-        log.info("DS-JEDAI: Overloaded partitions: " + overloadedPartitionIds.size)
+        val entitiesPerPartitions: Seq[(Int, Int)] =  sourcePartitions.map{ case (pid, si) => (pid, si.size)}.collect()
 
-        val matchingStartTime = Calendar.getInstance().getTimeInMillis
+        // find outlier partitions
+        val mean = entitiesPerPartitions.map(_._2).sum/sourceRDD.getNumPartitions
+        val variance =  entitiesPerPartitions.map(_._2.toDouble).map(x => math.pow(x - mean, 2)).sum / entitiesPerPartitions.length
+        val std = Math.sqrt(variance)
+        val zScore: (Int, Int) => (Int, Double) = (p: Int, x: Int) => (p, (x - mean).toDouble/std)
 
-        val pm = ProgressiveAlgorithmsFactory.get(ma, sourceRDD, targetRDD, partitioner, budget, ws)
-        val ibm = IndexBasedMatching(overloadedSource.map(_._2), overloadedTarget.map(_._2), Utils.getTheta)
+        val outliers = entitiesPerPartitions.map{case (p, x) => zScore(p, x)}.filter(_._2 > 2.5)
+        val outlierPartitions = outliers.map(_._1).toSet
+        log.info("DS-JEDAI: Overloaded partitions: " + outlierPartitions.size)
+
+        val goodSourceRDD = sourceRDD.filter(s => !outlierPartitions.contains(s._1))
+        val badSourceRDD = sourceRDD.filter(s => outlierPartitions.contains(s._1))
+
+        val goodTargetRDD = targetRDD.filter(t => !outlierPartitions.contains(t._1))
+        val badTargetRDD = targetRDD.filter(t => outlierPartitions.contains(t._1))
+
+        val giant = GIAnt(goodSourceRDD, goodTargetRDD, partitioner)
+        val iji = IndexedJoinInterlinking(badSourceRDD, badTargetRDD, Utils.getTheta)
 
         if (relation.equals(Relation.DE9IM)) {
-            val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-            totalOverlaps, totalTouches, totalWithin, intersectingPairs, interlinkedGeometries) = pm.countAllRelations + ibm.countAllRelations
+            val giantStartTime = Calendar.getInstance().getTimeInMillis
+            val giantResults = giant.countAllRelations
+            val giantEndTime = Calendar.getInstance().getTimeInMillis
+            log.info("DS-JEDAI: GIA.nt Time: " + (giantEndTime - giantStartTime) / 1000.0)
+            log.info("DS-JEDAI: GIA.nt Interlinked Geometries: " + giantResults._11)
+            log.info("-----------------------------------------------------------\n")
 
+            val indexedJoinStartTime = Calendar.getInstance().getTimeInMillis
+            val indexedJoinResults = iji.countAllRelations
+            val indexedJoinEndTime = Calendar.getInstance().getTimeInMillis
+            log.info("DS-JEDAI: INDEXED-JOIN Time: " + (indexedJoinEndTime - indexedJoinStartTime) / 1000.0)
+            log.info("DS-JEDAI:INDEXED-JOIN Interlinked Geometries: " + indexedJoinResults._11)
+            log.info("-----------------------------------------------------------\n")
+
+            val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
+            totalOverlaps, totalTouches, totalWithin, intersectingPairs, interlinkedGeometries) = giantResults + indexedJoinResults
             val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
                 totalIntersects + totalOverlaps + totalTouches + totalWithin
             log.info("DS-JEDAI: Total Intersecting Pairs: " + intersectingPairs)
@@ -132,11 +145,9 @@ object WellBalancedExp {
             log.info("DS-JEDAI: Total Relations Discovered: " + totalRelations)
         }
         else{
-            val totalMatches = pm.countRelation(relation) + ibm.countRelation(relation)
+            val totalMatches = giant.countRelation(relation) + iji.countRelation(relation)
             log.info("DS-JEDAI: " + relation.toString +": " + totalMatches)
         }
-        val matchingEndTime = Calendar.getInstance().getTimeInMillis
-        log.info("DS-JEDAI: Interlinking Time: " + (matchingEndTime - matchingStartTime) / 1000.0)
 
         val endTime = Calendar.getInstance()
         log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime) / 1000.0)

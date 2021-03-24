@@ -69,12 +69,19 @@ object Constants {
 	 */
 	object WeightingScheme extends Enumeration {
 		type WeightingScheme = Value
-
+		// co-occurrence frequency
 		val CF: Constants.WeightingScheme.Value = Value("CF")
+		// jaccard  similarity
 		val JS: Constants.WeightingScheme.Value = Value("JS")
+
+		// Pearson's chi squared test
 		val PEARSON_X2: Constants.WeightingScheme.Value = Value("PEARSON_X2")
-		val MBR_INTERSECTION: Constants.WeightingScheme.Value = Value("MBR_INTERSECTION")
-		val POINTS: Constants.WeightingScheme.Value = Value("POINTS")
+
+		// minimum bounding rectangle overlap
+		val MBRO: Constants.WeightingScheme.Value = Value("MBRO")
+
+		// inverse sum of points
+		val ISP: Constants.WeightingScheme.Value = Value("ISP")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
@@ -87,7 +94,8 @@ object Constants {
 		val CONF_PARTITIONS = "partitions"
 		val CONF_THETA_GRANULARITY = "thetaGranularity"
 		val CONF_PROGRESSIVE_ALG = "progressiveAlgorithm"
-		val CONF_WEIGHTING_SCHM = "weightingScheme"
+		val CONF_MAIN_WS = "mainWS"
+		val CONF_SECONDARY_WS = "secondaryWS"
 		val CONF_BUDGET = "budget"
 		val CONF_GRIDTYPE = "gridType"
 	}
@@ -107,6 +115,7 @@ object Constants {
 	object ProgressiveAlgorithm extends Enumeration {
 		type ProgressiveAlgorithm = Value
 		val PROGRESSIVE_GIANT: Constants.ProgressiveAlgorithm.Value = Value("PROGRESSIVE_GIANT")
+		val DYNAMIC_PROGRESSIVE_GIANT: Constants.ProgressiveAlgorithm.Value = Value("DYNAMIC_PROGRESSIVE_GIANT")
 		val GEOMETRY_CENTRIC: Constants.ProgressiveAlgorithm.Value = Value("GEOMETRY_CENTRIC")
 		val TOPK: Constants.ProgressiveAlgorithm.Value = Value("TOPK")
 		val RECIPROCAL_TOPK: Constants.ProgressiveAlgorithm.Value = Value("RECIPROCAL_TOPK")
