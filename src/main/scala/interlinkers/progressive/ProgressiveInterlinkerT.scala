@@ -51,12 +51,12 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
             (min(ceil(e1.mbr.maxY/thetaXY._2), ceil(e2.mbr.maxY/thetaXY._2)).toInt - max(floor(e1.mbr.minY/thetaXY._2), floor(e2.mbr.minY/thetaXY._2)).toInt + 1)
 
         ws match {
-            case WeightingScheme.MBR_INTERSECTION =>
+            case WeightingScheme.MBRO =>
                 val intersectionArea = e1.mbr.getIntersectingMBR(e2.mbr).getArea
                 val w = intersectionArea / (e1.mbr.getArea + e2.mbr.getArea - intersectionArea)
                 if (!w.isNaN) w else 0f
 
-            case WeightingScheme.POINTS =>
+            case WeightingScheme.ISP =>
                 1f / (e1.geometry.getNumPoints + e2.geometry.getNumPoints);
 
             case WeightingScheme.JS =>

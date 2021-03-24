@@ -69,12 +69,19 @@ object Constants {
 	 */
 	object WeightingScheme extends Enumeration {
 		type WeightingScheme = Value
-
+		// co-occurrence frequency
 		val CF: Constants.WeightingScheme.Value = Value("CF")
+		// jaccard  similarity
 		val JS: Constants.WeightingScheme.Value = Value("JS")
+
+		// Pearson's chi squared test
 		val PEARSON_X2: Constants.WeightingScheme.Value = Value("PEARSON_X2")
-		val MBR_INTERSECTION: Constants.WeightingScheme.Value = Value("MBR_INTERSECTION")
-		val POINTS: Constants.WeightingScheme.Value = Value("POINTS")
+
+		// minimum bounding rectangle overlap
+		val MBRO: Constants.WeightingScheme.Value = Value("MBRO")
+
+		// inverse sum of points
+		val ISP: Constants.WeightingScheme.Value = Value("ISP")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}

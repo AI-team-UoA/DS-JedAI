@@ -1,7 +1,7 @@
 # DS-JedAI 
 
 DS-JedAI (Distributed Spatial JedAI) is a system for Holistic Geospatial Interlinking for big geospatial data.
-In Holistic Geospatial Interlinking we aim to discover all the topological relations between two geospatial datasets, 
+In Holistic Geospatial Interlinking, we aim to discover all the topological relations between the geometries of two geospatial datasets, 
 using the [DE-9IM](https://en.wikipedia.org/wiki/DE-9IM) topological model. DS-JedAI offers a novel batch algorithm for
 geospatial interlinking and several algorithms for progressive Geospatial Interlinking. All the algorithms have been 
 parallelized based on the MapReduce Framework. 
@@ -12,7 +12,7 @@ These algorithms take as input a budget (*BU*) that indicates the total number o
 and a weighting scheme *W* that quantify the probability of two geometries to relate. Furthermore, DS-JedAI allows
 temporal filtering in order to detect pairs that coincide not only spatially but also temporally.
 
-DS-JedAI in implemented on top of Apache Spark and can run in any distributed or standalone environment that
+DS-JedAI in implemented on top of **Apache Spark** and can run in any distributed or standalone environment that
 supports the execution of Apache Spark jobs. Currently, supports most of the RDF formats (i.e., N­Triples, Turtle,
 RDF/JSON and RDF/XML), as well as CSV, TSV, GeoJSON and ESRI shapefiles.
 
@@ -43,10 +43,11 @@ to relate. The idea is, that not all the verifications will be performed, but us
 Hence, the progressive algorithms prioritize the *BU* prominent verifications.
 The implemented algorithms are the following:
 
-- **Progressive Giant**: Implements GIA.nt but prioritizes the BU most promising geometry pairs. 
+- **Progressive GIA.nt**: Implements GIA.nt but prioritizes the BU most promising geometry pairs. 
+- **Dynamic Progressive GIA.nt**: Extends Progressive GIA.nt by boosting the weight of the pairs that are associated with qualifying pairs. So the Priority Queue,
+    that stores the geometry pairs, dynamically changes during the verifications.
 - **Geometry Top-k** :  For each geometry, finds and verifies its top-k.
 - **Geometry Reciprocal Top-k**: Verifies only the pairs *(s, t)* that *s* belongs to the top-k of *t* and *t* belongs to the top-k of *s*.
-- **Geometry-Centric**: The prioritization of *(s, t)* is based on the mean weight of all the pairs that *t* is part of.
 - **RandomScheduling**: Implements random prioritization.
 
 Currently, the supported weighting schemes are:
@@ -54,8 +55,11 @@ Currently, the supported weighting schemes are:
 - Co-occurrence Frequencies (CF)
 - Jaccard Similarity (JS)
 - Pearson's chi square test (PEARSON_x2)
-- MBR INTERSECTION
-- GEOMETRY POINTS 
+- Minimum Bounding Rectangle Overlap (MBRO)
+- Inverse Sum of Points (ISP) 
+
+The algorithms also supports composite schemes, where we combine two weighting schemes in the sense that the second weighting
+scheme is for resolving the ties of the main one.
 
 The progressive Algorithms, the weighting schemes and the budget *BU* are specified in the configuration file. Advise the 
 configuration template in `config/configurationTemplate.yaml` to see how you can specify them. To execute, run:
@@ -66,8 +70,14 @@ Some additional options are the following:
 
 - **-p N**: specify the number of partitions
 - **-gt type**: specify the grid type for the spatial partitioning. Accepted values are KDBTREE and QUADTREE.
-- **ws WS**: specify weighting scheme - allowed values: *CF, JS, MBR_INTERSECTION, PEARSON_X2, POINTS*.
-- **progressiveAlgorithm PA**:  specify progressive algorithm - allowed values: *PROGRESSIVE_GIANT, TOPK, RECIPROCAL_TOPK, GEOMETRY_CENTRIC, RANDOM*
+- **mws WS**: specify the main weighting scheme - allowed values: *CF, JS, MBRO, PEARSON_X2, ISP*.
+- **sws WS**: specify the secondary weighting scheme (optional)- allowed values: *CF, JS, MBRO, PEARSON_X2, ISP*, MBRO is preferred.
+- **progressiveAlgorithm PA**:  specify progressive algorithm - allowed values: *PROGRESSIVE_GIANT, DYNAMIC_PROGRESSIVE_GIANT, TOPK, RECIPROCAL_TOPK, RANDOM*
 - **budget** BU: the input budget.
 
 The command line options will overwrite the corresponding options of the configuration file. 
+
+---
+## Publication
+
+*Progressive, Holistic Geospatial Interlinking. George Papadakis, Georgios Mandilaras, Nikos Mamoulis, Manolis Koubarakis. In Proceedings of The Web Conference  2021*

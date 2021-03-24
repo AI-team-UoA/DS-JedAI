@@ -13,5 +13,5 @@ relation: "DE9IM"
 
 configurations:
   thetaGranularity: "avg"
-  secondaryWS: "MBR_INTERSECTION"
+  secondaryWS: "MBRO"
   mainWS: "JS"

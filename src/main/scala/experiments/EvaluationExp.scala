@@ -121,14 +121,14 @@ object EvaluationExp {
             else
                 Seq(ProgressiveAlgorithm.DYNAMIC_PROGRESSIVE_GIANT, ProgressiveAlgorithm.PROGRESSIVE_GIANT, ProgressiveAlgorithm.TOPK, ProgressiveAlgorithm.RECIPROCAL_TOPK)
 
-        val weightingSchemes = Seq((WeightingScheme.JS, Option(WeightingScheme.MBR_INTERSECTION)))
-//                                (WeightingScheme.CF, None),
-//                                (WeightingScheme.JS, None),
-//                                (WeightingScheme.PEARSON_X2,None),
-//                                (WeightingScheme.MBR_INTERSECTION, None),
-//                                 (WeightingScheme.POINTS, None),
-//                                 (WeightingScheme.JS, Option(WeightingScheme.MBR_INTERSECTION)),
-//                                 (WeightingScheme.PEARSON_X2, Option(WeightingScheme.MBR_INTERSECTION)))
+        val weightingSchemes = Seq((WeightingScheme.JS, Option(WeightingScheme.MBRO)),
+                                (WeightingScheme.CF, None),
+                                (WeightingScheme.JS, None),
+                                (WeightingScheme.PEARSON_X2,None),
+                                (WeightingScheme.MBRO, None),
+                                 (WeightingScheme.ISP, None),
+                                 (WeightingScheme.JS, Option(WeightingScheme.MBRO)),
+                                 (WeightingScheme.PEARSON_X2, Option(WeightingScheme.MBRO)))
 
         for (a <- algorithms ; ws <- weightingSchemes)
             printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, a, ws)
