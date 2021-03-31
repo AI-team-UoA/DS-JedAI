@@ -32,9 +32,7 @@ case class IndexedJoinInterlinking(source:RDD[(Int, Entity)], target:RDD[(Int, E
             .flatMap{ case (indices, (pid, se)) => indices.map(i => (i, (pid, se)))}
             .groupByKey(partitioner)
 
-        indexedSource.leftOuterJoin(indexedTarget, partitioner)
-            .filter(_._2._2.isDefined)
-            .map(p => (p._1, (p._2._1, p._2._2.get)))
+        indexedSource.join(indexedTarget, partitioner)
     }
 
     /**

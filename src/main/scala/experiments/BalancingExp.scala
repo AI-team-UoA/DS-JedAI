@@ -71,7 +71,6 @@ object BalancingExp {
         val relation = conf.getRelation
         val startTime = Calendar.getInstance().getTimeInMillis
 
-
         // reading source dataset
         val reader = Reader(partitions, gridType)
         val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
@@ -90,6 +89,8 @@ object BalancingExp {
         }
         val partitioner = reader.partitioner
 
+        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
+        log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
         val entitiesPerPartitions: Seq[(Int, Int)] =  sourcePartitions.map{ case (pid, si) => (pid, si.size)}.collect()
 
         // find outlier partitions
