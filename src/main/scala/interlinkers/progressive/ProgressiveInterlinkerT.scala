@@ -1,7 +1,9 @@
 package interlinkers.progressive
 
-import model.{ComparisonPQ, Entity, IM, MBR, WeightedPair}
+import java.util.Calendar
+
 import interlinkers.InterlinkerT
+import model._
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
@@ -73,6 +75,15 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
         }
     }
 
+    def computeDE9IM(pq: ComparisonPQ, source: Array[Entity], target: Array[Entity]): Iterator[IM] =
+        if (!pq.isEmpty)
+            pq.dequeueAll.map{ wp =>
+                val e1 = source(wp.entityId1)
+                val e2 = target(wp.entityId2)
+                IM(e1, e2)
+            }.takeWhile(_ => !pq.isEmpty)
+        else Iterator()
+
     /**
      *  Get the DE-9IM of the top most related entities based
      *  on the input budget and the Weighting Scheme
@@ -87,14 +98,41 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
                 val target = p._2._2.toArray
 
                 val pq = prioritize(source, target, partition, Relation.DE9IM)
-                if (!pq.isEmpty)
-                    pq.dequeueAll.map{ wp =>
-                        val e1 = source(wp.entityId1)
-                        val e2 = target(wp.entityId2)
-                        IM(e1, e2)
-                    }.takeWhile(_ => !pq.isEmpty)
-                else Iterator()
+               computeDE9IM(pq, source, target)
             }
+    }
+
+    /**
+     * Measure the time for the Scheduling and Verification steps
+     * WARNING: if the memory is not enough, then the results of Scheduling will be cached in the disk,
+     *  and this will increase the execution time.
+     * @return the Scheduling and the Verification time as a Tuple
+     */
+    def time: (Double, Double) ={
+        val rdd = joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
+
+        // execute and time scheduling step
+        val schedulingStart = Calendar.getInstance().getTimeInMillis
+        val prioritizationResults = rdd.map { p =>
+            val pid = p._1
+            val partition = partitionsZones(pid)
+            val source = p._2._1.toArray
+            val target = p._2._2.toArray
+
+            val pq = prioritize(source, target, partition, Relation.DE9IM)
+            (pq, source, target)
+        }
+
+        // cache in order to avoid re-computation - count to invoke computation
+        prioritizationResults.cache().count()
+        val schedulingTime = (Calendar.getInstance().getTimeInMillis - schedulingStart) / 1000.0
+
+        // execute and time verification
+        val verificationStart = Calendar.getInstance().getTimeInMillis
+        prioritizationResults.flatMap{ case (pq, source, target) => computeDE9IM(pq, source, target) }.count()
+        val verificationTime = (Calendar.getInstance().getTimeInMillis - verificationStart) / 1000.0
+
+        (schedulingTime, verificationTime)
     }
 
 

@@ -1,6 +1,6 @@
 package interlinkers.progressive
 
-import model.{ComparisonPQ, DynamicComparisonPQ, Entity, IM, MBR, WeightedPair}
+import model._
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
@@ -54,38 +54,25 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
         pq
     }
 
-    /**
-     *  Get the DE-9IM of the top most related entities based
-     *  on the input budget and the Weighting Scheme
-     * @return an RDD of IM
-     */
-    override def getDE9IM: RDD[IM] ={
-        joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
-            .flatMap{ p =>
-                val pid = p._1
-                val partition = partitionsZones(pid)
-                val source = p._2._1.toArray
-                val target = p._2._2.toArray
 
-                val pq: DynamicComparisonPQ = prioritize(source, target, partition, Relation.DE9IM).asInstanceOf[DynamicComparisonPQ]
-                val sourceCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId1, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
-                val targetCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
+    override def computeDE9IM(pq: ComparisonPQ, source: Array[Entity], target: Array[Entity]): Iterator[IM] = {
+        val sourceCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId1, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
+        val targetCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
 
-                if (!pq.isEmpty)
-                    Iterator.continually{
-                        val wp = pq.dequeueHead()
-                        val e1 = source(wp.entityId1)
-                        val e2 = target(wp.entityId2)
-                        val im = IM(e1, e2)
-                        val isRelated = im.relate
-                        if (isRelated){
-                            sourceCandidates.getOrElse(wp.entityId1, List()).foreach(wp => pq.dynamicUpdate(wp))
-                            targetCandidates.getOrElse(wp.entityId2, List()).foreach(wp => pq.dynamicUpdate(wp))
-                        }
-                        im
-                    }.takeWhile(_ => !pq.isEmpty)
-                else Iterator()
-            }
+        if (!pq.isEmpty)
+            Iterator.continually {
+                val wp = pq.dequeueHead()
+                val e1 = source(wp.entityId1)
+                val e2 = target(wp.entityId2)
+                val im = IM(e1, e2)
+                val isRelated = im.relate
+                if (isRelated) {
+                    sourceCandidates.getOrElse(wp.entityId1, List()).foreach(wp => pq.dynamicUpdate(wp))
+                    targetCandidates.getOrElse(wp.entityId2, List()).foreach(wp => pq.dynamicUpdate(wp))
+                }
+                im
+            }.takeWhile(_ => !pq.isEmpty)
+        else Iterator()
     }
 
 
