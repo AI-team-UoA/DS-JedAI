@@ -89,7 +89,7 @@ object TimeExp {
 
         val targetRDD: RDD[(Int, Entity)] = reader.load(conf.target) match {
             case Left(e) =>
-                log.error("Paritioner is not initialized, call first the `loadSource`.")
+                log.error("Partitioner is not initialized, call first the `loadSource`.")
                 e.printStackTrace()
                 System.exit(1)
                 null
