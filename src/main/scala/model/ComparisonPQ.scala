@@ -39,6 +39,7 @@ sealed trait ComparisonPQ {
 
     def iterator(): Iterator[WeightedPair] = pq.iterator().asScala
 
+    def dynamicUpdate(wp: WeightedPair): Unit = {}
 }
 
 
@@ -60,7 +61,7 @@ case class DynamicComparisonPQ(maxSize: Long) extends ComparisonPQ{
 
     def dequeueLast(): WeightedPair = pq.pollLast()
 
-    def dynamicUpdate(wp: WeightedPair): Unit ={
+    override def dynamicUpdate(wp: WeightedPair): Unit ={
         val exists = pq.remove(wp)
         if (exists){
             wp.incrementRelatedMatches()
