@@ -104,11 +104,10 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
 
     /**
      * Measure the time for the Scheduling and Verification steps
-     * WARNING: if the memory is not enough, then the results of Scheduling will be cached in the disk,
-     *  and this will increase the execution time.
-     * @return the Scheduling and the Verification time as a Tuple
+
+     * @return the Scheduling, the Verification and the Total Matching times as a Tuple
      */
-    def time: (Double, Double) ={
+    def time: (Double, Double, Double) ={
         val rdd = joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
 
         // execute and time scheduling step
@@ -123,16 +122,19 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
             (pq, source, target)
         }
 
-        // cache in order to avoid re-computation - count to invoke computation
-        prioritizationResults.cache().count()
+        // count to invoke computation
+        prioritizationResults.count()
         val schedulingTime = (Calendar.getInstance().getTimeInMillis - schedulingStart) / 1000.0
 
-        // execute and time verification
-        val verificationStart = Calendar.getInstance().getTimeInMillis
-        prioritizationResults.flatMap{ case (pq, source, target) => computeDE9IM(pq, source, target) }.count()
-        val verificationTime = (Calendar.getInstance().getTimeInMillis - verificationStart) / 1000.0
+        // execute and time the whole procedure
+        val matchingTimeStart = Calendar.getInstance().getTimeInMillis
+        //prioritizationResults.flatMap{ case (pq, source, target) => computeDE9IM(pq, source, target) }.count()
+        val qp = countAllRelations
+        val matchingTime = (Calendar.getInstance().getTimeInMillis - matchingTimeStart) / 1000.0
 
-        (schedulingTime, verificationTime)
+        // the verification time is the total time - the scheduling time
+        val verificationTime = matchingTime - schedulingTime
+        (schedulingTime, verificationTime, matchingTime)
     }
 
 

@@ -81,7 +81,7 @@ object TimeExp {
         if (secondaryWS.isDefined) log.info("DS-JEDAI: Secondary Weighting Scheme: " + secondaryWS.get.toString)
         log.info("DS-JEDAI: Progressive Algorithm: " + pa.toString)
 
-        val startTime = Calendar.getInstance().getTimeInMillis
+        val startTime = Calendar.getInstance().getTimeInMillis / 1000d
 
         val reader = Reader(partitions, gridType)
         val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
@@ -100,20 +100,20 @@ object TimeExp {
         Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-        val matchingStartTime = Calendar.getInstance().getTimeInMillis
         val method = ProgressiveAlgorithmsFactory.get(pa, sourceRDD, targetRDD, partitioner, budget, mainWS, secondaryWS)
 
         val times = method.time
         val schedulingTime = times._1
         val verificationTime = times._2
+        val matchingTime = times._3
 
         log.info(s"DS-JEDAI: Scheduling time: $schedulingTime")
         log.info(s"DS-JEDAI: Verification time: $verificationTime")
-        val matchingEndTime = Calendar.getInstance().getTimeInMillis
-        log.info("DS-JEDAI: Interlinking Time: " + (matchingEndTime - matchingStartTime) / 1000.0)
+        log.info(s"DS-JEDAI: Interlinking Time: $matchingTime")
 
-        val endTime = Calendar.getInstance().getTimeInMillis
-        log.info("DS-JEDAI: Total Execution Time: " + (endTime - startTime) / 1000.0)
+        val endTime = Calendar.getInstance().getTimeInMillis / 1000d
+        val totalTime = endTime - startTime
+        log.info(s"DS-JEDAI: Total Execution Time: $totalTime")
     }
 
 }
