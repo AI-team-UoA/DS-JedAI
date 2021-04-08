@@ -109,7 +109,7 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
      */
     def time: (Double, Double, Double) ={
         val rdd = joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
-
+//        rdd.count()
         // execute and time scheduling step
         val schedulingStart = Calendar.getInstance().getTimeInMillis
         val prioritizationResults = rdd.map { p =>
@@ -120,21 +120,22 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
 
             val pq = prioritize(source, target, partition, Relation.DE9IM)
             (pq, source, target)
-        }
+        }//.persist(StorageLevel.MEMORY_AND_DISK)
 
-        // count to invoke computation
         prioritizationResults.count()
         val schedulingTime = (Calendar.getInstance().getTimeInMillis - schedulingStart) / 1000.0
 
         // execute and time the whole procedure
+//        val verificationTimeStart = Calendar.getInstance().getTimeInMillis
+//        prioritizationResults.flatMap{ case (pq, source, target) => computeDE9IM(pq, source, target) }.count()
+//        val verificationTime = (Calendar.getInstance().getTimeInMillis - verificationTimeStart) / 1000.0
+
         val matchingTimeStart = Calendar.getInstance().getTimeInMillis
-        //prioritizationResults.flatMap{ case (pq, source, target) => computeDE9IM(pq, source, target) }.count()
         val qp = countAllRelations
         val matchingTime = (Calendar.getInstance().getTimeInMillis - matchingTimeStart) / 1000.0
-
         // the verification time is the total time - the scheduling time
         val verificationTime = matchingTime - schedulingTime
-        (schedulingTime, verificationTime, matchingTime)
+        (schedulingTime, verificationTime, schedulingTime+verificationTime)
     }
 
 
