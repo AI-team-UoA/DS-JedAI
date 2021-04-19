@@ -54,9 +54,15 @@ case class DirtyGIAnt(source:RDD[Entity], thetaXY: (Double, Double)) {
                     val candidates = sourceIndex.get(b)
                     for (i <- candidates;
                          j <- candidates
-                         if i != j
                          if source(i).filter(source(j), Relation.DE9IM, b, thetaXY, Some(partition)))
-                        yield IM( source(i), source(j))
+                        yield{
+                            val e1 = source(i)
+                            val e2 = source(j)
+                            if (i != j) IM(e1, e2)
+                            else IM((e1.originalID, e2.originalID), isContains=true, isCovers=true, isCoveredBy=true,
+                                isCrosses=false, isEquals=false, isIntersects=false, isOverlaps=false, isTouches=true,
+                                isWithin=true)
+                        }
                 }.toIterator
             }
     }
