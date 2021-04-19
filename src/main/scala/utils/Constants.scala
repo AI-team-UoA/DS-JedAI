@@ -69,8 +69,10 @@ object Constants {
 	 */
 	object WeightingScheme extends Enumeration {
 		type WeightingScheme = Value
+
 		// co-occurrence frequency
 		val CF: Constants.WeightingScheme.Value = Value("CF")
+
 		// jaccard  similarity
 		val JS: Constants.WeightingScheme.Value = Value("JS")
 
@@ -98,6 +100,7 @@ object Constants {
 		val CONF_SECONDARY_WS = "secondaryWS"
 		val CONF_BUDGET = "budget"
 		val CONF_GRIDTYPE = "gridType"
+		val OUTPUT = "outputPath"
 	}
 
 	object GridType extends Enumeration{
