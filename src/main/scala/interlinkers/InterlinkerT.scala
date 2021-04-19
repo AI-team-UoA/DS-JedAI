@@ -30,6 +30,22 @@ trait InterlinkerT {
         spatialIndex
     }
 
+    /**
+     * Extract the candidate geometries from source, using spatial index
+     * @param e2 target geometry
+     * @param source array of source geometries
+     * @param index spatial index
+     * @param partitionZone examining partition
+     * @param relation examining relations
+     * @return a sequence of candidate geometries
+     */
+    def getCandidates(e2: Entity, source: Array[Entity], index: SpatialIndex, partitionZone: MBR, relation: Relation): Seq[Entity] =
+        e2.index(thetaXY, index.contains).view
+            .flatMap(block => index.get(block).map(i => (block, i)))
+            .filter{ case (block, i) => source(i).filter(e2, relation, block, thetaXY, Some(partitionZone))}
+            .map{case (_, i) => source(i) }
+            .force
+
     implicit class TupleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
         def +(p: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
             (p._1 + t._1, p._2 + t._2, p._3 +t._3, p._4+t._4, p._5+t._5, p._6+t._6, p._7+t._7, p._8+t._8, p._9+t._9, p._10+t._10, p._11+t._11)

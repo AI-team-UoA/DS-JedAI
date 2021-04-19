@@ -90,15 +90,16 @@ object GiantExp {
         Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-        if(printCount){
+        val matchingStartTime = Calendar.getInstance().getTimeInMillis
+        val giant = GIAnt(sourceRDD, targetRDD, partitioner)
+
+        if (printCount){
             log.info(s"DS-JEDAI: Source geometries: $sourceCount")
             log.info(s"DS-JEDAI: Target geometries: $targetCount")
             log.info(s"DS-JEDAI: Cartesian: ${sourceCount*targetCount}")
+            log.info(s"DS-JEDAI: Candidate Pairs: ${giant.countCandidates}")
         }
-
-        val matchingStartTime = Calendar.getInstance().getTimeInMillis
-        val giant = GIAnt(sourceRDD, targetRDD, partitioner)
-        if (relation.equals(Relation.DE9IM)) {
+        else if (relation.equals(Relation.DE9IM)) {
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
             totalOverlaps, totalTouches, totalWithin, verifications, qp) = giant.countAllRelations
 
