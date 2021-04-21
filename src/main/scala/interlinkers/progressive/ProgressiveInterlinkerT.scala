@@ -104,13 +104,12 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
 
     /**
      * Measure the time for the Scheduling and Verification steps
-     * WARNING: if the memory is not enough, then the results of Scheduling will be cached in the disk,
-     *  and this will increase the execution time.
-     * @return the Scheduling and the Verification time as a Tuple
-     */
-    def time: (Double, Double) ={
-        val rdd = joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
 
+     * @return the Scheduling, the Verification and the Total Matching times as a Tuple
+     */
+    def time: (Double, Double, Double) ={
+        val rdd = joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
+//        rdd.count()
         // execute and time scheduling step
         val schedulingStart = Calendar.getInstance().getTimeInMillis
         val prioritizationResults = rdd.map { p =>
@@ -121,18 +120,22 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
 
             val pq = prioritize(source, target, partition, Relation.DE9IM)
             (pq, source, target)
-        }
+        }//.persist(StorageLevel.MEMORY_AND_DISK)
 
-        // cache in order to avoid re-computation - count to invoke computation
-        prioritizationResults.cache().count()
+        prioritizationResults.count()
         val schedulingTime = (Calendar.getInstance().getTimeInMillis - schedulingStart) / 1000.0
 
-        // execute and time verification
-        val verificationStart = Calendar.getInstance().getTimeInMillis
-        prioritizationResults.flatMap{ case (pq, source, target) => computeDE9IM(pq, source, target) }.count()
-        val verificationTime = (Calendar.getInstance().getTimeInMillis - verificationStart) / 1000.0
+        // execute and time the whole procedure
+//        val verificationTimeStart = Calendar.getInstance().getTimeInMillis
+//        prioritizationResults.flatMap{ case (pq, source, target) => computeDE9IM(pq, source, target) }.count()
+//        val verificationTime = (Calendar.getInstance().getTimeInMillis - verificationTimeStart) / 1000.0
 
-        (schedulingTime, verificationTime)
+        val matchingTimeStart = Calendar.getInstance().getTimeInMillis
+        val qp = countAllRelations
+        val matchingTime = (Calendar.getInstance().getTimeInMillis - matchingTimeStart) / 1000.0
+        // the verification time is the total time - the scheduling time
+        val verificationTime = matchingTime - schedulingTime
+        (schedulingTime, verificationTime, schedulingTime+verificationTime)
     }
 
 
