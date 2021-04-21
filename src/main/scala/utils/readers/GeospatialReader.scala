@@ -1,13 +1,13 @@
 package utils.readers
 
-import com.vividsolutions.jts.geom.Geometry
+import org.apache.sedona.core.formatMapper.GeoJsonReader
+import org.apache.sedona.core.formatMapper.shapefileParser.ShapefileReader
+import org.apache.sedona.core.serde.SedonaKryoRegistrator
+import org.apache.sedona.core.spatialRDD.SpatialRDD
+import org.locationtech.jts.geom.Geometry
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.{SparkConf, SparkContext}
-import org.datasyslab.geospark.formatMapper.GeoJsonReader
-import org.datasyslab.geospark.formatMapper.shapefileParser.ShapefileReader
-import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import org.datasyslab.geospark.spatialRDD.SpatialRDD
 import utils.Constants.FileTypes
 import utils.DatasetConfigurations
 
@@ -33,12 +33,13 @@ object GeospatialReader {
     def loadSHP(filepath: String, realIdField: String, dateField: Option[String]): SpatialRDD[Geometry] ={
         val conf = new SparkConf()
         conf.set("spark.serializer", classOf[KryoSerializer].getName)
-        conf.set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
+        conf.set("spark.kryo.registrator", classOf[SedonaKryoRegistrator].getName)
         val sc = SparkContext.getOrCreate(conf)
 
         val parentFolder = filepath.substring(0, filepath.lastIndexOf("/"))
         val srdd = ShapefileReader.readToGeometryRDD(sc, parentFolder)
         adjustUserData(srdd, realIdField, dateField)
+        null
     }
 
 
@@ -52,7 +53,7 @@ object GeospatialReader {
     def loadGeoJSON(filepath: String, realIdField: String, dateField: Option[String]): SpatialRDD[Geometry] ={
         val conf = new SparkConf()
         conf.set("spark.serializer", classOf[KryoSerializer].getName)
-        conf.set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
+        conf.set("spark.kryo.registrator", classOf[SedonaKryoRegistrator].getName)
         val sc = SparkContext.getOrCreate(conf)
 
         val srdd = GeoJsonReader.readToGeometryRDD(sc, filepath)

@@ -1,7 +1,7 @@
 package model
 
-import com.vividsolutions.jts.geom.{Geometry, IntersectionMatrix}
-import com.vividsolutions.jts.io.WKTReader
+import org.locationtech.jts.geom.{Geometry, IntersectionMatrix}
+import org.locationtech.jts.io.WKTReader
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 

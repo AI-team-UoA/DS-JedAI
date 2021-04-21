@@ -1,14 +1,15 @@
 package interlinkers.progressive
 
-import model.{Entity, MBR, WeightedPair, StaticComparisonPQ}
+import model.{Entity, MBR, StaticComparisonPQ}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
-import utils.Constants.WeightingScheme.WeightingScheme
-import utils.Utils
+import utils.Constants.WeightingFunction.WeightingFunction
+import utils.{Constants, Utils}
 
 case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double),
-                     mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme], budget: Int, sourceEntities: Int)
+                     mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction], budget: Int,
+                     sourceEntities: Int, ws: Constants.WeightingScheme)
     extends ProgressiveInterlinkerT {
 
     /**
@@ -36,16 +37,14 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
 
         target.indices
             .foreach{ j =>
-                val e2 = target(j)
-                e2.index(thetaXY, filterIndices)
+                val t = target(j)
+                t.index(thetaXY, filterIndices)
                     .foreach{ block =>
                         sourceIndex.get(block)
-                            .filter(i => source(i).filter(e2, relation, block, thetaXY, Some(partition)))
+                            .filter(i => source(i).filter(t, relation, block, thetaXY, Some(partition)))
                             .foreach { i =>
-                                val e1 = source(i)
-                                val w = getMainWeight(e1, e2)
-                                val secW = getSecondaryWeight(e1, e2)
-                                val wp = WeightedPair(counter, i, j, w, secW)
+                                val s = source(i)
+                                val wp = getWeightedPair(counter, s, i, t, j)
                                 counter += 1
 
                                 // set top-K PQ for the examining target entity
@@ -87,11 +86,11 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
 
 object TopKPairs{
 
-    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightingScheme, sws: Option[WeightingScheme] = None,
-              budget: Int, partitioner: Partitioner): TopKPairs ={
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], wf: WeightingFunction, swf: Option[WeightingFunction] = None,
+              budget: Int, partitioner: Partitioner, ws: Constants.WeightingScheme): TopKPairs ={
         val thetaXY = Utils.getTheta
         val joinedRDD = source.cogroup(target, partitioner)
         val sourceEntities = Utils.sourceCount
-        TopKPairs(joinedRDD, thetaXY, ws, sws, budget, sourceEntities.toInt)
+        TopKPairs(joinedRDD, thetaXY, wf, swf, budget, sourceEntities.toInt, ws)
     }
 }

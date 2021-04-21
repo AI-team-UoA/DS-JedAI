@@ -5,12 +5,12 @@ import java.util.Calendar
 import interlinkers.DirtyGIAnt
 import model.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
+import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
-import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
 import utils.Constants.GridType
 import utils.readers.Reader
 import utils.{ConfigurationParser, Utils}
@@ -26,7 +26,7 @@ object DirtyExp {
         val sparkConf = new SparkConf()
             .setAppName("DS-JedAI")
             .set("spark.serializer", classOf[KryoSerializer].getName)
-            .set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
+            .set("spark.kryo.registrator", classOf[SedonaKryoRegistrator].getName)
 
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()

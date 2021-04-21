@@ -1,7 +1,7 @@
 package model
 
-import com.vividsolutions.jts.geom.Geometry
-import com.vividsolutions.jts.io.WKTReader
+import org.locationtech.jts.geom.Geometry
+import org.locationtech.jts.io.WKTReader
 import org.joda.time.format.DateTimeFormat
 import org.joda.time.{DateTime, Days}
 import utils.Constants

@@ -3,17 +3,17 @@ package interlinkers.progressive
 import model._
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
-import org.apache.spark.storage.StorageLevel
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
-import utils.Constants.WeightingScheme.WeightingScheme
-import utils.Utils
+import utils.Constants.WeightingFunction.WeightingFunction
+import utils.{Constants, Utils}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double),
-                                    mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme], budget: Int, sourceEntities: Int)
+                                   mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction], budget: Int,
+                                   sourceEntities: Int, ws: Constants.WeightingScheme)
     extends ProgressiveInterlinkerT {
 
 
@@ -36,16 +36,14 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
         target
             .indices
             .foreach {j =>
-                val e2 = target(j)
-                e2.index(thetaXY, filterIndices)
+                val t = target(j)
+                t.index(thetaXY, filterIndices)
                     .foreach { block =>
                         sourceIndex.get(block)
-                            .filter(i => source(i).filter(e2, relation, block, thetaXY, Some(partition)))
+                            .filter(i => source(i).filter(t, relation, block, thetaXY, Some(partition)))
                             .foreach { i =>
-                                val e1 = source(i)
-                                val w = getMainWeight(e1, e2)
-                                val secW = getSecondaryWeight(e1, e2)
-                                val wp = WeightedPair(counter, i, j, w, secW)
+                                val s = source(i)
+                                val wp = getWeightedPair(counter, s, i, t, j)
                                 pq.enqueue(wp)
                                 counter += 1
                             }
@@ -62,9 +60,9 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
         if (!pq.isEmpty)
             Iterator.continually {
                 val wp = pq.dequeueHead()
-                val e1 = source(wp.entityId1)
-                val e2 = target(wp.entityId2)
-                val im = IM(e1, e2)
+                val s = source(wp.entityId1)
+                val t = target(wp.entityId2)
+                val im = IM(s, t)
                 val isRelated = im.relate
                 if (isRelated) {
                     sourceCandidates.getOrElse(wp.entityId1, List()).foreach(wp => pq.dynamicUpdate(wp))
@@ -78,7 +76,7 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
 
     /**
      *  Examine the Relation of the top most related entities based
-     *  on the input budget and the Weighting Scheme
+     *  on the input budget and the Weighting Function
      *  @param relation the relation to examine
      *  @return an RDD of pair of IDs
      */
@@ -96,14 +94,14 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
                 if (!pq.isEmpty)
                     Iterator.continually{
                         val wp = pq.dequeueHead()
-                        val e1 = source(wp.entityId1)
-                        val e2 = target(wp.entityId2)
-                        val isRelated = e1.relate(e2, relation)
+                        val s = source(wp.entityId1)
+                        val t = target(wp.entityId2)
+                        val isRelated = s.relate(t, relation)
                         if (isRelated){
                             sourceCandidates.getOrElse(wp.entityId1, List()).foreach(wp => pq.dynamicUpdate(wp))
                             targetCandidates.getOrElse(wp.entityId2, List()).foreach(wp => pq.dynamicUpdate(wp))
                         }
-                        (isRelated, (e1.originalID, e2.originalID))
+                        (isRelated, (s.originalID, t.originalID))
                     }.filter(_._1).map(_._2)
                 else Iterator()
             }
@@ -133,11 +131,11 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
                 if (!pq.isEmpty)
                     Iterator.continually{
                         val wp = pq.dequeueHead()
-                        val e1 = source(wp.entityId1)
-                        val e2 = target(wp.entityId2)
+                        val s = source(wp.entityId1)
+                        val t = target(wp.entityId2)
                         val isRelated = relation match {
-                            case Relation.DE9IM => IM(e1, e2).relate
-                            case _ => e1.relate(e2, relation)
+                            case Relation.DE9IM => IM(s, t).relate
+                            case _ => s.relate(t, relation)
                         }
                         if (isRelated){
                             sourceCandidates.getOrElse(wp.entityId1, List()).foreach(wp => pq.dynamicUpdate(wp))
@@ -146,13 +144,14 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
                         (wp, isRelated)
                     }.takeWhile(_ => !pq.isEmpty)
                 else Iterator()
-            }.persist(StorageLevel.MEMORY_AND_DISK)
+            }
 
         var results = mutable.ListBuffer[(Double, Long, Long, (List[Int], List[Int]))]()
+        val sorted = matches.takeOrdered(takeBudget.max)
         for(b <- takeBudget){
             // compute AUC prioritizing the comparisons based on their weight
-            val sorted = matches.takeOrdered(b)
-            val verifications = sorted.length
+            val sortedPairs = sorted.take(b)
+            val verifications = sortedPairs.length
             val step = math.ceil(verifications/n)
 
             var progressiveQP: Double = 0
@@ -160,7 +159,7 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
             val verificationSteps = ListBuffer[Int]()
             val qualifiedPairsSteps = ListBuffer[Int]()
 
-            sorted
+            sortedPairs
                 .map(_._2)
                 .zipWithIndex
                 .foreach{
@@ -178,7 +177,6 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
             val pgr = (progressiveQP/qualifiedPairsWithinBudget)/verifications.toDouble
             results += ((pgr, qp, verifications, (verificationSteps.toList, qualifiedPairsSteps.toList)))
         }
-        matches.unpersist()
         results
     }
 }
@@ -189,12 +187,12 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
  */
 object DynamicProgressiveGIAnt {
 
-    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightingScheme, sws: Option[WeightingScheme] = None,
-              budget: Int, partitioner: Partitioner): DynamicProgressiveGIAnt ={
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], wf: WeightingFunction, swf: Option[WeightingFunction] = None,
+              budget: Int, partitioner: Partitioner, ws: Constants.WeightingScheme): DynamicProgressiveGIAnt ={
         val thetaXY = Utils.getTheta
         val joinedRDD = source.cogroup(target, partitioner)
         val sourceEntities = Utils.sourceCount
-        DynamicProgressiveGIAnt(joinedRDD, thetaXY, ws, sws, budget, sourceEntities.toInt)
+        DynamicProgressiveGIAnt(joinedRDD, thetaXY, wf, swf, budget, sourceEntities.toInt, ws)
     }
 
 }

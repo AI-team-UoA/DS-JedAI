@@ -1,13 +1,13 @@
 package utils.readers
 
-import com.vividsolutions.jts.geom.Geometry
+import org.apache.sedona.core.formatMapper.WktReader
+import org.apache.sedona.core.serde.SedonaKryoRegistrator
+import org.apache.sedona.core.spatialRDD.SpatialRDD
+import org.apache.sedona.sql.utils.SedonaSQLRegistrator
 import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.col
-import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import org.datasyslab.geospark.spatialRDD.SpatialRDD
-import org.datasyslab.geosparksql.utils.{Adapter, GeoSparkSQLRegistrator}
+import org.apache.spark.{SparkConf, SparkContext}
+import org.locationtech.jts.geom.Geometry
 import utils.Constants.FileTypes
 import utils.DatasetConfigurations
 
@@ -36,33 +36,11 @@ object CSVReader {
     def loadDelimitedFile(filepath: String, realIdField: String, geometryField: String, dateField: Option[String], delimiter: String, header: Boolean): SpatialRDD[Geometry] ={
         val conf = new SparkConf()
         conf.set("spark.serializer", classOf[KryoSerializer].getName)
-        conf.set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
+        conf.set("spark.kryo.registrator", classOf[SedonaKryoRegistrator].getName)
         val sc = SparkContext.getOrCreate(conf)
         val spark = SparkSession.getActiveSession.get
 
-        GeoSparkSQLRegistrator.registerAll(spark)
-
-        var inputDF = spark.read.format("csv")
-            .option("delimiter", delimiter)
-            .option("quote", "\"")
-            .option("header", header)
-            .load(filepath)
-            .filter(col(realIdField).isNotNull)
-            .filter(col(geometryField).isNotNull)
-            .filter(! col(geometryField).contains("EMPTY"))
-
-        var query = s"SELECT ST_GeomFromWKT(GEOMETRIES.$geometryField) AS WKT,  GEOMETRIES.$realIdField AS REAL_ID FROM GEOMETRIES".stripMargin
-
-        if (dateField.isDefined) {
-            inputDF = inputDF.filter(col(dateField.get).isNotNull)
-            query = s"SELECT ST_GeomFromWKT(GEOMETRIES.$geometryField) AS WKT,  GEOMETRIES.$realIdField AS REAL_ID, GEOMETRIES.${dateField.get} AS DATE  FROM GEOMETRIES".stripMargin
-        }
-
-        inputDF.createOrReplaceTempView("GEOMETRIES")
-
-        val spatialDF = spark.sql(query)
-        val srdd = new SpatialRDD[Geometry]
-        srdd.rawSpatialRDD = Adapter.toRdd(spatialDF)
-        srdd
+        SedonaSQLRegistrator.registerAll(spark)
+        WktReader.readToGeometryRDD(sc, filepath, geometryField.toInt, false, true)
     }
 }

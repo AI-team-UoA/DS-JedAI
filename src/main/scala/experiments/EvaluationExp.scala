@@ -1,22 +1,22 @@
 package experiments
 
 
-import model.Entity
 import interlinkers.GIAnt
 import interlinkers.progressive.ProgressiveAlgorithmsFactory
+import model.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
+import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.spark.rdd.RDD
-import org.apache.spark.{Partitioner, SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
-import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
+import org.apache.spark.{Partitioner, SparkConf, SparkContext}
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.Relation.Relation
-import utils.Constants.WeightingScheme.WeightingScheme
-import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingScheme}
+import utils.Constants.WeightingFunction.WeightingFunction
+import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingFunction}
 import utils.readers.Reader
-import utils.{ConfigurationParser, Utils}
+import utils.{ConfigurationParser, Constants, Utils}
 
 
 object EvaluationExp {
@@ -24,9 +24,15 @@ object EvaluationExp {
     private val log: Logger = LogManager.getRootLogger
     log.setLevel(Level.INFO)
 
-    var budget: Int = 10000
-    var takeBudget: Seq[Int] = Seq(500000, 1000000)
-    var relation: Relation = Relation.DE9IM
+    // execution configuration
+    val defaultBudget: Int = 10000
+    val takeBudget: Seq[Int] = Seq(10000)
+    val relation: Relation = Relation.DE9IM
+    val weightingSchemes: Seq[Constants.WeightingScheme] = Seq(Constants.HYBRID, Constants.COMPOSITE)
+    val weightingFunctions: Seq[(WeightingFunction, Option[WeightingFunction])] = Seq((WeightingFunction.CF, Some(WeightingFunction.MBRO)),
+        (WeightingFunction.JS, Some(WeightingFunction.MBRO)), (WeightingFunction.PEARSON_X2, Some(WeightingFunction.MBRO)))
+    val selectedAlgorithms = Seq(ProgressiveAlgorithm.DYNAMIC_PROGRESSIVE_GIANT, ProgressiveAlgorithm.PROGRESSIVE_GIANT)
+
 
     def main(args: Array[String]): Unit = {
         Logger.getLogger("org").setLevel(Level.ERROR)
@@ -35,7 +41,7 @@ object EvaluationExp {
         val sparkConf = new SparkConf()
             .setAppName("DS-JedAI")
             .set("spark.serializer", classOf[KryoSerializer].getName)
-            .set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
+            .set("spark.kryo.registrator", classOf[SedonaKryoRegistrator].getName)
 
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()
@@ -79,8 +85,14 @@ object EvaluationExp {
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
 
-        budget = if (options.contains("budget")) options("budget").toInt else conf.getBudget
-        relation = conf.getRelation
+        val inputBudget = if (options.contains("budget")) options("budget").toInt else conf.getBudget
+        val budget = if (inputBudget > 0) inputBudget else defaultBudget
+
+        val algorithms: Seq[ProgressiveAlgorithm] =
+            if (options.contains("pa"))
+                options("pa").split(",").filter(ProgressiveAlgorithm.exists).map(ProgressiveAlgorithm.withName).toSeq
+            else
+                selectedAlgorithms
 
         log.info("DS-JEDAI: Input Budget: " + budget)
 
@@ -101,8 +113,7 @@ object EvaluationExp {
         Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-        val (totalVerifications, totalRelatedPairs) =
-            if (options.contains("tv") && options.contains("qp"))
+        val (totalVerifications, totalRelatedPairs) = if (options.contains("tv") && options.contains("qp"))
                 (options("tv").toInt, options("qp").toInt)
             else {
                 val g = GIAnt(sourceRDD, targetRDD, partitioner).countAllRelations
@@ -113,45 +124,43 @@ object EvaluationExp {
         log.info("DS-JEDAI: Total Qualifying Pairs: " + totalRelatedPairs)
         log.info("\n")
 
-        //printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, ProgressiveAlgorithm.RANDOM,  (WeightingScheme.CF, None))
+        //printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, ProgressiveAlgorithm.RANDOM,  (WeightingFunction.CF, None))
 
-        val algorithms: Seq[ProgressiveAlgorithm] =
-            if (options.contains("pa"))
-                options("pa").split(",").filter(ProgressiveAlgorithm.exists).map(ProgressiveAlgorithm.withName).toSeq
-            else
-                Seq(ProgressiveAlgorithm.DYNAMIC_PROGRESSIVE_GIANT, ProgressiveAlgorithm.PROGRESSIVE_GIANT, ProgressiveAlgorithm.TOPK, ProgressiveAlgorithm.RECIPROCAL_TOPK)
-
-        val weightingSchemes = Seq((WeightingScheme.JS, Option(WeightingScheme.MBRO)),
-                                (WeightingScheme.CF, None),
-                                (WeightingScheme.JS, None),
-                                (WeightingScheme.PEARSON_X2,None),
-                                (WeightingScheme.MBRO, None),
-                                 (WeightingScheme.ISP, None),
-                                 (WeightingScheme.JS, Option(WeightingScheme.MBRO)),
-                                 (WeightingScheme.PEARSON_X2, Option(WeightingScheme.MBRO)))
-
-        for (a <- algorithms ; ws <- weightingSchemes)
-            printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, a, ws)
+        for (a <- algorithms ; ws <- weightingSchemes; wf <- weightingFunctions )
+            printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, budget, a, wf, ws)
     }
 
 
-    def printResults(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], partitioner: Partitioner, totalRelations: Int,
-                     ma: ProgressiveAlgorithm, ws: (WeightingScheme, Option[WeightingScheme]), n: Int = 10): Unit = {
+    /**
+     * Execute and Evaluate the selected algorithm with the selected configuration
+     * @param source source entities
+     * @param target target entities
+     * @param partitioner the partitioner
+     * @param totalRelations the target relations
+     * @param pa the progressive algorithms
+     * @param wf the weighting function
+     * @param ws the weighting scheme
+     * @param n  the size of list storing the results
+     */
+    def printResults(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], partitioner: Partitioner, totalRelations: Int, budget: Int,
+                     pa: ProgressiveAlgorithm, wf: (WeightingFunction, Option[WeightingFunction]), ws: Constants.WeightingScheme, n: Int = 10): Unit = {
 
-        val pma = ProgressiveAlgorithmsFactory.get(ma, source, target, partitioner, budget, ws._1, ws._2)
+        val pma = ProgressiveAlgorithmsFactory.get(pa, source, target, partitioner, budget, wf._1, wf._2, ws)
         val results = pma.evaluate(relation, n, totalRelations, takeBudget)
 
         results.zip(takeBudget).foreach { case ((pgr, qp, verifications, (verificationSteps, qualifiedPairsSteps)), b) =>
             val qualifiedPairsWithinBudget = if (totalRelations < verifications) totalRelations else verifications
-            log.info(s"DS-JEDAI: ${ma.toString} Budget : $b")
-            log.info(s"DS-JEDAI: ${ma.toString} Weighting Scheme: ${ws.toString}")
-            log.info(s"DS-JEDAI: ${ma.toString} Total Verifications: $verifications")
-            log.info(s"DS-JEDAI: ${ma.toString} Qualifying Pairs within budget: $qualifiedPairsWithinBudget")
-            log.info(s"DS-JEDAI: ${ma.toString} Qualifying Pairs: $qp")
-            log.info(s"DS-JEDAI: ${ma.toString} Recall: ${qp.toDouble / qualifiedPairsWithinBudget.toDouble}")
-            log.info(s"DS-JEDAI: ${ma.toString} Precision: ${qp.toDouble / verifications.toDouble}")
-            log.info(s"DS-JEDAI: ${ma.toString} PGR: $pgr")
-            log.info(s"DS-JEDAI: ${ma.toString}: \nQualified Pairs\tVerified Pairs\n" + qualifiedPairsSteps.zip(verificationSteps)
+            log.info(s"DS-JEDAI: ${pa.toString} Budget : $b")
+            log.info(s"DS-JEDAI: ${pa.toString} Weighting Scheme: ${ws.value}")
+            log.info(s"DS-JEDAI: ${pa.toString} Weighting Function: ${wf.toString}")
+            log.info(s"DS-JEDAI: ${pa.toString} Total Verifications: $verifications")
+            log.info(s"DS-JEDAI: ${pa.toString} Qualifying Pairs within budget: $qualifiedPairsWithinBudget")
+            log.info(s"DS-JEDAI: ${pa.toString} Qualifying Pairs: $qp")
+            log.info(s"DS-JEDAI: ${pa.toString} Recall: ${qp.toDouble / qualifiedPairsWithinBudget.toDouble}")
+            log.info(s"DS-JEDAI: ${pa.toString} Precision: ${qp.toDouble / verifications.toDouble}")
+            log.info(s"DS-JEDAI: ${pa.toString} PGR: $pgr")
+            if (n > 0)
+            log.info(s"DS-JEDAI: ${pa.toString}: \nQualified Pairs\tVerified Pairs\n" + qualifiedPairsSteps.zip(verificationSteps)
                 .map { case (qp: Int, vp: Int) => qp.toDouble / qualifiedPairsWithinBudget.toDouble + "\t" + vp.toDouble / verifications.toDouble }
                 .mkString("\n"))
             log.info("\n")

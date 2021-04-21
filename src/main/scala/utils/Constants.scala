@@ -5,7 +5,7 @@ package utils
  */
 object Constants {
 
-	final val defaultDatePattern = "yyyy-MM-dd HH:mm:ss"
+	val defaultDatePattern = "yyyy-MM-dd HH:mm:ss"
 
 
 	/**
@@ -67,23 +67,23 @@ object Constants {
 	/**
 	 * Weighting Strategies
 	 */
-	object WeightingScheme extends Enumeration {
-		type WeightingScheme = Value
+	object WeightingFunction extends Enumeration {
+		type WeightingFunction = Value
 
 		// co-occurrence frequency
-		val CF: Constants.WeightingScheme.Value = Value("CF")
+		val CF: Constants.WeightingFunction.Value = Value("CF")
 
 		// jaccard  similarity
-		val JS: Constants.WeightingScheme.Value = Value("JS")
+		val JS: Constants.WeightingFunction.Value = Value("JS")
 
 		// Pearson's chi squared test
-		val PEARSON_X2: Constants.WeightingScheme.Value = Value("PEARSON_X2")
+		val PEARSON_X2: Constants.WeightingFunction.Value = Value("PEARSON_X2")
 
 		// minimum bounding rectangle overlap
-		val MBRO: Constants.WeightingScheme.Value = Value("MBRO")
+		val MBRO: Constants.WeightingFunction.Value = Value("MBRO")
 
 		// inverse sum of points
-		val ISP: Constants.WeightingScheme.Value = Value("ISP")
+		val ISP: Constants.WeightingFunction.Value = Value("ISP")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
@@ -96,10 +96,11 @@ object Constants {
 		val CONF_PARTITIONS = "partitions"
 		val CONF_THETA_GRANULARITY = "thetaGranularity"
 		val CONF_PROGRESSIVE_ALG = "progressiveAlgorithm"
-		val CONF_MAIN_WS = "mainWS"
-		val CONF_SECONDARY_WS = "secondaryWS"
+		val CONF_MAIN_WF = "mainWF"
+		val CONF_SECONDARY_WF = "secondaryWF"
 		val CONF_BUDGET = "budget"
 		val CONF_GRIDTYPE = "gridType"
+		val CONF_WS = "ws"
 		val OUTPUT = "outputPath"
 	}
 
@@ -127,6 +128,34 @@ object Constants {
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
 
+	sealed trait WeightingScheme extends Serializable {val value: String }
+	object SINGLE extends WeightingScheme {val value = "SINGLE"}
+	object COMPOSITE extends WeightingScheme {val value = "COMPOSITE"}
+	object HYBRID extends WeightingScheme {val value = "HYBRID"}
 
+	def WeightingSchemeFactory(ws: String): WeightingScheme ={
+		ws.toLowerCase() match {
+			case "single" => SINGLE
+			case "composite" => COMPOSITE
+			case "hybrid" => HYBRID
+			case _ => SINGLE
+		}
+	}
+
+
+	def checkWS(ws: String): Boolean ={
+		ws.toLowerCase() match {
+			case "single" | "composite" | "hybrid" => true
+			case _ => false
+		}
+	}
 
 }
+
+
+
+
+
+
+
+

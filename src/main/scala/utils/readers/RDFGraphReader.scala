@@ -1,14 +1,14 @@
 package utils.readers
 
-import com.vividsolutions.jts.geom.Geometry
+import org.apache.sedona.core.serde.SedonaKryoRegistrator
+import org.apache.sedona.core.spatialRDD.SpatialRDD
+import org.apache.sedona.sql.utils.{Adapter, SedonaSQLRegistrator}
+import org.locationtech.jts.geom.Geometry
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.{SparkConf, SparkContext}
-import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import org.datasyslab.geospark.spatialRDD.SpatialRDD
-import org.datasyslab.geosparksql.utils.{Adapter, GeoSparkSQLRegistrator}
 import utils.DatasetConfigurations
 
 object RDFGraphReader {
@@ -29,10 +29,10 @@ object RDFGraphReader {
     def loadRdfAsTextual(filepath: String, geometryPredicate: String): SpatialRDD[Geometry] = {
         val conf = new SparkConf()
         conf.set("spark.serializer", classOf[KryoSerializer].getName)
-        conf.set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
+        conf.set("spark.kryo.registrator", classOf[SedonaKryoRegistrator].getName)
         val sc = SparkContext.getOrCreate(conf)
         val spark = SparkSession.getActiveSession.get
-        GeoSparkSQLRegistrator.registerAll(spark)
+        SedonaSQLRegistrator.registerAll(spark)
 
         val cleanWKT = (wkt: String) => wkt.replaceAll("<\\S+>\\s?", "").replaceAll("\"", "")
         val rowRDD: RDD[Row] = spark.read.textFile(filepath)
@@ -49,12 +49,10 @@ object RDFGraphReader {
 
         val df = spark.createDataFrame(rowRDD, schema)
         df.createOrReplaceTempView("GEOMETRIES")
-        val query = "SELECT ST_GeomFromWKT(GEOMETRIES.WKT),  GEOMETRIES.Subject FROM GEOMETRIES".stripMargin
+        val query = "SELECT ST_GeomFromWKT(GEOMETRIES.WKT) AS WKT,  GEOMETRIES.Subject AS Subject FROM GEOMETRIES".stripMargin
 
         val spatialDF = spark.sql(query)
-        val srdd = new SpatialRDD[Geometry]
-        srdd.rawSpatialRDD = Adapter.toRdd(spatialDF)
-        srdd
+        Adapter.toSpatialRdd(spatialDF, "0",Seq("WKT", "Subject"))
     }
 
 //    def loadRDF(filepath: String, geometryPredicate: String, datePredicate: Option[String], lang: Lang): SpatialRDD[Geometry] = {

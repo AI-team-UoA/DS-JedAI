@@ -1,14 +1,14 @@
 package utils.readers
 
-import com.vividsolutions.jts.geom.Geometry
 import model.{Entity, MBR, SpatialEntity, SpatioTemporalEntity}
+import org.apache.sedona.core.enums.GridType
+import org.apache.sedona.core.spatialPartitioning.SpatialPartitioner
+import org.apache.sedona.core.spatialRDD.SpatialRDD
 import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.RDD
-import org.datasyslab.geospark.enums.GridType
-import org.datasyslab.geospark.spatialPartitioning.SpatialPartitioner
-import org.datasyslab.geospark.spatialRDD.SpatialRDD
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
+import org.locationtech.jts.geom.Geometry
 import utils.Constants.FileTypes
 import utils.{Constants, DatasetConfigurations}
 
@@ -27,7 +27,7 @@ case class Reader(partitions: Int, gt: Constants.GridType.GridType, printStats: 
     var partitioner: HashPartitioner = _
     lazy val partitionsZones: Array[MBR] = spatialPartitioner.getGrids.asScala.map(e => MBR(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY)).toArray
 
-    val gridType: GridType = gt match {
+    val gridType: org.apache.sedona.core.enums.GridType = gt match {
         case Constants.GridType.KDBTREE => GridType.KDBTREE
         case _ => GridType.QUADTREE
     }

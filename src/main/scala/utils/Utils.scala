@@ -13,9 +13,8 @@ import utils.Constants.ThetaOption.ThetaOption
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-/**
- * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
- */
+
+
 object Utils extends Serializable {
 
 	val spark: SparkSession = SparkSession.builder().getOrCreate()
@@ -40,7 +39,7 @@ object Utils extends Serializable {
 
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
 	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
-	implicit def tuple[String, Int](implicit e1: Encoder[String], e2: Encoder[Int]): Encoder[(String,Int)] = Encoders.tuple[String,Int](e1, e2)
+	implicit def tuple[String, Int](implicit s: Encoder[String], t: Encoder[Int]): Encoder[(String,Int)] = Encoders.tuple[String,Int](s, t)
 
 
 	lazy val globalMinX: Double = partitionsZones.map(p => p.minX / thetaXY._1).min

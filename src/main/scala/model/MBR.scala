@@ -1,6 +1,6 @@
 package model
 
-import com.vividsolutions.jts.geom.{Coordinate, Envelope, Geometry, GeometryFactory}
+import org.locationtech.jts.geom.{Coordinate, Envelope, Geometry, GeometryFactory}
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 

@@ -64,14 +64,20 @@ object ConfigurationParser {
 						log.error(s"DS-JEDAI: Prioritization Algorithm \'$value\' is not supported")
 						false
 					}
-				case YamlConfiguration.CONF_MAIN_WS | YamlConfiguration.CONF_SECONDARY_WS=>
-					if (! WeightingScheme.exists(value)) {
-						log.error(s"DS-JEDAI: Weighting Scheme \'$value\' is not supported")
+				case YamlConfiguration.CONF_MAIN_WF | YamlConfiguration.CONF_SECONDARY_WF=>
+					if (! WeightingFunction.exists(value)) {
+						log.error(s"DS-JEDAI: Weighting Function \'$value\' is not supported")
 						false
 					}
 				case YamlConfiguration.CONF_GRIDTYPE=>
 					if (! GridType.exists(value)){
 						log.error(s"DS-JEDAI: Grid Type \'$value\' is not supported")
+						false
+					}
+
+				case YamlConfiguration.CONF_WS=>
+					if (! Constants.checkWS(value)){
+						log.error(s"DS-JEDAI: Weighting Scheme \'$value\' is not supported")
 						false
 					}
 				case _ =>

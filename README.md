@@ -50,7 +50,7 @@ The implemented algorithms are the following:
 - **Geometry Reciprocal Top-k**: Verifies only the pairs *(s, t)* that *s* belongs to the top-k of *t* and *t* belongs to the top-k of *s*.
 - **RandomScheduling**: Implements random prioritization.
 
-Currently, the supported weighting schemes are:
+Currently, the supported weighting functions are:
 
 - Co-occurrence Frequencies (CF)
 - Jaccard Similarity (JS)
@@ -61,7 +61,7 @@ Currently, the supported weighting schemes are:
 The algorithms also supports composite schemes, where we combine two weighting schemes in the sense that the second weighting
 scheme is for resolving the ties of the main one.
 
-The progressive Algorithms, the weighting schemes and the budget *BU* are specified in the configuration file. Advise the 
+The progressive Algorithms, the weighting functions and the budget *BU* are specified in the configuration file. Advise the 
 configuration template in `config/configurationTemplate.yaml` to see how you can specify them. To execute, run:
 
     spark-submit --master <master>  --class experiments.PorgressiveExp  target/scala-2.11/DS-JedAI-assembly-0.1.jar <options> -conf </path/to/configuration.yaml>
@@ -70,8 +70,8 @@ Some additional options are the following:
 
 - **-p N**: specify the number of partitions
 - **-gt type**: specify the grid type for the spatial partitioning. Accepted values are KDBTREE and QUADTREE.
-- **mws WS**: specify the main weighting scheme - allowed values: *CF, JS, MBRO, PEARSON_X2, ISP*.
-- **sws WS**: specify the secondary weighting scheme (optional)- allowed values: *CF, JS, MBRO, PEARSON_X2, ISP*, MBRO is preferred.
+- **mwf WF**: specify the main weighting scheme - allowed values: *CF, JS, MBRO, PEARSON_X2, ISP*.
+- **swf WF**: specify the secondary weighting scheme (optional)- allowed values: *CF, JS, MBRO, PEARSON_X2, ISP*, MBRO is preferred.
 - **progressiveAlgorithm PA**:  specify progressive algorithm - allowed values: *PROGRESSIVE_GIANT, DYNAMIC_PROGRESSIVE_GIANT, TOPK, RECIPROCAL_TOPK, RANDOM*
 - **budget** BU: the input budget.
 
