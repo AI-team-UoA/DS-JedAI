@@ -23,4 +23,6 @@ project/plugins/project/
 
 /config/polar_uc.yaml
 /config/rdf_exp.yaml
-
+/config/LINEARWATER-AREAWATER.yaml
+/config/OSI.yaml
+/config/ROADS_EDGES.yaml

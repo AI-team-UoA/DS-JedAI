@@ -13,7 +13,7 @@ import org.locationtech.jts.geom.Geometry
 import utils.ConfigurationParser
 import utils.Constants.{FileTypes, Relation}
 
-object GeoSparkExp {
+object SedonaExp {
 
     def main(args: Array[String]): Unit = {
 

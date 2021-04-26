@@ -7,13 +7,15 @@ import interlinkers.GIAnt
 import model.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
+import org.apache.sedona.core.spatialRDD.SpatialRDD
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
+import org.locationtech.jts.geom.Geometry
 import utils.Constants.{GridType, Relation}
-import utils.readers.Reader
+import utils.readers.{GridPartitioner, Reader}
 import utils.{ConfigurationParser, Utils}
 
 object GiantExp {
@@ -69,31 +71,26 @@ object GiantExp {
 
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        // reading source dataset
-        val reader = Reader(partitions, gridType, printCount)
-        val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
+        // load datasets
+        val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
+        val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
+
+        // spatial partition
+        val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.distribute(sourceSpatialRDD, conf.source)
+        val targetRDD: RDD[(Int, Entity)] = partitioner.distribute(targetSpatialRDD, conf.target)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
-        val sourceCount = reader.counter
 
-        // reading target dataset
-        val targetRDD: RDD[(Int, Entity)] = reader.load(conf.target) match {
-            case Left(e) =>
-                log.error("Partitioner is not initialized, call first the `loadSource`.")
-                e.printStackTrace()
-                System.exit(1)
-                null
-            case Right(rdd) => rdd
-        }
-        val targetCount = reader.counter
-        val partitioner = reader.partitioner
 
-        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
+        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, partitioner.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
-        val giant = GIAnt(sourceRDD, targetRDD, partitioner)
+        val giant = GIAnt(sourceRDD, targetRDD, partitioner.hashPartitioner)
 
         if (printCount){
+            val sourceCount = sourceSpatialRDD.rawSpatialRDD.count()
+            val targetCount = targetSpatialRDD.rawSpatialRDD.count()
             log.info(s"DS-JEDAI: Source geometries: $sourceCount")
             log.info(s"DS-JEDAI: Target geometries: $targetCount")
             log.info(s"DS-JEDAI: Cartesian: ${sourceCount*targetCount}")

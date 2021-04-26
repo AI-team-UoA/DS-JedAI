@@ -6,13 +6,15 @@ import interlinkers.DirtyGIAnt
 import model.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
+import org.apache.sedona.core.spatialRDD.SpatialRDD
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
+import org.locationtech.jts.geom.Geometry
 import utils.Constants.GridType
-import utils.readers.Reader
+import utils.readers.{GridPartitioner, Reader}
 import utils.{ConfigurationParser, Utils}
 
 object DirtyExp {
@@ -70,12 +72,15 @@ object DirtyExp {
 
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        // reading source dataset
-        val reader = Reader(partitions, gridType)
-        val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
+        // load datasets
+        val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
+
+        // spatial partition
+        val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.distribute(sourceSpatialRDD, conf.source)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
-        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
+        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, partitioner.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val giant = DirtyGIAnt(sourceRDD.map(_._2), Utils.getTheta)

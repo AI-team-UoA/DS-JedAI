@@ -3,8 +3,8 @@ version := "0.1"
 scalaVersion := "2.11.12"
 val sparkVersion = "2.4.3"
 
-resolvers += "AKSW Maven Snapshots" at "https://maven.aksw.org/archiva/repository/snapshots"
-resolvers += "jitpack" at "https://jitpack.io"
+
+
 
 libraryDependencies ++= Seq(
 	"org.apache.spark" %%  "spark-core" % sparkVersion % Provided,
@@ -34,6 +34,8 @@ libraryDependencies += "org.datasyslab" % "geotools-wrapper" % "geotools-24.0"
 // https://mvnrepository.com/artifact/org.wololo/jts2geojson
 libraryDependencies += "org.wololo" % "jts2geojson" % "0.14.3"
 
+dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7"
+
 
 
 
@@ -51,6 +53,10 @@ assemblyMergeStrategy in assembly := {
 }
 
 
+
+// SANSA STACK
+//resolvers += "AKSW Maven Snapshots" at "https://maven.aksw.org/archiva/repository/snapshots"
+//resolvers += "jitpack" at "https://jitpack.io"
 //// https://mvnrepository.com/artifact/net.sansa-stack/sansa-rdf-spark
 //libraryDependencies += "net.sansa-stack" %% "sansa-rdf-spark" % "0.7.1" excludeAll(
 //	ExclusionRule("org.springframework"),

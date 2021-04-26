@@ -6,16 +6,18 @@ import interlinkers.progressive.ProgressiveAlgorithmsFactory
 import model.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
+import org.apache.sedona.core.spatialRDD.SpatialRDD
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{Partitioner, SparkConf, SparkContext}
+import org.locationtech.jts.geom.Geometry
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightingFunction.WeightingFunction
-import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingFunction}
-import utils.readers.Reader
+import utils.Constants.{GridType, HYBRID, ProgressiveAlgorithm, Relation, WeightingFunction}
+import utils.readers.{GridPartitioner, Reader}
 import utils.{ConfigurationParser, Constants, Utils}
 
 
@@ -25,14 +27,12 @@ object EvaluationExp {
     log.setLevel(Level.INFO)
 
     // execution configuration
-    val defaultBudget: Int = 10000
-    val takeBudget: Seq[Int] = Seq(10000)
+    val defaultBudget: Int = 3000
+    val takeBudget: Seq[Int] = Seq(20000000)
     val relation: Relation = Relation.DE9IM
-    val weightingSchemes: Seq[Constants.WeightingScheme] = Seq(Constants.HYBRID, Constants.COMPOSITE)
-    val weightingFunctions: Seq[(WeightingFunction, Option[WeightingFunction])] = Seq((WeightingFunction.CF, Some(WeightingFunction.MBRO)),
-        (WeightingFunction.JS, Some(WeightingFunction.MBRO)), (WeightingFunction.PEARSON_X2, Some(WeightingFunction.MBRO)))
-    val selectedAlgorithms = Seq(ProgressiveAlgorithm.DYNAMIC_PROGRESSIVE_GIANT, ProgressiveAlgorithm.PROGRESSIVE_GIANT)
-
+    val weightingSchemes: Seq[Constants.WeightingScheme] = Seq(HYBRID)
+    val weightingFunctions: Seq[(WeightingFunction, Option[WeightingFunction])] = Seq((WeightingFunction.PEARSON_X2, Some(WeightingFunction.MBRO)))
+    val selectedAlgorithms = Seq(ProgressiveAlgorithm.PROGRESSIVE_GIANT)
 
     def main(args: Array[String]): Unit = {
         Logger.getLogger("org").setLevel(Level.ERROR)
@@ -96,27 +96,23 @@ object EvaluationExp {
 
         log.info("DS-JEDAI: Input Budget: " + budget)
 
-        val reader = Reader(partitions, gridType)
-        val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
+        // load datasets
+        val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
+        val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
+
+        // spatial partition
+        val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.distribute(sourceSpatialRDD, conf.source)
+        val targetRDD: RDD[(Int, Entity)] = partitioner.distribute(targetSpatialRDD, conf.target)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
-        val targetRDD: RDD[(Int, Entity)] = reader.load(conf.target) match {
-            case Left(e) =>
-                log.error("Partitioner is not initialized, call first the `loadSource`.")
-                e.printStackTrace()
-                System.exit(1)
-                null
-            case Right(rdd) => rdd
-        }
-        val partitioner = reader.partitioner
-
-        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
+        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, partitioner.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val (totalVerifications, totalRelatedPairs) = if (options.contains("tv") && options.contains("qp"))
                 (options("tv").toInt, options("qp").toInt)
             else {
-                val g = GIAnt(sourceRDD, targetRDD, partitioner).countAllRelations
+                val g = GIAnt(sourceRDD, targetRDD, partitioner.hashPartitioner).countAllRelations
                 (g._10, g._11)
             }
 
@@ -124,10 +120,10 @@ object EvaluationExp {
         log.info("DS-JEDAI: Total Qualifying Pairs: " + totalRelatedPairs)
         log.info("\n")
 
-        //printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, ProgressiveAlgorithm.RANDOM,  (WeightingFunction.CF, None))
+        printResults(sourceRDD, targetRDD, partitioner.hashPartitioner, totalRelatedPairs, budget, ProgressiveAlgorithm.RANDOM,  (WeightingFunction.CF, None), Constants.SINGLE)
 
         for (a <- algorithms ; ws <- weightingSchemes; wf <- weightingFunctions )
-            printResults(sourceRDD, targetRDD, partitioner, totalRelatedPairs, budget, a, wf, ws)
+            printResults(sourceRDD, targetRDD, partitioner.hashPartitioner, totalRelatedPairs, budget, a, wf, ws)
     }
 
 
@@ -159,7 +155,7 @@ object EvaluationExp {
             log.info(s"DS-JEDAI: ${pa.toString} Recall: ${qp.toDouble / qualifiedPairsWithinBudget.toDouble}")
             log.info(s"DS-JEDAI: ${pa.toString} Precision: ${qp.toDouble / verifications.toDouble}")
             log.info(s"DS-JEDAI: ${pa.toString} PGR: $pgr")
-            if (n > 0)
+
             log.info(s"DS-JEDAI: ${pa.toString}: \nQualified Pairs\tVerified Pairs\n" + qualifiedPairsSteps.zip(verificationSteps)
                 .map { case (qp: Int, vp: Int) => qp.toDouble / qualifiedPairsWithinBudget.toDouble + "\t" + vp.toDouble / verifications.toDouble }
                 .mkString("\n"))

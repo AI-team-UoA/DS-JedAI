@@ -129,9 +129,9 @@ object Constants {
 	}
 
 	sealed trait WeightingScheme extends Serializable {val value: String }
-	object SINGLE extends WeightingScheme {val value = "SINGLE"}
-	object COMPOSITE extends WeightingScheme {val value = "COMPOSITE"}
-	object HYBRID extends WeightingScheme {val value = "HYBRID"}
+	case object SINGLE extends WeightingScheme {val value = "SINGLE"}
+	case object COMPOSITE extends WeightingScheme {val value = "COMPOSITE"}
+	case object HYBRID extends WeightingScheme {val value = "HYBRID"}
 
 	def WeightingSchemeFactory(ws: String): WeightingScheme ={
 		ws.toLowerCase() match {
