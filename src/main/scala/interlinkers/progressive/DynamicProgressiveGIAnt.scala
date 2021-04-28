@@ -3,17 +3,18 @@ package interlinkers.progressive
 import model._
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
+import utils.Constants
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightingFunction.WeightingFunction
-import utils.{Constants, Utils}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double),
+case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
+                                   thetaXY: (Double, Double), partitionBorders: Array[MBR],
                                    mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction], budget: Int,
-                                   sourceEntities: Int, ws: Constants.WeightingScheme)
+                                   totalSourceEntities: Long, ws: Constants.WeightingScheme)
     extends ProgressiveInterlinkerT {
 
 
@@ -27,7 +28,7 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
      * @return a PQ with the top comparisons
      */
     def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): ComparisonPQ ={
-        val localBudget = (math.ceil(budget*source.length.toDouble/sourceEntities.toDouble)*2).toLong
+        val localBudget = math.ceil(budget*source.length.toDouble/totalSourceEntities.toDouble).toLong
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
         val pq: DynamicComparisonPQ = DynamicComparisonPQ(localBudget)
@@ -84,7 +85,7 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
         joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
             .flatMap{ p =>
                 val pid = p._1
-                val partition = partitionsZones(pid)
+                val partition = partitionBorders(pid)
                 val source = p._2._1.toArray
                 val target = p._2._2.toArray
 
@@ -121,7 +122,7 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
                 val pid = p._1
-                val partition = partitionsZones(pid)
+                val partition = partitionBorders(pid)
                 val source = p._2._1.toArray
                 val target = p._2._2.toArray
 
@@ -187,12 +188,14 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
  */
 object DynamicProgressiveGIAnt {
 
-    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], wf: WeightingFunction, swf: Option[WeightingFunction] = None,
-              budget: Int, partitioner: Partitioner, ws: Constants.WeightingScheme): DynamicProgressiveGIAnt ={
-        val thetaXY = Utils.getTheta
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)],
+              thetaXY: (Double, Double), partitionBorders: Array[MBR], sourceCount: Long, wf: WeightingFunction,
+              swf: Option[WeightingFunction] = None, budget: Int, partitioner: Partitioner,
+              ws: Constants.WeightingScheme): DynamicProgressiveGIAnt ={
+
         val joinedRDD = source.cogroup(target, partitioner)
-        val sourceEntities = Utils.sourceCount
-        DynamicProgressiveGIAnt(joinedRDD, thetaXY, wf, swf, budget, sourceEntities.toInt, ws)
+        DynamicProgressiveGIAnt(joinedRDD, thetaXY, partitionBorders,  wf, swf, budget, sourceCount, ws)
     }
+
 
 }

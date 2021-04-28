@@ -3,13 +3,14 @@ package interlinkers.progressive
 import model.{Entity, MBR, StaticComparisonPQ}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
+import utils.Constants
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightingFunction.WeightingFunction
-import utils.{Constants, Utils}
 
-case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double),
+case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
+                     thetaXY: (Double, Double), partitionBorders: Array[MBR],
                      mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction], budget: Int,
-                     sourceEntities: Int, ws: Constants.WeightingScheme)
+                     totalSourceEntities: Long, ws: Constants.WeightingScheme)
     extends ProgressiveInterlinkerT {
 
     /**
@@ -24,7 +25,7 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
      * @return prioritized comparisons in a PQ
      */
     def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): StaticComparisonPQ = {
-        val localBudget = (math.ceil(budget*source.length.toDouble/sourceEntities.toDouble)*2).toLong
+        val localBudget = math.ceil(budget*source.length.toDouble/totalSourceEntities.toDouble).toLong
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
 
@@ -86,11 +87,12 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
 
 object TopKPairs{
 
-    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], wf: WeightingFunction, swf: Option[WeightingFunction] = None,
-              budget: Int, partitioner: Partitioner, ws: Constants.WeightingScheme): TopKPairs ={
-        val thetaXY = Utils.getTheta
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)],
+              thetaXY: (Double, Double), partitionBorders: Array[MBR], sourceCount: Long, wf: WeightingFunction,
+              swf: Option[WeightingFunction] = None, budget: Int, partitioner: Partitioner,
+              ws: Constants.WeightingScheme): TopKPairs ={
+
         val joinedRDD = source.cogroup(target, partitioner)
-        val sourceEntities = Utils.sourceCount
-        TopKPairs(joinedRDD, thetaXY, wf, swf, budget, sourceEntities.toInt, ws)
+        TopKPairs(joinedRDD, thetaXY, partitionBorders,  wf, swf, budget, sourceCount, ws)
     }
 }

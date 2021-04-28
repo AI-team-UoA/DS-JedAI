@@ -1,6 +1,6 @@
 package interlinkers
 
-import model.{Entity, IM}
+import model.{Entity, IM, MBR}
 import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation
@@ -10,7 +10,9 @@ import utils.Constants.WeightingFunction.WeightingFunction
 
 
 
-case class IndexedJoinInterlinking(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], thetaXY: (Double, Double)) extends InterlinkerT {
+case class IndexedJoinInterlinking(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)],
+                                   thetaXY: (Double, Double), partitionBorders: Array[MBR]
+                                  ) extends InterlinkerT {
 
     val joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))] = null
     val wf: WeightingFunction = null
@@ -18,7 +20,7 @@ case class IndexedJoinInterlinking(source:RDD[(Int, Entity)], target:RDD[(Int, E
 
     val filteringFunction: ((Int, Entity),  (Int, Entity), (Int, Int), Relation) => Boolean =
         (s: (Int, Entity), t: (Int, Entity), c: (Int, Int), r: Relation) =>
-            s._1 == t._1 && s._2.filter(t._2, r, c, thetaXY, Some(partitionsZones(s._1)))
+            s._1 == t._1 && s._2.filter(t._2, r, c, thetaXY, Some(partitionBorders(s._1)))
 
 
     def indexedJoin(): RDD[((Int, Int), (Iterable[(Int, Entity)], Iterable[(Int, Entity)]))] = {

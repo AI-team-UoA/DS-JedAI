@@ -16,7 +16,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
 import utils.Constants.{GridType, Relation}
 import utils.readers.{GridPartitioner, Reader}
-import utils.{ConfigurationParser, Utils}
+import utils.{ConfigurationParser, GeometryUtils, Utils}
 
 object GiantExp {
 
@@ -75,18 +75,21 @@ object GiantExp {
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
         val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
 
+        val sourceSpatialRDD_ = GeometryUtils.flattenCollections(sourceSpatialRDD)
+        sourceSpatialRDD_.rawSpatialRDD.rdd.foreach{ g => GeometryUtils.splitBigGeometries(g)}
+
         // spatial partition
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
         val sourceRDD: RDD[(Int, Entity)] = partitioner.distribute(sourceSpatialRDD, conf.source)
         val targetRDD: RDD[(Int, Entity)] = partitioner.distribute(targetSpatialRDD, conf.target)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
-
-        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, partitioner.partitionsZones)
+        val theta = Utils.getTheta(sourceRDD.map(_._2.mbr))
+        val partitionBorder = Utils.getBordersOfMBR(partitioner.partitionBorders, theta).toArray
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
-        val giant = GIAnt(sourceRDD, targetRDD, partitioner.hashPartitioner)
+        val giant = GIAnt(sourceRDD, targetRDD, theta, partitionBorder, partitioner.hashPartitioner)
 
         if (printCount){
             val sourceCount = sourceSpatialRDD.rawSpatialRDD.count()

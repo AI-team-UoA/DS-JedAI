@@ -83,7 +83,8 @@ object BalancingExp {
         val targetRDD: RDD[(Int, Entity)] = partitioner.distribute(targetSpatialRDD, conf.target)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
-        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, partitioner.partitionsZones)
+        val theta = Utils.getTheta(sourceRDD.map(_._2.mbr))
+        val partitionBorder = Utils.getBordersOfMBR(partitioner.partitionBorders, theta).toArray
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val sourcePartitions: RDD[(Int, Iterator[Entity])] = sourceRDD.mapPartitions(si => Iterator((TaskContext.getPartitionId(), si.map(_._2))))
@@ -105,8 +106,8 @@ object BalancingExp {
         val goodTargetRDD = targetRDD.filter(t => !outlierPartitions.contains(t._1))
         val badTargetRDD = targetRDD.filter(t => outlierPartitions.contains(t._1))
 
-        val giant = GIAnt(goodSourceRDD, goodTargetRDD, partitioner.hashPartitioner)
-        val iji = IndexedJoinInterlinking(badSourceRDD, badTargetRDD, Utils.getTheta)
+        val giant = GIAnt(goodSourceRDD, goodTargetRDD, theta, partitionBorder, partitioner.hashPartitioner)
+        val iji = IndexedJoinInterlinking(badSourceRDD, badTargetRDD, theta, partitionBorder)
 
         if (relation.equals(Relation.DE9IM)) {
             val giantStartTime = Calendar.getInstance().getTimeInMillis

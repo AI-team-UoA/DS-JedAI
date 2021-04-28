@@ -103,12 +103,15 @@ object ProgressiveExp {
         val sourceRDD: RDD[(Int, Entity)] = partitioner.distribute(sourceSpatialRDD, conf.source)
         val targetRDD: RDD[(Int, Entity)] = partitioner.distribute(targetSpatialRDD, conf.target)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
+        val sourceCount = sourceRDD.count()
 
-        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, partitioner.partitionsZones)
+        val theta = Utils.getTheta(sourceRDD.map(_._2.mbr))
+        val partitionBorder = Utils.getBordersOfMBR(partitioner.partitionBorders, theta).toArray
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
-        val method = ProgressiveAlgorithmsFactory.get(pa, sourceRDD, targetRDD, partitioner.hashPartitioner, budget, mainWF, secondaryWF, ws)
+        val method = ProgressiveAlgorithmsFactory.get(pa, sourceRDD, targetRDD, theta, partitionBorder,
+            partitioner.hashPartitioner, sourceCount, budget, mainWF, secondaryWF, ws)
 
         if(timeExp){
             //invoke load of target

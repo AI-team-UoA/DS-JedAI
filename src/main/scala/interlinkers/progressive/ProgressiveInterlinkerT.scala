@@ -23,16 +23,17 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
     val mainWF: WeightingFunction
     val secondaryWF: Option[WeightingFunction]
     val ws: Constants.WeightingScheme
+    val totalSourceEntities: Long
 
 
     /**
      * the number of all blocks in all partitions
      */
     lazy val totalBlocks: Double = {
-        val globalMinX: Double = partitionsZones.map(p => p.minX / thetaXY._1).min
-        val globalMaxX: Double = partitionsZones.map(p => p.maxX / thetaXY._1).max
-        val globalMinY: Double = partitionsZones.map(p => p.minY / thetaXY._2).min
-        val globalMaxY: Double = partitionsZones.map(p => p.maxY / thetaXY._2).max
+        val globalMinX: Double = partitionBorders.map(p => p.minX / thetaXY._1).min
+        val globalMaxX: Double = partitionBorders.map(p => p.maxX / thetaXY._1).max
+        val globalMinY: Double = partitionBorders.map(p => p.minY / thetaXY._2).min
+        val globalMaxY: Double = partitionBorders.map(p => p.maxY / thetaXY._2).max
 
         (globalMaxX - globalMinX + 1) * (globalMaxY - globalMinY + 1)
     }
@@ -137,7 +138,7 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
         joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
             .flatMap{ p =>
                 val pid = p._1
-                val partition = partitionsZones(pid)
+                val partition = partitionBorders(pid)
                 val source = p._2._1.toArray
                 val target = p._2._2.toArray
 
@@ -157,7 +158,7 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
         joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
             .flatMap{ p =>
                 val pid = p._1
-                val partition = partitionsZones(pid)
+                val partition = partitionBorders(pid)
                 val source = p._2._1.toArray
                 val target = p._2._2.toArray
 
@@ -185,7 +186,7 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
         val schedulingStart = Calendar.getInstance().getTimeInMillis
         val prioritizationResults = rdd.map { p =>
             val pid = p._1
-            val partition = partitionsZones(pid)
+            val partition = partitionBorders(pid)
             val source = p._2._1.toArray
             val target = p._2._2.toArray
 
@@ -224,7 +225,7 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
                 val pid = p._1
-                val partition = partitionsZones(pid)
+                val partition = partitionBorders(pid)
                 val source = p._2._1.toArray
                 val target = p._2._2.toArray
 

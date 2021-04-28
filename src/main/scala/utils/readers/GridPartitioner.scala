@@ -31,7 +31,7 @@ case class GridPartitioner(source: SpatialRDD[Geometry], partitions: Int, gt: Co
 
     lazy val hashPartitioner: HashPartitioner = new HashPartitioner(spatialPartitioner.numPartitions)
 
-    lazy val partitionsZones: Array[MBR] = spatialPartitioner.getGrids.asScala.map(e => MBR(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY)).toArray
+    lazy val partitionBorders: Seq[MBR] = spatialPartitioner.getGrids.asScala.map(e => MBR(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY))
 
 
     /**

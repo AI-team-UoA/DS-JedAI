@@ -1,14 +1,15 @@
 package interlinkers
 
-import model.{Entity, IM}
+import model.{Entity, IM, MBR}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
-import utils.Utils
 
 
-case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double)) extends InterlinkerT {
+case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
+                 thetaXY: (Double, Double), partitionBorders: Array[MBR]
+                ) extends InterlinkerT {
 
 
     /**
@@ -22,7 +23,7 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], th
         .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty )
         .flatMap { p =>
             val pid = p._1
-            val partition = partitionsZones(pid)
+            val partition = partitionBorders(pid)
             val source: Array[Entity] = p._2._1.toArray
             val target: Iterator[Entity] = p._2._2.toIterator
             val sourceIndex = index(source)
@@ -43,7 +44,7 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], th
         .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
         .flatMap { p =>
             val pid = p._1
-            val partition = partitionsZones(pid)
+            val partition = partitionBorders(pid)
             val source: Array[Entity] = p._2._1.toArray
             val target: Iterator[Entity] = p._2._2.toIterator
             val sourceIndex = index(source)
@@ -59,7 +60,7 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], th
         joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
             .flatMap { p =>
                 val pid = p._1
-                val partition = partitionsZones(pid)
+                val partition = partitionBorders(pid)
                 val source: Array[Entity] = p._2._1.toArray
                 val target: Iterable[Entity] = p._2._2
                 val sourceIndex = index(source)
@@ -73,9 +74,9 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], th
  */
 object GIAnt{
 
-    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], partitioner: Partitioner): GIAnt ={
-        val thetaXY = Utils.getTheta
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], thetaXY: (Double, Double),
+              partitionBorders: Array[MBR], partitioner: Partitioner): GIAnt ={
         val joinedRDD = source.cogroup(target, partitioner)
-        GIAnt(joinedRDD, thetaXY)
+        GIAnt(joinedRDD, thetaXY, partitionBorders)
     }
 }

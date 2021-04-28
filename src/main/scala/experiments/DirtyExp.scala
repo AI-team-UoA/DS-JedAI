@@ -80,10 +80,11 @@ object DirtyExp {
         val sourceRDD: RDD[(Int, Entity)] = partitioner.distribute(sourceSpatialRDD, conf.source)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
-        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, partitioner.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-        val giant = DirtyGIAnt(sourceRDD.map(_._2), Utils.getTheta)
+        val theta = Utils.getTheta(sourceRDD.map(_._2.mbr))
+        val partitionBorder = Utils.getBordersOfMBR(partitioner.partitionBorders, theta).toArray
+        val giant = DirtyGIAnt(sourceRDD.map(_._2), partitionBorder, theta)
         val imRDD = giant.getDE9IM
 
         if (print) {

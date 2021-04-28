@@ -3,7 +3,7 @@ package experiments
 
 import interlinkers.GIAnt
 import interlinkers.progressive.ProgressiveAlgorithmsFactory
-import model.Entity
+import model.{Entity, MBR}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -105,14 +105,16 @@ object EvaluationExp {
         val sourceRDD: RDD[(Int, Entity)] = partitioner.distribute(sourceSpatialRDD, conf.source)
         val targetRDD: RDD[(Int, Entity)] = partitioner.distribute(targetSpatialRDD, conf.target)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
+        val sourceCount = sourceRDD.count()
 
-        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, partitioner.partitionsZones)
+        val theta = Utils.getTheta(sourceRDD.map(_._2.mbr))
+        val partitionBorder = Utils.getBordersOfMBR(partitioner.partitionBorders, theta).toArray
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val (totalVerifications, totalRelatedPairs) = if (options.contains("tv") && options.contains("qp"))
                 (options("tv").toInt, options("qp").toInt)
             else {
-                val g = GIAnt(sourceRDD, targetRDD, partitioner.hashPartitioner).countAllRelations
+                val g = GIAnt(sourceRDD, targetRDD, theta, partitionBorder, partitioner.hashPartitioner).countAllRelations
                 (g._10, g._11)
             }
 
@@ -120,10 +122,12 @@ object EvaluationExp {
         log.info("DS-JEDAI: Total Qualifying Pairs: " + totalRelatedPairs)
         log.info("\n")
 
-        printResults(sourceRDD, targetRDD, partitioner.hashPartitioner, totalRelatedPairs, budget, ProgressiveAlgorithm.RANDOM,  (WeightingFunction.CF, None), Constants.SINGLE)
+        printResults(sourceRDD, targetRDD, theta, partitionBorder, sourceCount, partitioner.hashPartitioner,
+            totalRelatedPairs, budget, ProgressiveAlgorithm.RANDOM,  (WeightingFunction.CF, None), Constants.SINGLE)
 
         for (a <- algorithms ; ws <- weightingSchemes; wf <- weightingFunctions )
-            printResults(sourceRDD, targetRDD, partitioner.hashPartitioner, totalRelatedPairs, budget, a, wf, ws)
+            printResults(sourceRDD, targetRDD, theta, partitionBorder, sourceCount, partitioner.hashPartitioner,
+                totalRelatedPairs, budget, a, wf, ws)
     }
 
 
@@ -138,10 +142,12 @@ object EvaluationExp {
      * @param ws the weighting scheme
      * @param n  the size of list storing the results
      */
-    def printResults(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], partitioner: Partitioner, totalRelations: Int, budget: Int,
+    def printResults(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)],
+                     thetaXY: (Double, Double), partitionBorders: Array[MBR], sourceCount: Long,
+                     partitioner: Partitioner, totalRelations: Int, budget: Int,
                      pa: ProgressiveAlgorithm, wf: (WeightingFunction, Option[WeightingFunction]), ws: Constants.WeightingScheme, n: Int = 10): Unit = {
 
-        val pma = ProgressiveAlgorithmsFactory.get(pa, source, target, partitioner, budget, wf._1, wf._2, ws)
+        val pma = ProgressiveAlgorithmsFactory.get(pa, source, target, thetaXY, partitionBorders, partitioner, sourceCount, budget, wf._1, wf._2, ws)
         val results = pma.evaluate(relation, n, totalRelations, takeBudget)
 
         results.zip(takeBudget).foreach { case ((pgr, qp, verifications, (verificationSteps, qualifiedPairsSteps)), b) =>

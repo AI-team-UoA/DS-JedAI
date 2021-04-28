@@ -1,15 +1,13 @@
 package interlinkers
 
 import model.{Entity, IM, MBR, SpatialIndex}
-import org.apache.spark.{SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.{SparkContext, TaskContext}
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
-import utils.Utils
 
-case class DirtyGIAnt(source:RDD[Entity], thetaXY: (Double, Double)) {
+case class DirtyGIAnt(source:RDD[Entity], partitionBorders: Array[MBR], thetaXY: (Double, Double)) {
 
-    val partitionsZones: Array[MBR] = SparkContext.getOrCreate().broadcast(Utils.getZones).value
 
     /**
      * Extract the candidate geometries from source, using spatial index
@@ -47,7 +45,7 @@ case class DirtyGIAnt(source:RDD[Entity], thetaXY: (Double, Double)) {
     def getDE9IM: RDD[IM] = {
         source
             .mapPartitions { p =>
-                val partition = partitionsZones(TaskContext.getPartitionId())
+                val partition = partitionBorders(TaskContext.getPartitionId())
                 val source: Array[Entity] = p.toArray
                 val sourceIndex = index(source)
                 sourceIndex.getIndices.flatMap { b: (Int, Int) =>
