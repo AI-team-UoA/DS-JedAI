@@ -87,7 +87,7 @@ object DirtyExp {
         val imRDD = giant.getDE9IM
 
         if (print) {
-            // imRDD.persist(StorageLevel.MEMORY_AND_DISK)
+            imRDD.persist(StorageLevel.MEMORY_AND_DISK)
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
             totalOverlaps, totalTouches, totalWithin, verifications, qp) = Utils.countAllRelations(imRDD)
 
@@ -107,10 +107,8 @@ object DirtyExp {
             log.info("DS-JEDAI: WITHIN: " + totalWithin)
             log.info("DS-JEDAI: Total Discovered Relations: " + totalRelations)
         }
-        else
-            Utils.exportRDF(imRDD, output)
+        Utils.exportRDF(imRDD, output)
         val endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Total Execution Time: " + (endTime - startTime) / 1000.0)
-
     }
 }

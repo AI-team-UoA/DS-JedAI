@@ -12,13 +12,6 @@ libraryDependencies ++= Seq(
 	"org.apache.spark" %% "spark-graphx" % sparkVersion % Provided
 )
 
-/// 	APACHE SEDONA DEPENDENCIES
-//// https://mvnrepository.com/artifact/org.datasyslab/geospark
-//libraryDependencies += "org.datasyslab" % "geospark" % "1.2.0"
-
-//// https://mvnrepository.com/artifact/org.datasyslab/geospark
-//libraryDependencies += "org.datasyslab" % "geospark-sql_2.3" % "1.2.0"
-
 // https://mvnrepository.com/artifact/org.apache.sedona/sedona-core-2.4
 libraryDependencies += "org.apache.sedona" %% "sedona-core-2.4" % "1.0.0-incubating"
 
@@ -36,9 +29,6 @@ libraryDependencies += "org.wololo" % "jts2geojson" % "0.14.3"
 
 dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7"
 
-
-
-
 // https://mvnrepository.com/artifact/org.yaml/snakeyaml
 libraryDependencies += "org.yaml" % "snakeyaml" % "1.8"
 
@@ -46,6 +36,9 @@ libraryDependencies += "net.jcazevedo" %% "moultingyaml" % "0.4.0"
 
 // https://mvnrepository.com/artifact/org.apache.commons/commons-math3
 libraryDependencies += "org.apache.commons" % "commons-math3" % "3.0"
+
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.7" % Test
+
 
 assemblyMergeStrategy in assembly := {
 	case PathList("META-INF", xs @ _*) => MergeStrategy.discard
