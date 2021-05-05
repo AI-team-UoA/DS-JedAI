@@ -8,7 +8,6 @@ import org.locationtech.jts.operation.union.UnaryUnionOp
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 
 object GeometryUtils {
 
@@ -35,180 +34,146 @@ object GeometryUtils {
     def splitBigGeometries(geometry: Geometry, areaThreshold: Double = 1e-3): List[Geometry] = {
         geometry match {
             case polygon: Polygon if polygon.getEnvelopeInternal.getArea > areaThreshold=>
-                val polygons = recursivePolygonSplit(List(polygon), areaThreshold)
+                val polygons = splitPolygon(polygon, areaThreshold)
                 polygons
 
             case _ => List(geometry)
         }
     }
 
-    /**
-     * Recursively, split the polygons into sub-polygons. The procedure is repeated
-     * until no produced polygon's area exceed the Area Threshold.
-     *
-     * @param polygons a list of Polygons
-     * @param areaThreshold the Area Threshold
-     * @param results the list of sub-polygons produced in the previous recursion
-     * @return A list of sub-polygons
-     */
-    @tailrec
-    def recursivePolygonSplit(polygons: List[Polygon], areaThreshold: Double, results: List[Polygon] = Nil): List[Polygon] ={
-        val (bigPolygons, smallPolygons) = polygons.partition(p => p.getEnvelopeInternal.getArea > areaThreshold)
-        if (bigPolygons.nonEmpty) {
-            val newPolygons = bigPolygons.flatMap(p => splitPolygon(p))
-            val newResults =  smallPolygons ::: results
-            recursivePolygonSplit(newPolygons, areaThreshold, newResults)
-        } else
-            smallPolygons ::: results
-    }
+    def splitPolygon(polygon: Polygon, areaThreshold: Double): List[Polygon] = {
 
-
-    /**
-     * Splits a polygon into sub-polygons, using a horizontal and a vertical line
-     * that pass through the centroid.
-     *
-     * @param polygon polygon
-     * @return a list of sub-polygons
-     */
-    def splitPolygon(polygon: Polygon): List[Polygon] ={
-
-        val exteriorRing = polygon.getExteriorRing
-        val interiorRings = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i)).toList
-        val horizontalBoundaries = getHorizontalBlade(polygon)
-        val verticalBoundaries: List[LineString] = getVerticalBlade(polygon)
-
-        val polygonizer = new Polygonizer()
-        val innerGeom: List[Geometry] = verticalBoundaries ::: horizontalBoundaries ::: interiorRings
-        val union = new UnaryUnionOp(innerGeom.asJava).union()
-
-        polygonizer.add(exteriorRing.union(union))
-
-        val newPolygons = polygonizer.getPolygons.asScala.map(p => p.asInstanceOf[Polygon])
-        val f1 = newPolygons.filter(p => polygon.contains(p.getInteriorPoint))
-        f1.toList
-    }
-
-
-
-    /**
-     * Line to split the Polygon Horizontally
-     * If the polygon contains inner holes, then it adjust the horizontal line
-     * so to not cross the holes.
-     *
-     * @param polygon polygon
-     * @return the horizontal blade
-     */
-    def getHorizontalBlade(polygon: Polygon): List[LineString] = {
-
-        val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
-        val innerRingsWithEnvelopes: Seq[(Envelope, Geometry)] = innerRings.map(ir => (ir.getEnvelopeInternal, ir))
-
-        val centroid = polygon.getCentroid
-        val env = polygon.getEnvelopeInternal
-        val y = centroid.getY
-
-        // define the horizontal line
-        // it will start from MBR.minX, it will pass through the centroid and it will end in MBR.maxX
-        val start = new Coordinate(env.getMinX, y)
-        val end = new Coordinate(env.getMaxX, y)
-        val line = geometryFactory.createLineString(Array(start, end))
-
-        if (innerRings.isEmpty) {
-            line :: Nil
+        /**
+         * Recursively, split the polygons into sub-polygons. The procedure is repeated
+         * until no produced polygon's area exceed the Area Threshold.
+         *
+         * @param polygons      a list of Polygons
+         * @param areaThreshold the Area Threshold
+         * @param accumulator   the list of sub-polygons produced in the previous recursion
+         * @return A list of sub-polygons
+         */
+        @tailrec
+        def recursivePolygonSplit(polygons: List[Polygon], areaThreshold: Double, accumulator: List[Polygon] = Nil): List[Polygon] = {
+            val (bigPolygons, smallPolygons) = polygons.partition(p => p.getEnvelopeInternal.getArea > areaThreshold)
+            if (bigPolygons.nonEmpty) {
+                val newPolygons = bigPolygons.flatMap(p => crossPolygonSplit(p))
+                val newAccumulator = smallPolygons ::: accumulator
+                recursivePolygonSplit(newPolygons, areaThreshold, newAccumulator)
+            } else
+                smallPolygons ::: accumulator
         }
-        else {
-            val segments: ListBuffer[LineString] = new ListBuffer[LineString]()
-            var checkpoint = start
 
-            // sort inner rings envelope by X
-            innerRingsWithEnvelopes.sortBy(_._1.getMinX).foreach { case (mbr, ir) =>
+        /**
+         * Splits a polygon into sub-polygons, using a horizontal and a vertical line
+         * that pass through the centroid.
+         *
+         * @param polygon polygon
+         * @return a list of sub-polygons
+         */
+        def crossPolygonSplit(polygon: Polygon): List[Polygon] ={
 
-                // find the ones that intersect with the horizontal line
-                if (y >= mbr.getMinY && y <= mbr.getMaxY && checkpoint.x < mbr.getMinX) {
+            val exteriorRing = polygon.getExteriorRing
+            val interiorRings = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i)).toList
+            val horizontalBoundaries = getBlade(polygon, isHorizontal = true)
+            val verticalBoundaries: List[LineString] = getBlade(polygon, isHorizontal = false)
 
-                    // find intersection points between line and inner polygon
-                    val intersectionPoints: (Coordinate, Coordinate) = {
-                        val ip = ir.intersection(line)
-                        val firstPoint = ip.getGeometryN(0).asInstanceOf[Point].getCoordinate
-                        val newFirstPoint = new Coordinate(firstPoint.x+epsilon, firstPoint.y)
+            val polygonizer = new Polygonizer()
+            val innerGeom: List[Geometry] = verticalBoundaries ::: horizontalBoundaries ::: interiorRings
+            val union = new UnaryUnionOp(innerGeom.asJava).union()
 
-                        val lastPoint = ip.getGeometryN(1).asInstanceOf[Point].getCoordinate
-                        val newLastPoint = new Coordinate(lastPoint.x-epsilon, lastPoint.y)
-                        (newFirstPoint, newLastPoint)
-                    }
+            polygonizer.add(exteriorRing.union(union))
 
-                    // break the line into a smaller segment. The next segment will start out of the inner polygon
-                    val segment = geometryFactory.createLineString(Array(checkpoint, intersectionPoints._1))
-                    segments += segment
-                    checkpoint = intersectionPoints._2
-                }
+            val newPolygons = polygonizer.getPolygons.asScala.map(p => p.asInstanceOf[Polygon])
+            val f1 = newPolygons.filter(p => polygon.contains(p.getInteriorPoint))
+            f1.toList
+        }
+
+        /**
+         * Get a horizontal or vertical blade that passes from the centroid of the Polygon
+         * In case the polygon contains inner holes, then adjust the lines so to not overlap the holes
+         *
+         *                _________|__________
+         *               /  _      |          /
+         *          ----/--/_\-----|---------/-------
+         *             |           |        /
+         *              \_________ |_______/
+         *                         |
+         *
+         * @param polygon input polygon
+         * @param isHorizontal the requested blade is horizontal otherwise it will be vertical
+         * @return a blade that crosses the centroing of polygon
+         */
+        def getBlade(polygon: Polygon, isHorizontal: Boolean): List[LineString] = {
+            val centroid = polygon.getCentroid
+            val env = polygon.getEnvelopeInternal
+            val x = centroid.getX
+            val y = centroid.getY
+
+            // define the line and its points
+            // the line will be either vertical or horizontal
+            val (line, start, end) = if (isHorizontal) {
+                val start = new Coordinate(env.getMinX, y)
+                val end = new Coordinate(env.getMaxX, y)
+                val line = geometryFactory.createLineString(Array(start, end))
+                (line, start, end)
+            }
+            else{
+                val start = new Coordinate(x, env.getMinY)
+                val end = new Coordinate(x, env.getMaxY)
+                val line = geometryFactory.createLineString(Array(start, end))
+                (line, start, end)
+
             }
 
-            // create the last line segment
-            val segment = geometryFactory.createLineString(Array(checkpoint, end))
-            segments += segment
-            segments.toList
-        }
-    }
+            // define the cross condition based on line direction
+            val crossCondition: Envelope => Boolean =
+                if (isHorizontal) env => y >= env.getMinY && y <= env.getMaxY
+                else env => x >= env.getMinX && x <= env.getMaxX
 
-    /**
-     * Line to split the Polygon Vertically
-     * If the polygon contains inner holes, then it adjust the vertical line
-     * so to not cross the holes.
-     *
-     * @param polygon polygon
-     * @return the vertical blade
-     */
-    def getVerticalBlade(polygon: Polygon): List[LineString] = {
+            // epsilon is a small value to add in the segments so to slightly intersect thus not result to dangling lines
+            val (xEpsilon, yEpsilon) = if (isHorizontal) (epsilon, 0d) else (0d, epsilon)
 
-        val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
-        val innerRingsWithEnvelopes: Seq[(Envelope, Geometry)] = innerRings.map(ir => (ir.getEnvelopeInternal, ir))
-
-        val centroid = polygon.getCentroid
-        val env = polygon.getEnvelopeInternal
-        val x = centroid.getX
-
-        // define the vertical line
-        // it will start from MBR.minY, it will pass through the centroid and it will end in MBR.maxY
-        val start = new Coordinate(x, env.getMinY)
-        val end = new Coordinate(x, env.getMaxY)
-        val line = geometryFactory.createLineString(Array(start, end))
-
-        if (innerRings.isEmpty) {
-            line :: Nil
-        }
-        else {
-            val segments: ListBuffer[LineString] = new ListBuffer[LineString]()
-            var checkpoint = start
+            // ordering of the coordinates, to define max and min
+            implicit val ordering: Ordering[Coordinate] = Ordering.by[Coordinate, Double](c => if (isHorizontal) c.x else c.y)
 
             // sort inner rings envelope by y
-            innerRingsWithEnvelopes.sortBy(_._1.getMinY).foreach { case (mbr, ir) =>
+            // find the ones that intersect with the line
+            // for each intersecting inner ring find the intersection coordinates,
+            //      sort them and get the first and the last,
+            //      create line segments that do not overlap the inner ring
+            var checkpoint = start
+            val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
+            val segments = innerRings
+                .map(ir => (ir, ir.getEnvelopeInternal))
+                .filter{ case (_, env) => crossCondition(env)}
+                .sortBy{ case (_, env) => if (isHorizontal) env.getMinX else env.getMinY }
+                .map{ case (ir, _) =>
 
-                // find the ones that intersect with the vertical line
-                if (x >= mbr.getMinX && x <= mbr.getMaxX && checkpoint.y < mbr.getMinY) {
+                    val intersectingCollection = ir.intersection(line)
+                    val ip: Seq[Coordinate] = (0 until intersectingCollection.getNumGeometries)
+                        .map(i => intersectingCollection.getGeometryN(i))
+                        .flatMap(g => g.getCoordinates)
 
-                    // find intersection points between line and inner polygon
-                    val intersectionPoints: (Coordinate, Coordinate) = {
-                        val ip = ir.intersection(line)
-                        val firstPoint = ip.getGeometryN(0).asInstanceOf[Point].getCoordinate
-                        val newFirstPoint = new Coordinate(firstPoint.x, firstPoint.y+epsilon)
+                    val stopPoint = ip.min(ordering)
+                    stopPoint.setX(stopPoint.x+xEpsilon)
+                    stopPoint.setY(stopPoint.y+yEpsilon)
 
-                        val lastPoint = ip.getGeometryN(1).asInstanceOf[Point].getCoordinate
-                        val newLastPoint = new Coordinate(lastPoint.x, lastPoint.y-epsilon)
-                        (newFirstPoint, newLastPoint)
-                    }
+                    val newStart = ip.max(ordering)
+                    newStart.setX(stopPoint.x+xEpsilon)
+                    newStart.setY(stopPoint.y+yEpsilon)
 
-                    // break the line into a smaller segment. The next segment will start out of the inner polygon
-                    val segment = geometryFactory.createLineString(Array(checkpoint, intersectionPoints._1))
-                    segments += segment
-                    checkpoint = intersectionPoints._2
-                }
-            }
+                    val segment = geometryFactory.createLineString(Array(checkpoint, stopPoint))
+
+                    checkpoint = newStart
+                    segment
+                }.toList
 
             // create the last line segment
             val segment = geometryFactory.createLineString(Array(checkpoint, end))
-            segments += segment
-            segments.toList
+            segment ::  segments
         }
+
+
+        recursivePolygonSplit(List(polygon), areaThreshold)
     }
 }
