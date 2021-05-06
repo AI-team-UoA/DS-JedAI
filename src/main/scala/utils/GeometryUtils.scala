@@ -41,44 +41,49 @@ object GeometryUtils {
         }
     }
 
-    def splitPolygon(polygon: Polygon, areaThreshold: Double): List[Polygon] = {
+    def splitPolygon(polygon: Polygon,  widthT: Double = 0.02, heightT: Double = 0.02): List[Polygon] = {
 
         /**
          * Recursively, split the polygons into sub-polygons. The procedure is repeated
-         * until no produced polygon's area exceed the Area Threshold.
+         * until the width and height of the produced polygons do not exceed predefined thresholds.
          *
          * @param polygons      a list of Polygons
-         * @param areaThreshold the Area Threshold
+         * @param widthT        width threshold
+         * @param heightT       height threshold
          * @param accumulator   the list of sub-polygons produced in the previous recursion
          * @return A list of sub-polygons
          */
         @tailrec
-        def recursivePolygonSplit(polygons: List[Polygon], areaThreshold: Double, accumulator: List[Polygon] = Nil): List[Polygon] = {
-            val (bigPolygons, smallPolygons) = polygons.partition(p => p.getEnvelopeInternal.getArea > areaThreshold)
-            if (bigPolygons.nonEmpty) {
-                val newPolygons = bigPolygons.flatMap(p => crossPolygonSplit(p))
-                val newAccumulator = smallPolygons ::: accumulator
-                recursivePolygonSplit(newPolygons, areaThreshold, newAccumulator)
-            } else
+        def recursivePolygonSplit(polygons: List[Polygon], widthT: Double, heightT: Double, accumulator: List[Polygon] = Nil): List[Polygon] = {
+            val (bigPolygons, smallPolygons) = polygons.partition(p => p.getEnvelopeInternal.getWidth > widthT || p.getEnvelopeInternal.getHeight > heightT)
+            val (widePolygons, nonWide) = bigPolygons.partition(p => p.getEnvelopeInternal.getWidth > widthT)
+            val (tallPolygons, nonTall) = bigPolygons.partition(p => p.getEnvelopeInternal.getHeight > heightT)
+            if (widePolygons.nonEmpty) {
+                val newPolygons = widePolygons.flatMap(p => split(p, isHorizontal = false))
+                recursivePolygonSplit(newPolygons ++ nonWide, widthT, heightT, smallPolygons ++ accumulator )
+            }
+            else if (tallPolygons.nonEmpty) {
+                    val newPolygons = tallPolygons.flatMap(p => split(p, isHorizontal = true))
+                    recursivePolygonSplit(newPolygons ++ nonTall, widthT, heightT, smallPolygons ++ accumulator)
+                }
+            else
                 smallPolygons ::: accumulator
         }
 
         /**
-         * Splits a polygon into sub-polygons, using a horizontal and a vertical line
-         * that pass through the centroid.
+         * Split a polygon using either an horizontal or a vertical line
          *
-         * @param polygon polygon
+         * @param polygon input polygon
+         * @param isHorizontal split polygon horizontally or vertically
          * @return a list of sub-polygons
          */
-        def crossPolygonSplit(polygon: Polygon): List[Polygon] ={
-
+        def split(polygon: Polygon, isHorizontal: Boolean): List[Polygon] ={
             val exteriorRing = polygon.getExteriorRing
             val interiorRings = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i)).toList
-            val horizontalBoundaries = getBlade(polygon, isHorizontal = true)
-            val verticalBoundaries: List[LineString] = getBlade(polygon, isHorizontal = false)
+            val blade = getBlade(polygon, isHorizontal)
 
             val polygonizer = new Polygonizer()
-            val innerGeom: List[Geometry] = verticalBoundaries ::: horizontalBoundaries ::: interiorRings
+            val innerGeom: List[Geometry] = blade ++ interiorRings
             val union = new UnaryUnionOp(innerGeom.asJava).union()
 
             polygonizer.add(exteriorRing.union(union))
@@ -87,6 +92,7 @@ object GeometryUtils {
             val f1 = newPolygons.filter(p => polygon.contains(p.getInteriorPoint))
             f1.toList
         }
+
 
         /**
          * Get a horizontal or vertical blade that passes from the centroid of the Polygon
@@ -101,7 +107,7 @@ object GeometryUtils {
          *
          * @param polygon input polygon
          * @param isHorizontal the requested blade is horizontal otherwise it will be vertical
-         * @return a blade that crosses the centroing of polygon
+         * @return a blade that passes through the centroing of polygon
          */
         def getBlade(polygon: Polygon, isHorizontal: Boolean): List[LineString] = {
             val centroid = polygon.getCentroid
@@ -139,8 +145,8 @@ object GeometryUtils {
             // sort inner rings envelope by y
             // find the ones that intersect with the line
             // for each intersecting inner ring find the intersection coordinates,
-            //      sort them and get the first and the last,
-            //      create line segments that do not overlap the inner ring
+            //   - sort them and get the first and the last,
+            //   - create line segments that do not overlap the inner ring
             var checkpoint = start
             val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
             val segments = innerRings
@@ -174,6 +180,6 @@ object GeometryUtils {
         }
 
 
-        recursivePolygonSplit(List(polygon), areaThreshold)
+        recursivePolygonSplit(List(polygon), widthT, heightT)
     }
 }
