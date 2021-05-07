@@ -30,7 +30,7 @@ object Reader {
      */
     def read(dc: DatasetConfigurations) : SpatialRDD[Geometry] = {
         val extension = dc.getExtension
-        extension match {
+        val srdd = extension match {
             case FileTypes.CSV =>
                 loadDelimitedFile(dc.path, dc.realIdField.getOrElse("id"), dc.geometryField, dc.dateField, ",", header = true)
             case FileTypes.TSV =>
@@ -42,6 +42,8 @@ object Reader {
             case FileTypes.NTRIPLES =>
                 loadRdfAsTextual(dc.path, dc.geometryField)
         }
+        srdd.rawSpatialRDD  = srdd.rawSpatialRDD.rdd.filter(g => g.isValid && !g.isEmpty && g.getGeometryType != Geometry.TYPENAME_GEOMETRYCOLLECTION)
+        srdd
     }
 
 
