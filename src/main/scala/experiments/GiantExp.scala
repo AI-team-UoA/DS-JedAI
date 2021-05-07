@@ -16,7 +16,8 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
 import utils.Constants.{GridType, Relation}
 import utils.readers.{GridPartitioner, Reader}
-import utils.{ConfigurationParser, GeometryUtils, Utils}
+import utils.Utils
+import utils.configurationParser.ConfigurationParser
 
 object GiantExp {
 
@@ -47,6 +48,8 @@ object GiantExp {
                     nextOption(map ++ Map("gt" -> value), tail)
                 case "-s" :: tail =>
                     nextOption(map ++ Map("stats" -> "true"), tail)
+                case "-o" :: value :: tail =>
+                    nextOption(map ++ Map("output" -> value), tail)
                 case _ :: tail =>
                     log.warn("DS-JEDAI: Unrecognized argument")
                     nextOption(map, tail)
@@ -68,15 +71,13 @@ object GiantExp {
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
         val relation = conf.getRelation
         val printCount = options.getOrElse("stats", "false").toBoolean
+        val output: Option[String] = options.get("output")
 
         val startTime = Calendar.getInstance().getTimeInMillis
 
         // load datasets
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
         val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
-
-        val sourceSpatialRDD_ = GeometryUtils.flattenCollections(sourceSpatialRDD)
-        sourceSpatialRDD_.rawSpatialRDD.rdd.foreach{ g => GeometryUtils.splitBigGeometries(g)}
 
         // spatial partition
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
@@ -91,6 +92,7 @@ object GiantExp {
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
         val giant = GIAnt(sourceRDD, targetRDD, theta, partitionBorder, partitioner.hashPartitioner)
 
+        // print statistics about the datasets
         if (printCount){
             val sourceCount = sourceSpatialRDD.rawSpatialRDD.count()
             val targetCount = targetSpatialRDD.rawSpatialRDD.count()
@@ -100,8 +102,17 @@ object GiantExp {
             log.info(s"DS-JEDAI: Candidate Pairs: ${giant.countCandidates}")
         }
         else if (relation.equals(Relation.DE9IM)) {
+            val imRDD = giant.getDE9IM
+
+            // export results as RDF
+            if (output.isDefined) {
+                imRDD.persist(StorageLevel.MEMORY_AND_DISK)
+                Utils.exportRDF(imRDD, output.get)
+            }
+
+            // log results
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-            totalOverlaps, totalTouches, totalWithin, verifications, qp) = giant.countAllRelations
+            totalOverlaps, totalTouches, totalWithin, verifications, qp) = Utils.countAllRelations(imRDD)
 
             val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
                 totalIntersects + totalOverlaps + totalTouches + totalWithin

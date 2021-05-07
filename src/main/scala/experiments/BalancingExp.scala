@@ -15,7 +15,8 @@ import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.locationtech.jts.geom.Geometry
 import utils.Constants.{GridType, Relation}
 import utils.readers.{GridPartitioner, Reader}
-import utils.{ConfigurationParser, Utils}
+import utils.Utils
+import utils.configurationParser.ConfigurationParser
 
 
 object BalancingExp {

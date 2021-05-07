@@ -16,8 +16,9 @@ import org.locationtech.jts.geom.Geometry
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingFunction}
 import utils.Constants.WeightingFunction.WeightingFunction
+import utils.configurationParser.ConfigurationParser
 import utils.readers.{GridPartitioner, Reader}
-import utils.{ConfigurationParser, Constants, Utils}
+import utils.{Constants, Utils}
 
 object ProgressiveExp {
 

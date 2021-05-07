@@ -1,8 +1,9 @@
-package utils
+package utils.configurationParser
 
 import net.jcazevedo.moultingyaml.{DefaultYamlProtocol, _}
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.SparkContext
+import utils.Constants
 import utils.Constants._
 
 /**

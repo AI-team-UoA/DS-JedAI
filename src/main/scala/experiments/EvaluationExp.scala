@@ -17,8 +17,9 @@ import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightingFunction.WeightingFunction
 import utils.Constants.{GridType, HYBRID, ProgressiveAlgorithm, Relation, WeightingFunction}
+import utils.configurationParser.ConfigurationParser
 import utils.readers.{GridPartitioner, Reader}
-import utils.{ConfigurationParser, Constants, Utils}
+import utils.{Constants, Utils}
 
 
 object EvaluationExp {

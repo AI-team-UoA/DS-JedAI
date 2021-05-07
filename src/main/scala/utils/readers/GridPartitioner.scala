@@ -9,7 +9,8 @@ import org.apache.spark.rdd.RDD
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
 import org.locationtech.jts.geom.Geometry
-import utils.{Constants, DatasetConfigurations}
+import utils.Constants
+import utils.configurationParser.DatasetConfigurations
 
 import scala.collection.JavaConverters._
 

@@ -1,14 +1,15 @@
-package utils
+package utils.configurationParser
 
 import org.apache.log4j.{LogManager, Logger}
 import org.joda.time.format.DateTimeFormat
+import utils.Constants
 import utils.Constants.FileTypes.FileTypes
 import utils.Constants.GridType.GridType
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.Relation.Relation
 import utils.Constants.ThetaOption.ThetaOption
 import utils.Constants.WeightingFunction.WeightingFunction
-import utils.Constants.{FileTypes, GridType, ProgressiveAlgorithm, Relation, ThetaOption, WeightingFunction, WeightingScheme, YamlConfiguration}
+import utils.Constants._
 
 /**
  * Configuration Interface

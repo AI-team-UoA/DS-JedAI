@@ -12,7 +12,7 @@ import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
 import utils.Constants.FileTypes
-import utils.DatasetConfigurations
+import utils.configurationParser.DatasetConfigurations
 
 object Reader {
 
