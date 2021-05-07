@@ -13,7 +13,6 @@ object GeometryUtils {
 
     val csf: CoordinateArraySequenceFactory = CoordinateArraySequenceFactory.instance()
     val geometryFactory = new GeometryFactory()
-
     val epsilon: Double = 1e-8
 
 
@@ -25,72 +24,77 @@ object GeometryUtils {
         }
 
 
-    def flattenCollections(srdd: SpatialRDD[Geometry]): SpatialRDD[Geometry] ={
+    def flattenSRDDCollections(srdd: SpatialRDD[Geometry]): SpatialRDD[Geometry] ={
         srdd.rawSpatialRDD = srdd.rawSpatialRDD.rdd.flatMap(g => if (g.getNumGeometries > 1) flattenCollection(g) else Seq(g))
         srdd
     }
 
 
-    def splitBigGeometries(geometry: Geometry, areaThreshold: Double = 1e-3): List[Geometry] = {
+    def splitBigGeometries(geometry: Geometry, threshold: Double = 2e-2): Seq[Geometry] = {
         geometry match {
-            case polygon: Polygon if polygon.getEnvelopeInternal.getArea > areaThreshold=>
-                val polygons = splitPolygon(polygon, areaThreshold)
-                polygons
-
-            case _ => List(geometry)
+            case polygon: Polygon => splitPolygon(polygon, threshold)
+            case line: LineString => splitLineString(line, threshold)
+            case gc: GeometryCollection => flattenCollection(gc).flatMap(g => splitBigGeometries(g))
+            case _ => Seq(geometry)
         }
     }
 
-    def splitPolygon(polygon: Polygon,  widthT: Double = 0.02, heightT: Double = 0.02): List[Polygon] = {
+
+    /**
+     * Split polygons into smaller polygons. Splitting is determined by the threshold.
+     * The width and the height of the produced polygons will not exceed the threshold
+     *
+     * @param polygon       input polygon
+     * @param threshold     input threshold
+     * @return              a seq of smaller polygons
+     */
+    def splitPolygon(polygon: Polygon, threshold: Double = 2e-2): Seq[Polygon] = {
 
         /**
          * Recursively, split the polygons into sub-polygons. The procedure is repeated
          * until the width and height of the produced polygons do not exceed predefined thresholds.
          *
          * @param polygons      a list of Polygons
-         * @param widthT        width threshold
-         * @param heightT       height threshold
+         * @param threshold     width and height threshold
          * @param accumulator   the list of sub-polygons produced in the previous recursion
          * @return A list of sub-polygons
          */
         @tailrec
-        def recursivePolygonSplit(polygons: List[Polygon], widthT: Double, heightT: Double, accumulator: List[Polygon] = Nil): List[Polygon] = {
-            val (bigPolygons, smallPolygons) = polygons.partition(p => p.getEnvelopeInternal.getWidth > widthT || p.getEnvelopeInternal.getHeight > heightT)
-            val (widePolygons, nonWide) = bigPolygons.partition(p => p.getEnvelopeInternal.getWidth > widthT)
-            val (tallPolygons, nonTall) = bigPolygons.partition(p => p.getEnvelopeInternal.getHeight > heightT)
+        def recursiveSplit(polygons: Seq[Polygon], threshold: Double, accumulator: Seq[Polygon] = Nil): Seq[Polygon] = {
+            val (bigPolygons, smallPolygons) = polygons.partition(p => p.getEnvelopeInternal.getWidth > threshold || p.getEnvelopeInternal.getHeight > threshold)
+            val (widePolygons, nonWide) = bigPolygons.partition(p => p.getEnvelopeInternal.getWidth > threshold)
+            val (tallPolygons, nonTall) = bigPolygons.partition(p => p.getEnvelopeInternal.getHeight > threshold)
             if (widePolygons.nonEmpty) {
-                val newPolygons = widePolygons.flatMap(p => split(p, isHorizontal = false))
-                recursivePolygonSplit(newPolygons ++ nonWide, widthT, heightT, smallPolygons ++ accumulator )
+                val newPolygons = widePolygons.flatMap(p => split(p,  getBlade(p, isHorizontal = false)))
+                recursiveSplit(newPolygons ++ nonWide, threshold, smallPolygons ++ accumulator )
             }
             else if (tallPolygons.nonEmpty) {
-                    val newPolygons = tallPolygons.flatMap(p => split(p, isHorizontal = true))
-                    recursivePolygonSplit(newPolygons ++ nonTall, widthT, heightT, smallPolygons ++ accumulator)
-                }
+                val newPolygons = tallPolygons.flatMap(p => split(p, getBlade(p, isHorizontal = true)))
+                recursiveSplit(newPolygons ++ nonTall, threshold, smallPolygons ++ accumulator)
+            }
             else
-                smallPolygons ::: accumulator
+                smallPolygons ++ accumulator
         }
 
         /**
-         * Split a polygon using either an horizontal or a vertical line
+         * Split a polygon using the input blade
          *
          * @param polygon input polygon
-         * @param isHorizontal split polygon horizontally or vertically
-         * @return a list of sub-polygons
+         * @param blade line segments divide the polygon
+         * @return a Seq of sub-polygons
          */
-        def split(polygon: Polygon, isHorizontal: Boolean): List[Polygon] ={
+        def split(polygon: Polygon, blade: Seq[LineString]): Seq[Polygon] ={
             val exteriorRing = polygon.getExteriorRing
-            val interiorRings = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i)).toList
-            val blade = getBlade(polygon, isHorizontal)
+            val interiorRings = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
 
             val polygonizer = new Polygonizer()
-            val innerGeom: List[Geometry] = blade ++ interiorRings
+            val innerGeom: Seq[Geometry] = blade ++ interiorRings
             val union = new UnaryUnionOp(innerGeom.asJava).union()
 
             polygonizer.add(exteriorRing.union(union))
 
             val newPolygons = polygonizer.getPolygons.asScala.map(p => p.asInstanceOf[Polygon])
-            val f1 = newPolygons.filter(p => polygon.contains(p.getInteriorPoint))
-            f1.toList
+            newPolygons.filter(p => polygon.contains(p.getInteriorPoint)).toSeq
         }
 
 
@@ -109,7 +113,7 @@ object GeometryUtils {
          * @param isHorizontal the requested blade is horizontal otherwise it will be vertical
          * @return a blade that passes through the centroing of polygon
          */
-        def getBlade(polygon: Polygon, isHorizontal: Boolean): List[LineString] = {
+        def getBlade(polygon: Polygon, isHorizontal: Boolean): Seq[LineString] = {
             val centroid = polygon.getCentroid
             val env = polygon.getEnvelopeInternal
             val x = centroid.getX
@@ -179,7 +183,89 @@ object GeometryUtils {
             segment ::  segments
         }
 
-
-        recursivePolygonSplit(List(polygon), widthT, heightT)
+        // apply
+        recursiveSplit(List(polygon), threshold)
     }
+
+
+
+
+    /**
+     * Split linestring into smaller linestrings. Splitting is determined by the threshold.
+     * The width and the height of the produced linestrings will not exceed the threshold
+     *
+     * @param line           input linestring
+     * @param threshold     input threshold
+     * @return              a seq of smaller linestring
+     */
+    def splitLineString(line: LineString, threshold: Double = 2e-2): Seq[LineString] = {
+
+        /**
+         * Recursively, split the linestring into sub-lines. The procedure is repeated
+         * until the width and height of the produced lines do not exceed predefined thresholds.
+         *
+         * @param lines         a seq of linestrings
+         * @param threshold     width and height threshold
+         * @param accumulator   the list of sub-lines produced in the previous recursion
+         * @return              A list of sub-polygons
+         */
+        @tailrec
+        def recursiveSplit(lines: Seq[LineString], threshold: Double, accumulator: Seq[LineString] = Nil): Seq[LineString] ={
+            val (bigLines, smallLines) = lines.partition(l => l.getEnvelopeInternal.getWidth > threshold || l.getEnvelopeInternal.getHeight > threshold)
+            val (wideLines, nonWide) = bigLines.partition(p => p.getEnvelopeInternal.getWidth > threshold)
+            val (tallLines, nonTall) = bigLines.partition(p => p.getEnvelopeInternal.getHeight > threshold)
+            if (wideLines.nonEmpty) {
+                val newLines = wideLines.flatMap(l => split(l, getBlade(l, isHorizontal = false) ))
+                recursiveSplit(newLines ++ nonWide, threshold, smallLines ++ accumulator )
+            }
+            else if (tallLines.nonEmpty) {
+                val newLines = tallLines.flatMap(l => split(l, getBlade(l, isHorizontal = true)))
+                recursiveSplit(newLines ++ nonTall, threshold, smallLines ++ accumulator)
+            }
+            else
+                smallLines ++ accumulator
+        }
+
+        /**
+         * Split a line using the input blade
+         *
+         * @param line  input line
+         * @param blade line segments divide the line
+         * @return      a Seq of sub-line
+         */
+        def split(line: LineString, blade: LineString): Seq[LineString] = {
+            val env = line.getEnvelopeInternal
+            val mid = (env.getMaxX + env.getMinX)/2
+            val blade = geometryFactory.createLineString(Array(new Coordinate(mid, env.getMinY), new Coordinate(mid, env.getMaxY)))
+
+            val lines = line.difference(blade).asInstanceOf[MultiLineString]
+            val results = (0 until  lines.getNumGeometries).map(i => lines.getGeometryN(i).asInstanceOf[LineString])
+            results
+        }
+
+
+        /**
+         * Get a blade that crosses the line in the middle vertical or horizontal point
+         *
+         * @param line          input line
+         * @param isHorizontal  the requested blade is horizontal otherwise it will be vertical
+         * @return              a linestring
+         */
+        def getBlade(line: LineString, isHorizontal: Boolean): LineString = {
+            val env = line.getEnvelopeInternal
+            if (isHorizontal){
+                val midY = (env.getMaxY - env.getMinX)/2
+                geometryFactory.createLineString(Array(new Coordinate(env.getMinX, midY), new Coordinate(env.getMaxX, midY)))
+            }
+            else{
+                val midX = (env.getMaxX - env.getMinX)/2
+                geometryFactory.createLineString(Array(new Coordinate(midX, env.getMinY), new Coordinate(midX, env.getMaxY)))
+            }
+        }
+
+        // apply
+        recursiveSplit(Seq(line), threshold, Nil)
+    }
+
+
 }
