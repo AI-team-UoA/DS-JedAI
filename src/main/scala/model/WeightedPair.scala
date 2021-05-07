@@ -1,7 +1,5 @@
 package model
 
-
-
 sealed trait WeightedPair extends Serializable with Comparable[WeightedPair] {
 
     val counter: Int
@@ -44,7 +42,7 @@ case class MainWP(counter: Int, entityId1: Int, entityId2: Int, mainWeight: Floa
 
         if (entityId1 == mwp.entityId1 && entityId2 == mwp.entityId2) 0
         else {
-            val diff = mwp.mainWeight - mainWeight
+            val diff = mwp.getMainWeight - getMainWeight
             if (0 < diff) 1
             else if (diff < 0) -1
             else mwp.counter - counter
@@ -107,7 +105,7 @@ case class CompositeWP(counter: Int, entityId1: Int, entityId2: Int, mainWeight:
 case class HybridWP(counter: Int, entityId1: Int, entityId2: Int, mainWeight: Float, secondaryWeight: Float) extends WeightedPair{
 
     // the weights are not constant, so we recalculate the product
-    def getProduct: Float = mainWeight * secondaryWeight
+    def getProduct: Float = getMainWeight * getSecondaryWeight
 
     /**
      *
