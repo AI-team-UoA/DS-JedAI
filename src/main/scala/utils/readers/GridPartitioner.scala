@@ -1,6 +1,7 @@
 package utils.readers
 
-import model.{Entity, MBR, SpatialEntity, SpatioTemporalEntity}
+import model.entities.{Entity, SpatialEntity, SpatioTemporalEntity}
+import model.MBR
 import org.apache.sedona.core.enums.GridType
 import org.apache.sedona.core.spatialPartitioning.SpatialPartitioner
 import org.apache.sedona.core.spatialRDD.SpatialRDD

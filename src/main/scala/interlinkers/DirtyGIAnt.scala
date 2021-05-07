@@ -1,6 +1,7 @@
 package interlinkers
 
-import model.{Entity, IM, MBR, SpatialIndex}
+import model.entities.Entity
+import model.{IM, MBR, SpatialIndex}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkContext, TaskContext}
 import utils.Constants.Relation

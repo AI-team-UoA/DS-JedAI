@@ -1,6 +1,7 @@
 package interlinkers.progressive
 
 import model._
+import model.entities.Entity
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants

@@ -3,7 +3,8 @@ package experiments
 
 import interlinkers.GIAnt
 import interlinkers.progressive.ProgressiveAlgorithmsFactory
-import model.{Entity, MBR}
+import model.MBR
+import model.entities.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD

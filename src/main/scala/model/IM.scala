@@ -1,5 +1,7 @@
 package model
 
+import model.entities.Entity
+
 case class IM(idPair: (String, String), isContains: Boolean, isCoveredBy: Boolean, isCovers: Boolean, isCrosses: Boolean,
               isEquals: Boolean, isIntersects: Boolean, isOverlaps: Boolean, isTouches: Boolean, isWithin: Boolean){
 

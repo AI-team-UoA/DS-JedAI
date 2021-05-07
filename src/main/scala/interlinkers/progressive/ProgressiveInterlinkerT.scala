@@ -4,6 +4,7 @@ import java.util.Calendar
 
 import interlinkers.InterlinkerT
 import model._
+import model.entities.Entity
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
 import utils.Constants

@@ -1,6 +1,7 @@
 package interlinkers
 
-import model.{Entity, IM, MBR, SpatialIndex}
+import model.entities.Entity
+import model.{IM, MBR, SpatialIndex}
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation.Relation
 
@@ -12,7 +13,6 @@ trait InterlinkerT {
     val thetaXY: (Double, Double)
     val partitionBorders: Array[MBR]
 
-//    val partitionBorders: Array[MBR] = SparkContext.getOrCreate().broadcast(Utils.getZones).value
 
     /**
      * index a list of spatial entities

@@ -1,6 +1,7 @@
 package interlinkers
 
-import model.{Entity, IM, MBR}
+import model.entities.Entity
+import model.{IM, MBR}
 import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation

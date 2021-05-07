@@ -1,6 +1,7 @@
 package interlinkers.progressive
 
-import model.{Entity, MBR, StaticComparisonPQ}
+import model.entities.Entity
+import model.{MBR, StaticComparisonPQ}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants

@@ -4,7 +4,7 @@ package experiments
 import java.util.Calendar
 
 import interlinkers.GIAnt
-import model.Entity
+import model.entities.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD

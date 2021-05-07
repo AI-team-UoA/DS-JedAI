@@ -1,7 +1,8 @@
 package utils
 
 
-import model.{Entity, IM, MBR}
+import model.entities.Entity
+import model.{IM, MBR}
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
