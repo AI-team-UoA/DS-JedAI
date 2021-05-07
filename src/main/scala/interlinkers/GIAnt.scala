@@ -52,7 +52,7 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
 
             target.flatMap { t =>
                 val candidates = getCandidates(t, source, sourceIndex, partition, Relation.DE9IM)
-                candidates.map(s => IM(s, t)).filter(_.relate)
+                candidates.map(s => IM(s, t))
             }
         }
 
