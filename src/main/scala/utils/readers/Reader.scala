@@ -32,9 +32,9 @@ object Reader {
         val extension = dc.getExtension
         val srdd = extension match {
             case FileTypes.CSV =>
-                loadDelimitedFile(dc.path, dc.realIdField.getOrElse("id"), dc.geometryField, dc.dateField, ",", header = true)
+                loadDelimitedFile(dc.path, dc.realIdField.getOrElse("0"), dc.geometryField, dc.dateField, ",")
             case FileTypes.TSV =>
-                loadDelimitedFile(dc.path, dc.realIdField.getOrElse("id"), dc.geometryField, dc.dateField, "\t", header = true)
+                loadDelimitedFile(dc.path, dc.realIdField.getOrElse("0"), dc.geometryField, dc.dateField, "\t")
             case FileTypes.GEOJSON =>
                 loadGeoJSON(dc.path, dc.realIdField.getOrElse("id"), dc.dateField)
             case FileTypes.SHP =>
@@ -42,7 +42,7 @@ object Reader {
             case FileTypes.NTRIPLES =>
                 loadRdfAsTextual(dc.path, dc.geometryField)
         }
-        srdd.rawSpatialRDD  = srdd.rawSpatialRDD.rdd.filter(g => g.isValid && !g.isEmpty && g.getGeometryType != Geometry.TYPENAME_GEOMETRYCOLLECTION)
+        srdd.rawSpatialRDD = srdd.rawSpatialRDD.rdd.filter(g => g.getGeometryType != Geometry.TYPENAME_GEOMETRYCOLLECTION)
         srdd
     }
 
@@ -54,10 +54,9 @@ object Reader {
      * @param geometryField geometry field
      * @param dateField date field if exists
      * @param delimiter delimiter
-     * @param header if first row contains the headers
      * @return a spatial RDD
      */
-    def loadDelimitedFile(filepath: String, realIdField: String, geometryField: String, dateField: Option[String], delimiter: String, header: Boolean): SpatialRDD[Geometry] ={
+    def loadDelimitedFile(filepath: String, realIdField: String, geometryField: String, dateField: Option[String], delimiter: String): SpatialRDD[Geometry] ={
         WktReader.readToGeometryRDD(sc, filepath, geometryField.toInt, false, true)
     }
 

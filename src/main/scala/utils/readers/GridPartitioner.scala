@@ -40,29 +40,21 @@ case class GridPartitioner(source: SpatialRDD[Geometry], partitions: Int, gt: Co
      *  Loads a dataset into Spatial Partitioned RDD. The partitioner
      *  is defined by the first dataset (i.e. the source dataset)
      * @param dc dataset configuration
-     * @return a spatial partitioned rdd
+     * @return a spatial partitioned rdd TODO FIX
      */
     def distribute(srdd: SpatialRDD[Geometry], dc: DatasetConfigurations): RDD[(Int, Entity)] = {
         val withTemporal = dc.dateField.isDefined
 
-        // remove empty, invalid geometries and geometry collections
-        val filteredGeometriesRDD = srdd.rawSpatialRDD.rdd
-            .map{ geom =>
-                val userdata = geom.getUserData.asInstanceOf[String].split("\t")
-                (geom, userdata)
-            }
-            .filter{case (g, _) => !g.isEmpty && g.isValid && g.getGeometryType != "GeometryCollection"}
-
         // create Spatial or SpatioTemporal entities
         val entitiesRDD: RDD[Entity] =
             if(!withTemporal)
-                filteredGeometriesRDD.map{ case (geom, userdata) =>  SpatialEntity(userdata(0), geom)}
+                srdd.rawSpatialRDD.rdd.map( geom =>  SpatialEntity(geom.getUserData.asInstanceOf[String].split("\t")(0), geom))
             else
-                filteredGeometriesRDD.mapPartitions{ geomIterator =>
+                srdd.rawSpatialRDD.rdd.mapPartitions{ geomIterator =>
                     val pattern = dc.datePattern.get
                     val formatter = DateTimeFormat.forPattern(pattern)
-                    geomIterator.map{
-                        case (geom, userdata) =>
+                    geomIterator.map{ geom =>
+                            val userdata = geom.getUserData.asInstanceOf[String].split("\t")
                             val realID = userdata(0)
                             val dateStr = userdata(1)
                             val date: DateTime = formatter.parseDateTime(dateStr)
