@@ -235,10 +235,6 @@ object GeometryUtils {
          * @return      a Seq of sub-line
          */
         def split(line: LineString, blade: LineString): Seq[LineString] = {
-            val env = line.getEnvelopeInternal
-            val mid = (env.getMaxX + env.getMinX)/2
-            val blade = geometryFactory.createLineString(Array(new Coordinate(mid, env.getMinY), new Coordinate(mid, env.getMaxY)))
-
             val lines = line.difference(blade).asInstanceOf[MultiLineString]
             val results = (0 until  lines.getNumGeometries).map(i => lines.getGeometryN(i).asInstanceOf[LineString])
             results
@@ -255,11 +251,11 @@ object GeometryUtils {
         def getBlade(line: LineString, isHorizontal: Boolean): LineString = {
             val env = line.getEnvelopeInternal
             if (isHorizontal){
-                val midY = (env.getMaxY - env.getMinX)/2
+                val midY = (env.getMaxY + env.getMinY)/2
                 geometryFactory.createLineString(Array(new Coordinate(env.getMinX, midY), new Coordinate(env.getMaxX, midY)))
             }
             else{
-                val midX = (env.getMaxX - env.getMinX)/2
+                val midX = (env.getMaxX + env.getMinX)/2
                 geometryFactory.createLineString(Array(new Coordinate(midX, env.getMinY), new Coordinate(midX, env.getMaxY)))
             }
         }
