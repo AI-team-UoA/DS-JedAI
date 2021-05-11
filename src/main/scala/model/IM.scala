@@ -1,20 +1,31 @@
 package model
 
 import model.entities.Entity
+import org.locationtech.jts.geom.IntersectionMatrix
 
-case class IM(idPair: (String, String), isContains: Boolean, isCoveredBy: Boolean, isCovers: Boolean, isCrosses: Boolean,
-              isEquals: Boolean, isIntersects: Boolean, isOverlaps: Boolean, isTouches: Boolean, isWithin: Boolean){
+case class IM(s: Entity, t: Entity, im: IntersectionMatrix){
+    val idPair: (String, String) = (s.originalID, t.originalID)
+    val relate: Boolean = !im.isDisjoint
+    val isContains : Boolean = im.isContains
+    val isCoveredBy : Boolean = im.isCoveredBy
+    val isCovers : Boolean = im.isCovers
+    val isCrosses : Boolean = im.isCrosses(s.geometry.getDimension, t.geometry.getDimension)
+    val isEquals : Boolean = im.isEquals(s.geometry.getDimension, t.geometry.getDimension)
+    val isIntersects : Boolean = im.isIntersects
+    val isOverlaps : Boolean = im.isOverlaps(s.geometry.getDimension, t.geometry.getDimension)
+    val isTouches : Boolean = im.isTouches(s.geometry.getDimension, t.geometry.getDimension)
+    val isWithin : Boolean = im.isWithin
 
-    lazy val relate: Boolean =
-        isContains|| isCoveredBy || isCovers || isCrosses || isEquals || isIntersects || isOverlaps || isTouches || isWithin
+    def +(intersectionMatrix: IM): IM = {
+        assert(intersectionMatrix.idPair == idPair)
+        im.add(intersectionMatrix.im)
+        this
+    }
 }
 
 object IM {
     def apply(s: Entity, t: Entity): IM = {
         val im = s.getIntersectionMatrix(t)
-        val d1 = s.geometry.getDimension
-        val d2 = t.geometry.getDimension
-        IM((s.originalID, t.originalID), im.isContains, im.isCoveredBy, im.isCovers, im.isCrosses(d1, d2),
-            im.isEquals(d1, d2), im.isIntersects, im.isOverlaps(d1, d2), im.isTouches(d1, d2), im.isWithin)
+        IM(s, t, im)
     }
 }

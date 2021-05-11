@@ -68,7 +68,8 @@ object DirtyExp {
         val conf = ConfigurationParser.parseDirty(confPath)
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
-        val output: String = if (options.contains("output")) options("output") else conf.getOutputPath
+        val output: Option[String] = if (options.contains("output")) options.get("output") else conf.getOutputPath
+
         val print = options.getOrElse("print", "false").toBoolean
 
         val startTime = Calendar.getInstance().getTimeInMillis
@@ -78,7 +79,7 @@ object DirtyExp {
 
         // spatial partition
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
-        val sourceRDD: RDD[(Int, Entity)] = partitioner.distribute(sourceSpatialRDD, conf.source)
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
@@ -109,7 +110,7 @@ object DirtyExp {
             log.info("DS-JEDAI: WITHIN: " + totalWithin)
             log.info("DS-JEDAI: Total Discovered Relations: " + totalRelations)
         }
-        Utils.exportRDF(imRDD, output)
+        if(output.isDefined) Utils.exportRDF(imRDD, output.get)
         val endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Total Execution Time: " + (endTime - startTime) / 1000.0)
     }

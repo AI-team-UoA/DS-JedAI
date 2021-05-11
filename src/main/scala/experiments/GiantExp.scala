@@ -71,7 +71,7 @@ object GiantExp {
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
         val relation = conf.getRelation
         val printCount = options.getOrElse("stats", "false").toBoolean
-        val output: Option[String] = options.get("output")
+        val output: Option[String] = if (options.contains("output")) options.get("output") else conf.getOutputPath
 
         val startTime = Calendar.getInstance().getTimeInMillis
 
@@ -81,8 +81,8 @@ object GiantExp {
 
         // spatial partition
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
-        val sourceRDD: RDD[(Int, Entity)] = partitioner.distribute(sourceSpatialRDD, conf.source)
-        val targetRDD: RDD[(Int, Entity)] = partitioner.distribute(targetSpatialRDD, conf.target)
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
+        val targetRDD: RDD[(Int, Entity)] = partitioner.transform(targetSpatialRDD, conf.target)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
         val theta = Utils.getTheta(sourceRDD.map(_._2.mbr))
@@ -139,5 +139,6 @@ object GiantExp {
 
         val endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Total Execution Time: " + (endTime - startTime) / 1000.0)
+        System.in.read()
     }
 }

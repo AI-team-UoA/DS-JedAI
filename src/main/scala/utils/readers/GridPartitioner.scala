@@ -1,6 +1,6 @@
 package utils.readers
 
-import model.entities.{Entity, SpatialEntity, SpatioTemporalEntity}
+import model.entities.{Entity, FragmentedEntity, SpatialEntity, SpatioTemporalEntity}
 import model.MBR
 import org.apache.sedona.core.enums.GridType
 import org.apache.sedona.core.spatialPartitioning.SpatialPartitioner
@@ -40,13 +40,13 @@ case class GridPartitioner(source: SpatialRDD[Geometry], partitions: Int, gt: Co
      *  Loads a dataset into Spatial Partitioned RDD. The partitioner
      *  is defined by the first dataset (i.e. the source dataset)
      * @param dc dataset configuration
-     * @return a spatial partitioned rdd TODO FIX
+     * @return a spatial partitioned rdd
      */
-    def distribute(srdd: SpatialRDD[Geometry], dc: DatasetConfigurations): RDD[(Int, Entity)] = {
+    def transform(srdd: SpatialRDD[Geometry], dc: DatasetConfigurations): RDD[(Int, Entity)] = {
         val withTemporal = dc.dateField.isDefined
 
         // create Spatial or SpatioTemporal entities
-        val entitiesRDD: RDD[Entity] =
+        val rdd: RDD[Entity] =
             if(!withTemporal)
                 srdd.rawSpatialRDD.rdd.map( geom =>  SpatialEntity(geom.getUserData.asInstanceOf[String].split("\t")(0), geom))
             else
@@ -63,10 +63,27 @@ case class GridPartitioner(source: SpatialRDD[Geometry], partitions: Int, gt: Co
                     }
                 }
 
-        // redistribute based on spatial index
-        entitiesRDD
-            .flatMap(se => spatialPartitioner.placeObject(se.geometry).asScala.map(i => (i._1.toInt, se)))
-            .partitionBy(hashPartitioner)
+        distribute(rdd)
     }
+
+
+    /**
+     *  Loads a dataset into Spatial Partitioned RDD. The partitioner
+     *  is defined by the first dataset (i.e. the source dataset)
+     * @param dc dataset configuration
+     * @return a spatial partitioned rdd
+     */
+    def transformAndFragment(srdd: SpatialRDD[Geometry], dc: DatasetConfigurations)(f: Geometry => Seq[Geometry]): RDD[(Int, Entity)] = {
+
+        val rdd: RDD[Entity] =
+            srdd.rawSpatialRDD.rdd.map( geom =>  FragmentedEntity(geom.getUserData.asInstanceOf[String].split("\t")(0), geom)(f))
+
+        distribute(rdd)
+    }
+
+
+    def distribute(rdd: RDD[Entity]): RDD[(Int, Entity)] =
+        rdd.flatMap(se => spatialPartitioner.placeObject(se.geometry).asScala.map(i => (i._1.toInt, se)))
+            .partitionBy(hashPartitioner)
 
 }

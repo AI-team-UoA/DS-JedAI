@@ -2,8 +2,8 @@ package interlinkers
 
 import model.entities.Entity
 import model.{IM, MBR, SpatialIndex}
+import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.{SparkContext, TaskContext}
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 
@@ -57,10 +57,7 @@ case class DirtyGIAnt(source:RDD[Entity], partitionBorders: Array[MBR], thetaXY:
                         yield{
                             val s = source(i)
                             val t = source(j)
-                            if (i != j) IM(s, t)
-                            else IM((s.originalID, t.originalID), isContains=true, isCovers=true, isCoveredBy=true,
-                                isCrosses=false, isEquals=false, isIntersects=false, isOverlaps=false, isTouches=true,
-                                isWithin=true)
+                            IM(s, t)
                         }
                 }.toIterator
             }

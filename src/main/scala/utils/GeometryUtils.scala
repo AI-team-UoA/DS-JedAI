@@ -30,13 +30,14 @@ object GeometryUtils {
     }
 
 
-    def splitBigGeometries(lineThreshold: Double = 2e-1, polygonThreshold: Double = 2e-2)(geometry: Geometry): Seq[Geometry] = {
-        geometry match {
+    def splitBigGeometries(lineThreshold: Double = 2e-1, polygonThreshold: Double = 2e-1)(geometry: Geometry): Seq[Geometry] = {
+        val res = geometry match {
             case polygon: Polygon => splitPolygon(polygon, polygonThreshold)
             case line: LineString => splitLineString(line, lineThreshold)
             case gc: GeometryCollection => flattenCollection(gc).flatMap(g => splitBigGeometries()(g))
             case _ => Seq(geometry)
         }
+        res
     }
 
 

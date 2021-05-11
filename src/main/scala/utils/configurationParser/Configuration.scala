@@ -43,7 +43,7 @@ sealed trait ConfigurationT {
 
     def getProgressiveAlgorithm: ProgressiveAlgorithm = ProgressiveAlgorithm.withName(configurations.getOrElse(YamlConfiguration.CONF_PROGRESSIVE_ALG, "PROGRESSIVE_GIANT"))
 
-    def getOutputPath: String = configurations.getOrElse(YamlConfiguration.OUTPUT, "")
+    def getOutputPath: Option[String] = configurations.get(YamlConfiguration.OUTPUT)
 }
 
 
