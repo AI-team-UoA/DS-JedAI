@@ -17,15 +17,9 @@ sealed trait ComparisonPQ {
 
     def enqueueAll(items: Iterator[WeightedPair]): Unit = items.foreach(wp => enqueue(wp))
 
-    def take(n: Option[Int]): Iterator[WeightedPair] =
-        n match {
-            case Some(n) => Iterator.continually{ dequeueHead() }.take(n)
-            case None =>  Iterator.continually{ dequeueHead() }.takeWhile(_ => !pq.isEmpty)
-        }
+    def take(n: Int): Iterator[WeightedPair] = Iterator.continually{ dequeueHead() }.take(n)
 
-    def take(n: Int): Iterator[WeightedPair] = take(Option(n))
-
-    def dequeueAll: Iterator[WeightedPair] = take(None)
+    def dequeueAll: Iterator[WeightedPair] = take(maxSize.toInt)
 
     def clear(): Unit = pq.clear()
 

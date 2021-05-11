@@ -4,96 +4,142 @@ import java.util.Calendar
 
 import interlinkers.InterlinkerT
 import model._
+import model.entities.Entity
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
-import org.apache.spark.storage.StorageLevel
+import utils.Constants
 import utils.Constants.Relation.Relation
-import utils.Constants.WeightingScheme.WeightingScheme
-import utils.Constants.{Relation, WeightingScheme}
+import utils.Constants.WeightingFunction.WeightingFunction
+import utils.Constants.{COMPOSITE, HYBRID, Relation, SINGLE, WeightingFunction}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.math.{ceil, floor, max, min}
 
-trait ProgressiveInterlinkerT extends InterlinkerT{
-    val budget: Int
-    val mainWS: WeightingScheme
-    val secondaryWS: Option[WeightingScheme]
 
+
+trait ProgressiveInterlinkerT extends InterlinkerT{
+
+    val budget: Int
+    val mainWF: WeightingFunction
+    val secondaryWF: Option[WeightingFunction]
+    val ws: Constants.WeightingScheme
+    val totalSourceEntities: Long
+
+
+    /**
+     * the number of all blocks in all partitions
+     */
     lazy val totalBlocks: Double = {
-        val globalMinX: Double = partitionsZones.map(p => p.minX / thetaXY._1).min
-        val globalMaxX: Double = partitionsZones.map(p => p.maxX / thetaXY._1).max
-        val globalMinY: Double = partitionsZones.map(p => p.minY / thetaXY._2).min
-        val globalMaxY: Double = partitionsZones.map(p => p.maxY / thetaXY._2).max
+        val globalMinX: Double = partitionBorders.map(p => p.minX / thetaXY._1).min
+        val globalMaxX: Double = partitionBorders.map(p => p.maxX / thetaXY._1).max
+        val globalMinY: Double = partitionBorders.map(p => p.minY / thetaXY._2).min
+        val globalMaxY: Double = partitionBorders.map(p => p.maxY / thetaXY._2).max
 
         (globalMaxX - globalMinX + 1) * (globalMaxY - globalMinY + 1)
     }
 
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): ComparisonPQ
+    /**
+     * compute the main weight of a pair of entities
+     * @param s source entity
+     * @param t target entity
+     * @return a weight
+     */
+    def getMainWeight(s: Entity, t: Entity): Float = getWeight(s, t, mainWF)
 
-    def getMainWeight(e1: Entity, e2: Entity): Float = getWeight(e1, e2, mainWS)
 
-    def getSecondaryWeight(e1: Entity, e2: Entity): Float =
-        secondaryWS match {
-            case Some(ws) => getWeight(e1, e2, ws)
+    /**
+     * compute the secondary weight of a pair of entities, if the secondary scheme was provided
+     * @param s source entity
+     * @param t target entity
+     * @return a weight
+     */
+    def getSecondaryWeight(s: Entity, t: Entity): Float =
+        secondaryWF match {
+            case Some(wf) => getWeight(s, t, wf)
             case None => 0f
         }
 
     /**
-     * Weight a comparison
-     *
-     * @param e1        Spatial entity
-     * @param e2        Spatial entity
+     * Weight a pair
+     * @param s        Spatial entity
+     * @param t        Spatial entity
      * @return weight
      */
-    def getWeight(e1: Entity, e2: Entity, ws: WeightingScheme): Float = {
-        val e1Blocks = (ceil(e1.mbr.maxX/thetaXY._1).toInt - floor(e1.mbr.minX/thetaXY._1).toInt + 1) * (ceil(e1.mbr.maxY/thetaXY._2).toInt - floor(e1.mbr.minY/thetaXY._2).toInt + 1)
-        val e2Blocks = (ceil(e2.mbr.maxX/thetaXY._1).toInt - floor(e2.mbr.minX/thetaXY._1).toInt + 1) * (ceil(e2.mbr.maxY/thetaXY._2).toInt - floor(e2.mbr.minY/thetaXY._2).toInt + 1)
-        lazy val cb = (min(ceil(e1.mbr.maxX/thetaXY._1), ceil(e2.mbr.maxX/thetaXY._1)).toInt - max(floor(e1.mbr.minX/thetaXY._1), floor(e2.mbr.minX/thetaXY._1)).toInt + 1) *
-            (min(ceil(e1.mbr.maxY/thetaXY._2), ceil(e2.mbr.maxY/thetaXY._2)).toInt - max(floor(e1.mbr.minY/thetaXY._2), floor(e2.mbr.minY/thetaXY._2)).toInt + 1)
+    def getWeight(s: Entity, t: Entity, wf: WeightingFunction): Float = {
+        val sBlocks = (ceil(s.mbr.maxX/thetaXY._1).toInt - floor(s.mbr.minX/thetaXY._1).toInt + 1) * (ceil(s.mbr.maxY/thetaXY._2).toInt - floor(s.mbr.minY/thetaXY._2).toInt + 1)
+        val tBlocks = (ceil(t.mbr.maxX/thetaXY._1).toInt - floor(t.mbr.minX/thetaXY._1).toInt + 1) * (ceil(t.mbr.maxY/thetaXY._2).toInt - floor(t.mbr.minY/thetaXY._2).toInt + 1)
+        lazy val cb = (min(ceil(s.mbr.maxX/thetaXY._1), ceil(t.mbr.maxX/thetaXY._1)).toInt - max(floor(s.mbr.minX/thetaXY._1), floor(t.mbr.minX/thetaXY._1)).toInt + 1) *
+            (min(ceil(s.mbr.maxY/thetaXY._2), ceil(t.mbr.maxY/thetaXY._2)).toInt - max(floor(s.mbr.minY/thetaXY._2), floor(t.mbr.minY/thetaXY._2)).toInt + 1)
 
-        ws match {
-            case WeightingScheme.MBRO =>
-                val intersectionArea = e1.mbr.getIntersectingMBR(e2.mbr).getArea
-                val w = intersectionArea / (e1.mbr.getArea + e2.mbr.getArea - intersectionArea)
+        wf match {
+            case WeightingFunction.MBRO =>
+                val intersectionArea = s.mbr.getIntersectingMBR(t.mbr).getArea
+                val w = intersectionArea / (s.mbr.getArea + t.mbr.getArea - intersectionArea)
                 if (!w.isNaN) w else 0f
 
-            case WeightingScheme.ISP =>
-                1f / (e1.geometry.getNumPoints + e2.geometry.getNumPoints);
+            case WeightingFunction.ISP =>
+                1f / (s.geometry.getNumPoints + t.geometry.getNumPoints);
 
-            case WeightingScheme.JS =>
-                cb / (e1Blocks + e2Blocks - cb)
+            case WeightingFunction.JS =>
+                cb / (sBlocks + tBlocks - cb)
 
-            case WeightingScheme.PEARSON_X2 =>
-                val v1: Array[Long] = Array[Long](cb, (e2Blocks - cb).toLong)
-                val v2: Array[Long] = Array[Long]((e1Blocks - cb).toLong, (totalBlocks - (v1(0) + v1(1) + (e1Blocks - cb))).toLong)
+            case WeightingFunction.PEARSON_X2 =>
+                val v1: Array[Long] = Array[Long](cb, (tBlocks - cb).toLong)
+                val v2: Array[Long] = Array[Long]((sBlocks - cb).toLong, (totalBlocks - (v1(0) + v1(1) + (sBlocks - cb))).toLong)
                 val chiTest = new ChiSquareTest()
                 chiTest.chiSquare(Array(v1, v2)).toFloat
 
-            case WeightingScheme.CF | _ =>
+            case WeightingFunction.CF | _ =>
                 cb.toFloat
         }
     }
 
+
+    def getWeightedPair(counter: Int, s: Entity, sIndex: Int, t:Entity, tIndex: Int): WeightedPair = {
+        ws match {
+            case SINGLE =>
+                val mw = getWeight(s, t, mainWF)
+                MainWP(counter, sIndex, tIndex, mw)
+            case COMPOSITE =>
+                val mw = getWeight(s, t, mainWF)
+                val sw = getSecondaryWeight(s, t)
+                CompositeWP(counter, sIndex, tIndex, mw, sw)
+            case HYBRID =>
+                val mw = getWeight(s, t, mainWF)
+                val sw = getSecondaryWeight(s, t)
+                HybridWP(counter, sIndex, tIndex, mw, sw)
+        }
+    }
+
+
+    /**
+     * Compute the  9-IM of the entities of a PQ
+     * @param pq a Priority Queue
+     * @param source source entities
+     * @param target target entities
+     * @return an iterator of  IM
+     */
     def computeDE9IM(pq: ComparisonPQ, source: Array[Entity], target: Array[Entity]): Iterator[IM] =
         if (!pq.isEmpty)
             pq.dequeueAll.map{ wp =>
-                val e1 = source(wp.entityId1)
-                val e2 = target(wp.entityId2)
-                IM(e1, e2)
+                val s = source(wp.entityId1)
+                val t = target(wp.entityId2)
+                IM(s, t)
             }.takeWhile(_ => !pq.isEmpty)
         else Iterator()
 
+
     /**
      *  Get the DE-9IM of the top most related entities based
-     *  on the input budget and the Weighting Scheme
+     *  on the input budget and the Weighting Function
      * @return an RDD of IM
      */
     def getDE9IM: RDD[IM] ={
         joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
             .flatMap{ p =>
                 val pid = p._1
-                val partition = partitionsZones(pid)
+                val partition = partitionBorders(pid)
                 val source = p._2._1.toArray
                 val target = p._2._2.toArray
 
@@ -102,6 +148,33 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
             }
     }
 
+
+    /**
+     *  Examine the Relation of the top most related entities based
+     *  on the input budget and the Weighting Function
+     *  @param relation the relation to examine
+     *  @return an RDD of pair of IDs
+     */
+    def relate(relation: Relation): RDD[(String, String)] = {
+        joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
+            .flatMap{ p =>
+                val pid = p._1
+                val partition = partitionBorders(pid)
+                val source = p._2._1.toArray
+                val target = p._2._2.toArray
+
+                val pq = prioritize(source, target, partition, relation)
+                if (!pq.isEmpty)
+                    pq.dequeueAll.map{ wp =>
+                        val s = source(wp.entityId1)
+                        val t = target(wp.entityId2)
+                        (s.relate(t, relation), (s.originalID, t.originalID))
+                    }.filter(_._1).map(_._2)
+                else Iterator()
+            }
+    }
+
+
     /**
      * Measure the time for the Scheduling and Verification steps
 
@@ -109,96 +182,75 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
      */
     def time: (Double, Double, Double) ={
         val rdd = joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
-//        rdd.count()
+
         // execute and time scheduling step
         val schedulingStart = Calendar.getInstance().getTimeInMillis
         val prioritizationResults = rdd.map { p =>
             val pid = p._1
-            val partition = partitionsZones(pid)
+            val partition = partitionBorders(pid)
             val source = p._2._1.toArray
             val target = p._2._2.toArray
 
             val pq = prioritize(source, target, partition, Relation.DE9IM)
             (pq, source, target)
-        }//.persist(StorageLevel.MEMORY_AND_DISK)
-
+        }
+        // invoke execution
         prioritizationResults.count()
         val schedulingTime = (Calendar.getInstance().getTimeInMillis - schedulingStart) / 1000.0
 
-        // execute and time the whole procedure
-//        val verificationTimeStart = Calendar.getInstance().getTimeInMillis
-//        prioritizationResults.flatMap{ case (pq, source, target) => computeDE9IM(pq, source, target) }.count()
-//        val verificationTime = (Calendar.getInstance().getTimeInMillis - verificationTimeStart) / 1000.0
-
+        // execute and time thw whole matching procedure
         val matchingTimeStart = Calendar.getInstance().getTimeInMillis
-        val qp = countAllRelations
+        // invoke execution
+        countAllRelations
         val matchingTime = (Calendar.getInstance().getTimeInMillis - matchingTimeStart) / 1000.0
-        // the verification time is the total time - the scheduling time
+
+        // the verification time is the matching time - the scheduling time
         val verificationTime = matchingTime - schedulingTime
+
         (schedulingTime, verificationTime, schedulingTime+verificationTime)
     }
 
 
     /**
-     *  Examine the Relation of the top most related entities based
-     *  on the input budget and the Weighting Scheme
-     *  @param relation the relation to examine
-     *  @return an RDD of pair of IDs
-     */
-    def relate(relation: Relation): RDD[(String, String)] = {
-        joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
-            .flatMap{ p =>
-            val pid = p._1
-            val partition = partitionsZones(pid)
-            val source = p._2._1.toArray
-            val target = p._2._2.toArray
-
-            val pq = prioritize(source, target, partition, relation)
-            if (!pq.isEmpty)
-                pq.dequeueAll.map{ wp =>
-                    val e1 = source(wp.entityId1)
-                    val e2 = target(wp.entityId2)
-                    (e1.relate(e2, relation), (e1.originalID, e2.originalID))
-                }.filter(_._1).map(_._2)
-            else Iterator()
-        }
-    }
-
-
-    /**
-     * Compute PGR - first weight and perform the comparisons in each partition,
-     * then collect them in descending order and compute the progressive True Positives.
+     * Compute PGR - first weight and perform the verifications in parallel,
+     * then serialize the results in a descending order. This way we get the global order of the
+     * discovery of the Qualifying pairs. and hence we can compute PGR.
      *
      * @param relation the examined relation
      * @return (PGR, total interlinked Geometries (TP), total comparisons)
      */
     def evaluate(relation: Relation, n: Int = 10, totalQualifiedPairs: Double, takeBudget: Seq[Int]): Seq[(Double, Long, Long, (List[Int], List[Int]))]  ={
-        // computes weighted the weighted comparisons
+
+        // find the weighted pairs (i.e. Filtering & Scheduling Steps)
         val matches: RDD[(WeightedPair, Boolean)] = joinedRDD
             .filter(p => p._2._1.nonEmpty && p._2._2.nonEmpty)
             .flatMap { p =>
                 val pid = p._1
-                val partition = partitionsZones(pid)
+                val partition = partitionBorders(pid)
                 val source = p._2._1.toArray
                 val target = p._2._2.toArray
 
                 val pq = prioritize(source, target, partition, relation)
                 if (!pq.isEmpty)
                     pq.dequeueAll.map{  wp =>
-                        val e1 = source(wp.entityId1)
-                        val e2 = target(wp.entityId2)
+                        val s = source(wp.entityId1)
+                        val t = target(wp.entityId2)
                         relation match {
-                            case Relation.DE9IM => (wp, IM(e1, e2).relate)
-                            case _ => (wp, e1.relate(e2, relation))
+                            case Relation.DE9IM => (wp, IM(s, t).relate)
+                            case _ => (wp, s.relate(t, relation))
                         }
                     }.takeWhile(_ => !pq.isEmpty)
                 else Iterator()
-            }.persist(StorageLevel.MEMORY_AND_DISK)
+            }
 
         var results = mutable.ListBuffer[(Double, Long, Long, (List[Int], List[Int]))]()
-        for(b <- takeBudget){
+
+        // get the global discovery order
+        val sorted = matches.takeOrdered(takeBudget.max)
+        for (b <- takeBudget){
+
+            val sortedPairs = sorted.take(b)
             // compute AUC prioritizing the comparisons based on their weight
-            val sorted = matches.takeOrdered(b)
             val verifications = sorted.length
             val step = math.ceil(verifications/n)
 
@@ -207,7 +259,7 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
             val verificationSteps = ListBuffer[Int]()
             val qualifiedPairsSteps = ListBuffer[Int]()
 
-            sorted
+            sortedPairs
                 .map(_._2)
                 .zipWithIndex
                 .foreach{
@@ -225,8 +277,10 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
             val pgr = (progressiveQP/qualifiedPairsWithinBudget)/verifications.toDouble
             results += ((pgr, qp, verifications, (verificationSteps.toList, qualifiedPairsSteps.toList)))
         }
-        matches.unpersist()
         results
     }
+
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): ComparisonPQ
+
 
 }

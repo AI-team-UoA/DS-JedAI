@@ -1,7 +1,7 @@
-package model
+package model.entities
 
-import com.vividsolutions.jts.geom.{Geometry, IntersectionMatrix}
-import com.vividsolutions.jts.io.WKTReader
+import model.MBR
+import org.locationtech.jts.geom.{Geometry, IntersectionMatrix}
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 
@@ -102,27 +102,4 @@ trait Entity extends Serializable {
     override def toString: String = s"$originalID, ${MBR.toString}"
 }
 
-case class SpatialEntity(originalID: String = "", geometry: Geometry, mbr: MBR) extends Entity
 
-
-/**
- * auxiliary constructors
- */
-object SpatialEntity {
-
-    def apply(originalID: String, wkt: String): Entity ={
-        val wktReader = new WKTReader()
-        val geometry: Geometry = wktReader.read(wkt)
-        val mbb = MBR(geometry)
-
-        SpatialEntity(originalID, geometry, mbb)
-    }
-
-    def apply(originalID: String, geom: Geometry): Entity ={
-        val geometry: Geometry = geom
-        val mbb = MBR(geometry)
-
-        SpatialEntity(originalID, geometry, mbb)
-    }
-
-}

@@ -1,24 +1,27 @@
 package interlinkers
 
-import model.{Entity, IM}
+import model.entities.Entity
+import model.{IM, MBR}
 import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
-import utils.Constants.WeightingScheme.WeightingScheme
+import utils.Constants.WeightingFunction.WeightingFunction
 
 
 
 
-case class IndexedJoinInterlinking(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], thetaXY: (Double, Double)) extends InterlinkerT {
+case class IndexedJoinInterlinking(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)],
+                                   thetaXY: (Double, Double), partitionBorders: Array[MBR]
+                                  ) extends InterlinkerT {
 
     val joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))] = null
-    val ws: WeightingScheme = null
+    val wf: WeightingFunction = null
     val partitioner = new HashPartitioner(source.getNumPartitions)
 
     val filteringFunction: ((Int, Entity),  (Int, Entity), (Int, Int), Relation) => Boolean =
-        (e1: (Int, Entity), e2: (Int, Entity), c: (Int, Int), r: Relation) =>
-            e1._1 == e2._1 && e1._2.filter(e2._2, r, c, thetaXY, Some(partitionsZones(e1._1)))
+        (s: (Int, Entity), t: (Int, Entity), c: (Int, Int), r: Relation) =>
+            s._1 == t._1 && s._2.filter(t._2, r, c, thetaXY, Some(partitionBorders(s._1)))
 
 
     def indexedJoin(): RDD[((Int, Int), (Iterable[(Int, Entity)], Iterable[(Int, Entity)]))] = {
@@ -45,8 +48,8 @@ case class IndexedJoinInterlinking(source:RDD[(Int, Entity)], target:RDD[(Int, E
     def relate(relation: Relation): RDD[(String, String)] =
         indexedJoin()
             .flatMap { case (c: (Int, Int), ( source: Iterable[(Int, Entity)], target: Iterable[(Int, Entity)])) =>
-                for (e1 <- source; e2 <- target; if filteringFunction(e1, e2, c, relation) && e1._2.relate(e2._2, relation))
-                    yield (e1._2.originalID, e2._2.originalID)
+                for (s <- source; t <- target; if filteringFunction(s, t, c, relation) && s._2.relate(t._2, relation))
+                    yield (s._2.originalID, t._2.originalID)
             }
 
 
@@ -54,8 +57,8 @@ case class IndexedJoinInterlinking(source:RDD[(Int, Entity)], target:RDD[(Int, E
         val indexedSeq = indexedJoin()
         indexedSeq
             .flatMap { case (c: (Int, Int), (source: Iterable[(Int, Entity)], target: Iterable[(Int, Entity)])) =>
-                for (e1 <- source; e2 <- target; if filteringFunction(e1, e2, c, Relation.DE9IM))
-                    yield IM(e1._2, e2._2)
+                for (s <- source; t <- target; if filteringFunction(s, t, c, Relation.DE9IM))
+                    yield IM(s._2, t._2)
             }
     }
 

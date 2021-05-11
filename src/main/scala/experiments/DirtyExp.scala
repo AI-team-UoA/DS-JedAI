@@ -3,17 +3,20 @@ package experiments
 import java.util.Calendar
 
 import interlinkers.DirtyGIAnt
-import model.Entity
+import model.entities.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
+import org.apache.sedona.core.serde.SedonaKryoRegistrator
+import org.apache.sedona.core.spatialRDD.SpatialRDD
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
-import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
+import org.locationtech.jts.geom.Geometry
 import utils.Constants.GridType
-import utils.readers.Reader
-import utils.{ConfigurationParser, Utils}
+import utils.readers.{GridPartitioner, Reader}
+import utils.Utils
+import utils.configurationParser.ConfigurationParser
 
 object DirtyExp {
 
@@ -26,7 +29,7 @@ object DirtyExp {
         val sparkConf = new SparkConf()
             .setAppName("DS-JedAI")
             .set("spark.serializer", classOf[KryoSerializer].getName)
-            .set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
+            .set("spark.kryo.registrator", classOf[SedonaKryoRegistrator].getName)
 
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()
@@ -65,24 +68,29 @@ object DirtyExp {
         val conf = ConfigurationParser.parseDirty(confPath)
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
-        val output: String = if (options.contains("output")) options("output") else conf.getOutputPath
+        val output: Option[String] = if (options.contains("output")) options.get("output") else conf.getOutputPath
+
         val print = options.getOrElse("print", "false").toBoolean
 
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        // reading source dataset
-        val reader = Reader(partitions, gridType)
-        val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
+        // load datasets
+        val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
+
+        // spatial partition
+        val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
-        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-        val giant = DirtyGIAnt(sourceRDD.map(_._2), Utils.getTheta)
+        val theta = Utils.getTheta(sourceRDD.map(_._2.mbr))
+        val partitionBorder = Utils.getBordersOfMBR(partitioner.partitionBorders, theta).toArray
+        val giant = DirtyGIAnt(sourceRDD.map(_._2), partitionBorder, theta)
         val imRDD = giant.getDE9IM
 
         if (print) {
-            // imRDD.persist(StorageLevel.MEMORY_AND_DISK)
+            imRDD.persist(StorageLevel.MEMORY_AND_DISK)
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
             totalOverlaps, totalTouches, totalWithin, verifications, qp) = Utils.countAllRelations(imRDD)
 
@@ -102,10 +110,8 @@ object DirtyExp {
             log.info("DS-JEDAI: WITHIN: " + totalWithin)
             log.info("DS-JEDAI: Total Discovered Relations: " + totalRelations)
         }
-        else
-            Utils.exportRDF(imRDD, output)
+        if(output.isDefined) Utils.exportRDF(imRDD, output.get)
         val endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Total Execution Time: " + (endTime - startTime) / 1000.0)
-
     }
 }

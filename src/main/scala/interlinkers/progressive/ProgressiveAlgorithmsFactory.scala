@@ -1,32 +1,34 @@
 package interlinkers.progressive
 
-import model.Entity
+import model.MBR
+import model.entities.Entity
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
-import utils.Constants.WeightingScheme.WeightingScheme
+import utils.Constants.WeightingFunction.WeightingFunction
 import utils.Constants.ProgressiveAlgorithm
+import utils.Constants
 
 object ProgressiveAlgorithmsFactory {
 
 
     def get(matchingAlgorithm: ProgressiveAlgorithm, source: RDD[(Int, Entity)], target: RDD[(Int, Entity)],
-            partitioner: Partitioner, budget: Int = 0, mainWS: WeightingScheme,  secondaryWS: Option[WeightingScheme]):
+            thetaXY: (Double, Double), partitionBorders: Array[MBR], partitioner: Partitioner, sourceCount: Long,
+            budget: Int = 0, mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction],
+            ws: Constants.WeightingScheme ):
     ProgressiveInterlinkerT ={
 
         matchingAlgorithm match {
             case ProgressiveAlgorithm.RANDOM =>
-                RandomScheduling(source, target, mainWS, secondaryWS, budget, partitioner)
-//            case ProgressiveAlgorithm.GEOMETRY_CENTRIC =>
-//                GeometryCentric(source, target, ws, budget, partitioner)
+                RandomScheduling(source, target, thetaXY, partitionBorders, sourceCount, mainWF, secondaryWF, budget, partitioner, ws)
             case ProgressiveAlgorithm.TOPK =>
-                TopKPairs(source, target, mainWS, secondaryWS, budget, partitioner)
+                TopKPairs(source, target, thetaXY, partitionBorders, sourceCount, mainWF, secondaryWF, budget, partitioner, ws)
             case ProgressiveAlgorithm.RECIPROCAL_TOPK =>
-                ReciprocalTopK(source, target, mainWS, secondaryWS, budget, partitioner)
+                ReciprocalTopK(source, target, thetaXY, partitionBorders, sourceCount, mainWF, secondaryWF, budget, partitioner, ws)
             case ProgressiveAlgorithm.DYNAMIC_PROGRESSIVE_GIANT =>
-                DynamicProgressiveGIAnt(source, target, mainWS, secondaryWS, budget, partitioner)
+                DynamicProgressiveGIAnt(source, target, thetaXY, partitionBorders, sourceCount, mainWF, secondaryWF, budget, partitioner, ws)
             case ProgressiveAlgorithm.PROGRESSIVE_GIANT | _ =>
-                ProgressiveGIAnt(source, target, mainWS, secondaryWS, budget, partitioner)
+                ProgressiveGIAnt(source, target, thetaXY, partitionBorders, sourceCount, mainWF, secondaryWF, budget, partitioner, ws)
         }
     }
 }

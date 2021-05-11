@@ -4,17 +4,20 @@ package experiments
 import java.util.Calendar
 
 import interlinkers.GIAnt
-import model.Entity
+import model.entities.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
+import org.apache.sedona.core.serde.SedonaKryoRegistrator
+import org.apache.sedona.core.spatialRDD.SpatialRDD
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
-import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
+import org.locationtech.jts.geom.Geometry
 import utils.Constants.{GridType, Relation}
-import utils.readers.Reader
-import utils.{ConfigurationParser, Utils}
+import utils.readers.{GridPartitioner, Reader}
+import utils.Utils
+import utils.configurationParser.ConfigurationParser
 
 object GiantExp {
 
@@ -27,7 +30,7 @@ object GiantExp {
         val sparkConf = new SparkConf()
             .setAppName("DS-JedAI")
             .set("spark.serializer", classOf[KryoSerializer].getName)
-            .set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
+            .set("spark.kryo.registrator", classOf[SedonaKryoRegistrator].getName)
 
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()
@@ -45,6 +48,8 @@ object GiantExp {
                     nextOption(map ++ Map("gt" -> value), tail)
                 case "-s" :: tail =>
                     nextOption(map ++ Map("stats" -> "true"), tail)
+                case "-o" :: value :: tail =>
+                    nextOption(map ++ Map("output" -> value), tail)
                 case _ :: tail =>
                     log.warn("DS-JEDAI: Unrecognized argument")
                     nextOption(map, tail)
@@ -66,42 +71,48 @@ object GiantExp {
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
         val relation = conf.getRelation
         val printCount = options.getOrElse("stats", "false").toBoolean
+        val output: Option[String] = if (options.contains("output")) options.get("output") else conf.getOutputPath
 
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        // reading source dataset
-        val reader = Reader(partitions, gridType, printCount)
-        val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
+        // load datasets
+        val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
+        val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
+
+        // spatial partition
+        val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
+        val targetRDD: RDD[(Int, Entity)] = partitioner.transform(targetSpatialRDD, conf.target)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
-        val sourceCount = reader.counter
 
-        // reading target dataset
-        val targetRDD: RDD[(Int, Entity)] = reader.load(conf.target) match {
-            case Left(e) =>
-                log.error("Partitioner is not initialized, call first the `loadSource`.")
-                e.printStackTrace()
-                System.exit(1)
-                null
-            case Right(rdd) => rdd
-        }
-        val targetCount = reader.counter
-        val partitioner = reader.partitioner
-
-        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
+        val theta = Utils.getTheta(sourceRDD.map(_._2.mbr))
+        val partitionBorder = Utils.getBordersOfMBR(partitioner.partitionBorders, theta).toArray
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
-        val giant = GIAnt(sourceRDD, targetRDD, partitioner)
+        val giant = GIAnt(sourceRDD, targetRDD, theta, partitionBorder, partitioner.hashPartitioner)
 
+        // print statistics about the datasets
         if (printCount){
+            val sourceCount = sourceSpatialRDD.rawSpatialRDD.count()
+            val targetCount = targetSpatialRDD.rawSpatialRDD.count()
             log.info(s"DS-JEDAI: Source geometries: $sourceCount")
             log.info(s"DS-JEDAI: Target geometries: $targetCount")
             log.info(s"DS-JEDAI: Cartesian: ${sourceCount*targetCount}")
             log.info(s"DS-JEDAI: Candidate Pairs: ${giant.countCandidates}")
         }
         else if (relation.equals(Relation.DE9IM)) {
+            val imRDD = giant.getDE9IM
+
+            // export results as RDF
+            if (output.isDefined) {
+                imRDD.persist(StorageLevel.MEMORY_AND_DISK)
+                Utils.exportRDF(imRDD, output.get)
+            }
+
+            // log results
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-            totalOverlaps, totalTouches, totalWithin, verifications, qp) = giant.countAllRelations
+            totalOverlaps, totalTouches, totalWithin, verifications, qp) = Utils.countAllRelations(imRDD)
 
             val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
                 totalIntersects + totalOverlaps + totalTouches + totalWithin
@@ -128,5 +139,6 @@ object GiantExp {
 
         val endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Total Execution Time: " + (endTime - startTime) / 1000.0)
+        System.in.read()
     }
 }

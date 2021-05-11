@@ -2,18 +2,21 @@ package experiments
 
 import java.util.Calendar
 
-import model.Entity
 import interlinkers.{GIAnt, IndexedJoinInterlinking}
+import model.entities.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
+import org.apache.sedona.core.serde.SedonaKryoRegistrator
+import org.apache.sedona.core.spatialRDD.SpatialRDD
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
-import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
+import org.locationtech.jts.geom.Geometry
 import utils.Constants.{GridType, Relation}
-import utils.readers.Reader
-import utils.{ConfigurationParser, Utils}
+import utils.readers.{GridPartitioner, Reader}
+import utils.Utils
+import utils.configurationParser.ConfigurationParser
 
 
 object BalancingExp {
@@ -33,7 +36,7 @@ object BalancingExp {
         val sparkConf = new SparkConf()
             .setAppName("DS-JedAI")
             .set("spark.serializer", classOf[KryoSerializer].getName)
-            .set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
+            .set("spark.kryo.registrator", classOf[SedonaKryoRegistrator].getName)
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()
 
@@ -71,26 +74,21 @@ object BalancingExp {
         val relation = conf.getRelation
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        // reading source dataset
-        val reader = Reader(partitions, gridType)
-        val sourceRDD: RDD[(Int, Entity)] = reader.loadSource(conf.source)
+        // load datasets
+        val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
+        val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
+
+        // spatial partition
+        val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
+        val targetRDD: RDD[(Int, Entity)] = partitioner.transform(targetSpatialRDD, conf.target)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
-        val sourcePartitions: RDD[(Int, Iterator[Entity])] = sourceRDD.mapPartitions(si => Iterator((TaskContext.getPartitionId(), si.map(_._2))))
 
-
-        // reading target dataset
-        val targetRDD: RDD[(Int, Entity)] = reader.load(conf.target) match {
-            case Left(e) =>
-                log.error("Partitioner is not initialized, call first the `loadSource`.")
-                e.printStackTrace()
-                System.exit(1)
-                null
-            case Right(rdd) => rdd
-        }
-        val partitioner = reader.partitioner
-
-        Utils(sourceRDD.map(_._2.mbr), conf.getTheta, reader.partitionsZones)
+        val theta = Utils.getTheta(sourceRDD.map(_._2.mbr))
+        val partitionBorder = Utils.getBordersOfMBR(partitioner.partitionBorders, theta).toArray
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
+
+        val sourcePartitions: RDD[(Int, Iterator[Entity])] = sourceRDD.mapPartitions(si => Iterator((TaskContext.getPartitionId(), si.map(_._2))))
         val entitiesPerPartitions: Seq[(Int, Int)] =  sourcePartitions.map{ case (pid, si) => (pid, si.size)}.collect()
 
         // find outlier partitions
@@ -109,8 +107,8 @@ object BalancingExp {
         val goodTargetRDD = targetRDD.filter(t => !outlierPartitions.contains(t._1))
         val badTargetRDD = targetRDD.filter(t => outlierPartitions.contains(t._1))
 
-        val giant = GIAnt(goodSourceRDD, goodTargetRDD, partitioner)
-        val iji = IndexedJoinInterlinking(badSourceRDD, badTargetRDD, Utils.getTheta)
+        val giant = GIAnt(goodSourceRDD, goodTargetRDD, theta, partitionBorder, partitioner.hashPartitioner)
+        val iji = IndexedJoinInterlinking(badSourceRDD, badTargetRDD, theta, partitionBorder)
 
         if (relation.equals(Relation.DE9IM)) {
             val giantStartTime = Calendar.getInstance().getTimeInMillis

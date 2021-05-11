@@ -1,21 +1,19 @@
 package experiments
 
-import java.util
 import java.util.Calendar
 
-import com.vividsolutions.jts.geom.Geometry
 import org.apache.log4j.{Level, LogManager, Logger}
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.sedona.core.serde.SedonaKryoRegistrator
+import org.apache.sedona.sql.utils.SedonaSQLRegistrator
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.col
-import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator
-import org.datasyslab.geosparksql.utils.GeoSparkSQLRegistrator
-import utils.ConfigurationParser
+import org.apache.spark.sql.functions.{col, udf}
+import org.apache.spark.{SparkConf, SparkContext}
+import org.locationtech.jts.geom.Geometry
 import utils.Constants.{FileTypes, Relation}
-import org.apache.spark.sql.functions.udf
+import utils.configurationParser.ConfigurationParser
 
-object GeoSparkExp {
+object SedonaExp {
 
     def main(args: Array[String]): Unit = {
 
@@ -27,10 +25,10 @@ object GeoSparkExp {
         val sparkConf = new SparkConf()
             .setAppName("DS-JedAI")
             .set("spark.serializer", classOf[KryoSerializer].getName)
-            .set("spark.kryo.registrator", classOf[GeoSparkKryoRegistrator].getName)
+            .set("spark.kryo.registrator", classOf[SedonaKryoRegistrator].getName)
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()
-        GeoSparkSQLRegistrator.registerAll(spark)
+       SedonaSQLRegistrator.registerAll(spark)
 
         // Parsing input arguments
         @scala.annotation.tailrec

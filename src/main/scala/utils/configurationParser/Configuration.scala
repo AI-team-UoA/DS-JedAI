@@ -1,14 +1,15 @@
-package utils
+package utils.configurationParser
 
 import org.apache.log4j.{LogManager, Logger}
 import org.joda.time.format.DateTimeFormat
+import utils.Constants
 import utils.Constants.FileTypes.FileTypes
 import utils.Constants.GridType.GridType
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.Relation.Relation
 import utils.Constants.ThetaOption.ThetaOption
-import utils.Constants.WeightingScheme.WeightingScheme
-import utils.Constants.{FileTypes, GridType, ProgressiveAlgorithm, Relation, ThetaOption, WeightingScheme, YamlConfiguration}
+import utils.Constants.WeightingFunction.WeightingFunction
+import utils.Constants._
 
 /**
  * Configuration Interface
@@ -24,11 +25,16 @@ sealed trait ConfigurationT {
 
     def getTheta: ThetaOption = ThetaOption.withName(configurations.getOrElse(YamlConfiguration.CONF_THETA_GRANULARITY, "avg"))
 
-    def getMainWS: WeightingScheme = WeightingScheme.withName(configurations.getOrElse(YamlConfiguration.CONF_MAIN_WS, "JS"))
+    def getMainWF: WeightingFunction = WeightingFunction.withName(configurations.getOrElse(YamlConfiguration.CONF_MAIN_WF, "JS"))
 
-    def getSecondaryWS: Option[WeightingScheme] = configurations.get(YamlConfiguration.CONF_SECONDARY_WS) match {
-        case Some(ws) => Option(WeightingScheme.withName(ws))
+    def getSecondaryWF: Option[WeightingFunction] = configurations.get(YamlConfiguration.CONF_SECONDARY_WF) match {
+        case Some(wf) => Option(WeightingFunction.withName(wf))
         case None => None
+    }
+
+    def getWS: WeightingScheme = {
+        val ws = configurations.getOrElse(YamlConfiguration.CONF_WS, "SINGLE")
+        Constants.WeightingSchemeFactory(ws)
     }
 
     def getGridType: GridType = GridType.withName(configurations.getOrElse(YamlConfiguration.CONF_GRIDTYPE, "QUADTREE"))
@@ -37,7 +43,7 @@ sealed trait ConfigurationT {
 
     def getProgressiveAlgorithm: ProgressiveAlgorithm = ProgressiveAlgorithm.withName(configurations.getOrElse(YamlConfiguration.CONF_PROGRESSIVE_ALG, "PROGRESSIVE_GIANT"))
 
-    def getOutputPath: String = configurations.getOrElse(YamlConfiguration.OUTPUT, "")
+    def getOutputPath: Option[String] = configurations.get(YamlConfiguration.OUTPUT)
 }
 
 

@@ -1,7 +1,8 @@
 package utils
 
 
-import model.{Entity, IM, MBR}
+import model.entities.Entity
+import model.{IM, MBR}
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
@@ -13,46 +14,43 @@ import utils.Constants.ThetaOption.ThetaOption
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-/**
- * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
- */
+
+
 object Utils extends Serializable {
-
-	val spark: SparkSession = SparkSession.builder().getOrCreate()
-
-	var thetaOption: ThetaOption = _
-	var source: RDD[MBR] = spark.sparkContext.emptyRDD
-	var partitionsZones: Array[MBR] = Array()
-	lazy val sourceCount: Long = source.count()
-	lazy val thetaXY: (Double, Double) = initTheta()
-
-
-	def apply(sourceRDD: RDD[MBR], thetaOpt: ThetaOption = Constants.ThetaOption.AVG, pz: Array[MBR]=Array()): Unit ={
-		source = sourceRDD
-		thetaOption = thetaOpt
-		partitionsZones = pz
-	}
-
-
-	def getTheta: (Double, Double) = thetaXY
-	def getSourceCount: Long = sourceCount
-
 
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
 	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
-	implicit def tuple[String, Int](implicit e1: Encoder[String], e2: Encoder[Int]): Encoder[(String,Int)] = Encoders.tuple[String,Int](e1, e2)
+	implicit def tuple[String, Int](implicit s: Encoder[String], t: Encoder[Int]): Encoder[(String,Int)] = Encoders.tuple[String,Int](s, t)
 
 
-	lazy val globalMinX: Double = partitionsZones.map(p => p.minX / thetaXY._1).min
-	lazy val globalMaxX: Double = partitionsZones.map(p => p.maxX / thetaXY._1).max
-	lazy val globalMinY: Double = partitionsZones.map(p => p.minY / thetaXY._2).min
-	lazy val globalMaxY: Double = partitionsZones.map(p => p.maxY / thetaXY._2).max
+	def getBordersOfMBR(mbrs: Seq[MBR], theta: (Double, Double)): Seq[MBR] ={
+		val adjustedMBRs = mbrs.map(_.adjust(theta))
+
+		// get overall borders
+		val globalMinX: Double = adjustedMBRs.map(p => p.minX).min
+		val globalMaxX: Double = adjustedMBRs.map(p => p.maxX).max
+		val globalMinY: Double = adjustedMBRs.map(p => p.minY).min
+		val globalMaxY: Double = adjustedMBRs.map(p => p.maxY).max
+
+		// make them integers - filtering is discrete
+		val spaceMinX = math.floor(globalMinX).toInt - 1
+		val spaceMaxX = math.ceil(globalMaxX).toInt + 1
+		val spaceMinY = math.floor(globalMinY).toInt - 1
+		val spaceMaxY = math.ceil(globalMaxY).toInt + 1
+
+		adjustedMBRs.map { mbr =>
+			val minX = if (mbr.minX == globalMinX) spaceMinX else mbr.minX
+			val maxX = if (mbr.maxX == globalMaxX) spaceMaxX else mbr.maxX
+			val minY = if (mbr.minY == globalMinY) spaceMinY else mbr.minY
+			val maxY = if (mbr.maxY == globalMaxY) spaceMaxY else mbr.maxY
+			MBR(maxX, minX, maxY, minY)
+		}
+	}
 
 
-	/**
-	 * initialize theta based on theta granularity
-	 */
-	private def initTheta(): (Double, Double) = {
+	def getTheta(source: RDD[MBR], count: Option[Long] = None, thetaOption: ThetaOption = ThetaOption.AVG): (Double, Double) = {
+
+		val sourceCount = count.getOrElse(source.count()).toDouble
 
 		val (tx, ty) = thetaOption match {
 			case ThetaOption.MIN =>
@@ -82,95 +80,12 @@ object Utils extends Serializable {
 	}
 
 
-	def getZones: Array[MBR] ={
-		val (thetaX, thetaY) = thetaXY
-
-		val spaceMinX = math.floor(partitionsZones.map(p => p.minX / thetaX).min).toInt - 1
-		val spaceMaxX = math.ceil(partitionsZones.map(p => p.maxX / thetaX).max).toInt + 1
-		val spaceMinY = math.floor(partitionsZones.map(p => p.minY / thetaY).min).toInt - 1
-		val spaceMaxY = math.ceil(partitionsZones.map(p => p.maxY / thetaY).max).toInt + 1
-
-		partitionsZones.map(mbr => {
-			val minX = if (mbr.minX / thetaX == globalMinX) spaceMinX else mbr.minX / thetaX
-			val maxX = if (mbr.maxX / thetaX == globalMaxX) spaceMaxX else mbr.maxX / thetaX
-			val minY = if (mbr.minY / thetaY == globalMinY) spaceMinY else mbr.minY / thetaY
-			val maxY = if (mbr.maxY / thetaY == globalMaxY) spaceMaxY else 	mbr.maxY / thetaY
-
-			MBR(maxX, minX, maxY, minY)
-		})
-	}
-
-
-	def printPartition(joinedRDD: RDD[(Int, (Iterable[Entity],  Iterable[Entity]))]): Unit ={
-		val c = joinedRDD.map(p => (p._1, (p._2._1.size, p._2._2.size))).sortByKey().collect()
-		val log: Logger = LogManager.getRootLogger
-		log.info("Printing Partitions")
-		log.info("----------------------------------------------------------------------------")
-		var pSet = mutable.HashSet[String]()
-		c.foreach(p => {
-			val zoneStr = getZones(p._1).getGeometry.toText
-			pSet += zoneStr
-			log.info(p._1 + " ->  (" + p._2._1 + ", " + p._2._2 +  ") - " + zoneStr)
-		})
-		log.info("----------------------------------------------------------------------------")
-		log.info("Unique blocks: " + pSet.size)
-	}
-
-	def exportCSV(rdd: RDD[(String, String)], path:String): Unit ={
-		val schema = StructType(
-			StructField("id1", StringType, nullable = true) ::
-				StructField("id2", StringType, nullable = true) :: Nil
-		)
-		val rowRDD: RDD[Row] = rdd.map(s => new GenericRowWithSchema(Array(s._1, s._2), schema))
-		val df = spark.createDataFrame(rowRDD, schema)
-		df.write.option("header", "true").csv(path)
-	}
-
-
-	def exportRDF(rdd: RDD[IM], path:String): Unit ={
-		val contains = "<http://www.opengis.net/ont/geosparql#sfContains>"
-		val coveredBy = "<http://www.opengis.net/ont/geosparql#sfCoverdBy>"
-		val covers = "<http://www.opengis.net/ont/geosparql#sfCovers>"
-		val crosses = "<http://www.opengis.net/ont/geosparql#sfCrosses>"
-		val equals = "<http://www.opengis.net/ont/geosparql#sfEquals>"
-		val intersects = "<http://www.opengis.net/ont/geosparql#sfIntersects>"
-		val overlaps = "<http://www.opengis.net/ont/geosparql#sfOverlaps>"
-		val touches = "<http://www.opengis.net/ont/geosparql#sfTouches>"
-		val within = "<http://www.opengis.net/ont/geosparql#sfWithin>"
-		rdd.mapPartitions { imIterator =>
-			val sb = new StringBuilder()
-			imIterator.foreach { im =>
-				if (im.isContains)
-					sb.append(im.idPair._1 + " " + contains + " " + im.idPair._2 + " .\n")
-				if (im.isCoveredBy)
-					sb.append(im.idPair._1 + " " + coveredBy + " " + im.idPair._2 + " .\n")
-				if (im.isCovers)
-					sb.append(im.idPair._1 + " " + covers + " " + im.idPair._2 + " .\n")
-				if (im.isCrosses)
-					sb.append(im.idPair._1 + " " + crosses + " " + im.idPair._2 + " .\n")
-				if (im.isEquals)
-					sb.append(im.idPair._1 + " " + equals + " " + im.idPair._2 + " .\n")
-				if (im.isIntersects)
-					sb.append(im.idPair._1 + " " + intersects + " " + im.idPair._2 + " .\n")
-				if (im.isOverlaps)
-					sb.append(im.idPair._1 + " " + overlaps + " " + im.idPair._2 + " .\n")
-				if (im.isTouches)
-					sb.append(im.idPair._1 + " " + touches + " " + im.idPair._2 + " .\n")
-				if (im.isWithin)
-					sb.append(im.idPair._1 + " " + within + " " + im.idPair._2 + " .\n")
-			}
-			Iterator(sb.toString())
-		}.saveAsTextFile(path)
-	}
-
-
-
 	implicit class TupleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
 		def +(p: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
 			(p._1 + t._1, p._2 + t._2, p._3 +t._3, p._4+t._4, p._5+t._5, p._6+t._6, p._7+t._7, p._8+t._8, p._9+t._9, p._10+t._10, p._11+t._11)
 	}
 
-	def accumulate(imIterator: Iterator[IM]): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) ={
+	val accumulate: Iterator[IM] => (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = imIterator =>{
 		var totalContains: Int = 0
 		var totalCoveredBy: Int = 0
 		var totalCovers: Int = 0
@@ -205,4 +120,73 @@ object Utils extends Serializable {
 		imRDD
 			.mapPartitions { imIterator => Iterator(accumulate(imIterator)) }
 			.treeReduce({ case (im1, im2) => im1 + im2}, 4)
+
+
+
+
+	def printPartition(joinedRDD: RDD[(Int, (Iterable[Entity],  Iterable[Entity]))], bordersMBR: Seq[MBR], thetaXY: (Double, Double)): Unit ={
+		val partitionsBorders = getBordersOfMBR(bordersMBR, thetaXY).toArray
+		val c = joinedRDD.map(p => (p._1, (p._2._1.size, p._2._2.size))).sortByKey().collect()
+		val log: Logger = LogManager.getRootLogger
+		log.info("Printing Partitions")
+		log.info("----------------------------------------------------------------------------")
+		var pSet = mutable.HashSet[String]()
+		c.foreach(p => {
+			val zoneStr = partitionsBorders(p._1).getGeometry.toText
+			pSet += zoneStr
+			log.info(p._1 + " ->  (" + p._2._1 + ", " + p._2._2 +  ") - " + zoneStr)
+		})
+		log.info("----------------------------------------------------------------------------")
+		log.info("Unique blocks: " + pSet.size)
+	}
+
+
+	def exportCSV(rdd: RDD[(String, String)], path:String): Unit ={
+		val spark: SparkSession = SparkSession.builder().getOrCreate()
+
+		val schema = StructType(
+			StructField("id1", StringType, nullable = true) ::
+				StructField("id2", StringType, nullable = true) :: Nil
+		)
+		val rowRDD: RDD[Row] = rdd.map(s => new GenericRowWithSchema(Array(s._1, s._2), schema))
+		val df = spark.createDataFrame(rowRDD, schema)
+		df.write.option("header", "true").csv(path)
+	}
+
+
+	def exportRDF(rdd: RDD[IM], path:String): Unit ={
+		val contains = "<http://www.opengis.net/ont/geosparql#sfContains>"
+		val coveredBy = "<http://www.opengis.net/ont/geosparql#sfCoverdBy>"
+		val covers = "<http://www.opengis.net/ont/geosparql#sfCovers>"
+		val crosses = "<http://www.opengis.net/ont/geosparql#sfCrosses>"
+		val equals = "<http://www.opengis.net/ont/geosparql#sfEquals>"
+		val intersects = "<http://www.opengis.net/ont/geosparql#sfIntersects>"
+		val overlaps = "<http://www.opengis.net/ont/geosparql#sfOverlaps>"
+		val touches = "<http://www.opengis.net/ont/geosparql#sfTouches>"
+		val within = "<http://www.opengis.net/ont/geosparql#sfWithin>"
+		rdd.mapPartitions { imIterator =>
+			val sb = new StringBuilder()
+			imIterator.foreach { im =>
+				if (im.isContains)
+					sb.append("<" + im.idPair._1 +">" + " " + contains + " " + "<" + im.idPair._2 + ">" + " .\n")
+				if (im.isCoveredBy)
+					sb.append("<" + im.idPair._1 +">" + " " + coveredBy + " " + "<" + im.idPair._2 + ">" + " .\n")
+				if (im.isCovers)
+					sb.append("<" + im.idPair._1 +">" + " " + covers + " " + "<" + im.idPair._2 + ">" + " .\n")
+				if (im.isCrosses)
+					sb.append("<" + im.idPair._1 +">" + " " + crosses + " " + "<" + im.idPair._2 + ">" + " .\n")
+				if (im.isEquals)
+					sb.append("<" + im.idPair._1 +">" + " " + equals + " " + "<" + im.idPair._2 + ">" + " .\n")
+				if (im.isIntersects)
+					sb.append("<" + im.idPair._1 +">" + " " + intersects + " " + "<" + im.idPair._2 + ">" + " .\n")
+				if (im.isOverlaps)
+					sb.append("<" + im.idPair._1 +">" + " " + overlaps + " " + "<" + im.idPair._2 + ">" + " .\n")
+				if (im.isTouches)
+					sb.append("<" + im.idPair._1 +">" + " " + touches + " " + "<" + im.idPair._2 + ">" + " .\n")
+				if (im.isWithin)
+					sb.append("<" + im.idPair._1 +">" + " " + within + " " + "<" + im.idPair._2 + ">" + " .\n")
+			}
+			Iterator(sb.toString())
+		}.saveAsTextFile(path)
+	}
 }

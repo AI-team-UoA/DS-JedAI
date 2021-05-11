@@ -1,14 +1,17 @@
 package interlinkers.progressive
 
-import model.{Entity, MBR, WeightedPair, StaticComparisonPQ}
+import model.entities.Entity
+import model.{MBR, MainWP, StaticComparisonPQ}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
+import utils.Constants
 import utils.Constants.Relation.Relation
-import utils.Constants.WeightingScheme.WeightingScheme
-import utils.Utils
+import utils.Constants.WeightingFunction.WeightingFunction
 
-case class RandomScheduling(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], thetaXY: (Double, Double),
-                            mainWS: WeightingScheme, secondaryWS: Option[WeightingScheme], budget: Int, sourceEntities: Int)
+case class RandomScheduling(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
+                            thetaXY: (Double, Double), partitionBorders: Array[MBR],
+                            mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction], budget: Int,
+                            totalSourceEntities: Long, ws: Constants.WeightingScheme)
     extends ProgressiveInterlinkerT {
 
 
@@ -21,7 +24,7 @@ case class RandomScheduling(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Ent
      * @return a PQ with the top comparisons
      */
     def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): StaticComparisonPQ = {
-        val localBudget = (math.ceil(budget*source.length.toDouble/sourceEntities.toDouble)*2).toInt
+        val localBudget = math.ceil(budget*source.length.toDouble/totalSourceEntities.toDouble).toLong
 
         val sourceIndex = index(source)
         val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
@@ -32,15 +35,15 @@ case class RandomScheduling(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Ent
         target
             .indices
             .foreach { j =>
-                val e2 = target(j)
-                e2.index(thetaXY, filterIndices)
+                val t = target(j)
+                t.index(thetaXY, filterIndices)
                     .foreach { block =>
                         sourceIndex.get(block)
-                            .filter(i => source(i).filter(e2, relation, block, thetaXY, Some(partition)))
+                            .filter(i => source(i).filter(t, relation, block, thetaXY, Some(partition)))
                             .foreach { i =>
                                 val w = rnd.nextFloat()
                                 val secW = rnd.nextFloat()
-                                val wp = WeightedPair(counter, i, j, w, secW)
+                                val wp = MainWP(counter, i, j, w, secW)
                                 pq.enqueue(wp)
                                 counter += 1
                             }
@@ -56,12 +59,13 @@ case class RandomScheduling(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Ent
  */
 object RandomScheduling {
 
-    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], ws: WeightingScheme, sws: Option[WeightingScheme] = None,
-              budget: Int, partitioner: Partitioner): RandomScheduling ={
-        val thetaXY = Utils.getTheta
+    def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)],
+              thetaXY: (Double, Double), partitionBorders: Array[MBR], sourceCount: Long, wf: WeightingFunction,
+              swf: Option[WeightingFunction] = None, budget: Int, partitioner: Partitioner,
+              ws: Constants.WeightingScheme): RandomScheduling ={
+
         val joinedRDD = source.cogroup(target, partitioner)
-        val sourceEntities = Utils.sourceCount
-        RandomScheduling(joinedRDD, thetaXY, ws, sws, budget, sourceEntities.toInt)
+        RandomScheduling(joinedRDD, thetaXY, partitionBorders,  wf, swf, budget, sourceCount, ws)
     }
 
 }
