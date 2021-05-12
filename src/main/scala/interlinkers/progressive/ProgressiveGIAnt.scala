@@ -1,7 +1,7 @@
 package interlinkers.progressive
 
 import model.entities.Entity
-import model.{MBR, StaticComparisonPQ}
+import model._
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import utils.Constants
@@ -10,7 +10,7 @@ import utils.Constants.WeightingFunction.WeightingFunction
 
 
 case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
-                            thetaXY: (Double, Double), partitionBorders: Array[MBR],
+                            tileGranularities: TileGranularities, partitionBorders: Array[MBR],
                             mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction], budget: Int,
                             totalSourceEntities: Long, ws: Constants.WeightingScheme)
     extends ProgressiveInterlinkerT {
@@ -25,10 +25,9 @@ case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Ent
      * @param target target
      * @return a PQ with the top comparisons
      */
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): StaticComparisonPQ ={
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): ComparisonPQ ={
         val localBudget = math.ceil(budget*source.length.toDouble/totalSourceEntities.toDouble).toLong
-        val sourceIndex = index(source)
-        val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
+        val sourceIndex = SpatialIndex(source, tileGranularities)
         val pq: StaticComparisonPQ = StaticComparisonPQ(localBudget)
         var counter = 0
         // weight and put the comparisons in a PQ
@@ -36,17 +35,12 @@ case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Ent
             .indices
             .foreach {j =>
                 val t = target(j)
-                t.index(thetaXY, filterIndices)
-                    .foreach { block =>
-                        sourceIndex.get(block)
-                            .filter(i => source(i).filter(t, relation, block, thetaXY, Some(partition)))
-                            .foreach { i =>
-                                val s = source(i)
-                                val wp = getWeightedPair(counter, s, i, t, j)
-                                pq.enqueue(wp)
-                                counter += 1
-                            }
-                    }
+                val candidates = getAllCandidatesWithIndex(t, sourceIndex, partition, relation)
+                candidates.foreach { case (i, s) =>
+                    val wp = weightedPairFactory.createWeightedPair(counter, s, i, t, j)
+                    pq.enqueue(wp)
+                    counter += 1
+                }
             }
         pq
     }
@@ -60,12 +54,12 @@ case class ProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Ent
 object ProgressiveGIAnt {
 
     def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)],
-              thetaXY: (Double, Double), partitionBorders: Array[MBR], sourceCount: Long, wf: WeightingFunction,
+              tileGranularities: TileGranularities, partitionBorders: Array[MBR], sourceCount: Long, wf: WeightingFunction,
               swf: Option[WeightingFunction] = None, budget: Int, partitioner: Partitioner,
               ws: Constants.WeightingScheme): ProgressiveGIAnt ={
 
         val joinedRDD = source.cogroup(target, partitioner)
-        ProgressiveGIAnt(joinedRDD, thetaXY, partitionBorders,  wf, swf, budget, sourceCount, ws)
+        ProgressiveGIAnt(joinedRDD, tileGranularities, partitionBorders,  wf, swf, budget, sourceCount, ws)
     }
 
 }

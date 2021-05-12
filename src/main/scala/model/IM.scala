@@ -21,11 +21,11 @@ case class IM(s: Entity, t: Entity, im: IntersectionMatrix){
         im.add(intersectionMatrix.im)
         this
     }
-}
 
-object IM {
-    def apply(s: Entity, t: Entity): IM = {
-        val im = s.getIntersectionMatrix(t)
-        IM(s, t, im)
+    def ==(im: IM): Boolean ={
+        relate == im.relate &&
+            isContains == im.isContains && isCoveredBy == im.isCoveredBy && isCovers == im.isCovers &&
+            isCrosses == im.isCrosses && isEquals == im.isEquals && isIntersects == im.isIntersects &&
+            isOverlaps == im.isOverlaps && isTouches == im.isTouches && isWithin == im.isWithin
     }
 }

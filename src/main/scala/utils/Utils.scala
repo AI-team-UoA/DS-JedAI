@@ -2,14 +2,12 @@ package utils
 
 
 import model.entities.Entity
-import model.{IM, MBR}
+import model.{IM, MBR, TileGranularities}
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{Encoder, Encoders, Row, SparkSession}
-import utils.Constants.ThetaOption
-import utils.Constants.ThetaOption.ThetaOption
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -21,64 +19,6 @@ object Utils extends Serializable {
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
 	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
 	implicit def tuple[String, Int](implicit s: Encoder[String], t: Encoder[Int]): Encoder[(String,Int)] = Encoders.tuple[String,Int](s, t)
-
-
-	def getBordersOfMBR(mbrs: Seq[MBR], theta: (Double, Double)): Seq[MBR] ={
-		val adjustedMBRs = mbrs.map(_.adjust(theta))
-
-		// get overall borders
-		val globalMinX: Double = adjustedMBRs.map(p => p.minX).min
-		val globalMaxX: Double = adjustedMBRs.map(p => p.maxX).max
-		val globalMinY: Double = adjustedMBRs.map(p => p.minY).min
-		val globalMaxY: Double = adjustedMBRs.map(p => p.maxY).max
-
-		// make them integers - filtering is discrete
-		val spaceMinX = math.floor(globalMinX).toInt - 1
-		val spaceMaxX = math.ceil(globalMaxX).toInt + 1
-		val spaceMinY = math.floor(globalMinY).toInt - 1
-		val spaceMaxY = math.ceil(globalMaxY).toInt + 1
-
-		adjustedMBRs.map { mbr =>
-			val minX = if (mbr.minX == globalMinX) spaceMinX else mbr.minX
-			val maxX = if (mbr.maxX == globalMaxX) spaceMaxX else mbr.maxX
-			val minY = if (mbr.minY == globalMinY) spaceMinY else mbr.minY
-			val maxY = if (mbr.maxY == globalMaxY) spaceMaxY else mbr.maxY
-			MBR(maxX, minX, maxY, minY)
-		}
-	}
-
-
-	def getTheta(source: RDD[MBR], count: Option[Long] = None, thetaOption: ThetaOption = ThetaOption.AVG): (Double, Double) = {
-
-		val sourceCount = count.getOrElse(source.count()).toDouble
-
-		val (tx, ty) = thetaOption match {
-			case ThetaOption.MIN =>
-				// need filtering because there are cases where the geometries are perpendicular to the axes
-				// hence its width or height is equal to 0.0
-				val thetaX = source.map(mbb => mbb.maxX - mbb.minX).filter(_ != 0.0d).min
-				val thetaY = source.map(mbb => mbb.maxY - mbb.minY).filter(_ != 0.0d).min
-				(thetaX, thetaY)
-			case ThetaOption.MAX =>
-				val thetaX = source.map(mbb => mbb.maxX - mbb.minX).max
-				val thetaY = source.map(mbr => mbr.maxY - mbr.minY).max
-				(thetaX, thetaY)
-			case ThetaOption.AVG =>
-				val thetaX = source.map(mbr => mbr.maxX - mbr.minX).sum() / sourceCount
-				val thetaY = source.map(mbr => mbr.maxY - mbr.minY).sum() / sourceCount
-				(thetaX, thetaY)
-			case ThetaOption.AVG_x2 =>
-				val thetaXs = source.map(mbr => mbr.maxX - mbr.minX).sum() / sourceCount
-				val thetaYs = source.map(mbr => mbr.maxY - mbr.minY).sum() / sourceCount
-				val thetaX = 0.5 * thetaXs
-				val thetaY = 0.5 * thetaYs
-				(thetaX, thetaY)
-			case _ =>
-				(1d, 1d)
-		}
-		(tx, ty)
-	}
-
 
 	implicit class TupleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
 		def +(p: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
@@ -124,15 +64,14 @@ object Utils extends Serializable {
 
 
 
-	def printPartition(joinedRDD: RDD[(Int, (Iterable[Entity],  Iterable[Entity]))], bordersMBR: Seq[MBR], thetaXY: (Double, Double)): Unit ={
-		val partitionsBorders = getBordersOfMBR(bordersMBR, thetaXY).toArray
+	def printPartition(joinedRDD: RDD[(Int, (Iterable[Entity],  Iterable[Entity]))], bordersMBR: Array[MBR], tilesGranularities: TileGranularities): Unit ={
 		val c = joinedRDD.map(p => (p._1, (p._2._1.size, p._2._2.size))).sortByKey().collect()
 		val log: Logger = LogManager.getRootLogger
 		log.info("Printing Partitions")
 		log.info("----------------------------------------------------------------------------")
 		var pSet = mutable.HashSet[String]()
 		c.foreach(p => {
-			val zoneStr = partitionsBorders(p._1).getGeometry.toText
+			val zoneStr = bordersMBR(p._1).getGeometry.toText
 			pSet += zoneStr
 			log.info(p._1 + " ->  (" + p._2._1 + ", " + p._2._2 +  ") - " + zoneStr)
 		})

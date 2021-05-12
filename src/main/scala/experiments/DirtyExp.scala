@@ -3,6 +3,7 @@ package experiments
 import java.util.Calendar
 
 import interlinkers.DirtyGIAnt
+import model.TileGranularities
 import model.entities.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
@@ -84,8 +85,8 @@ object DirtyExp {
 
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-        val theta = Utils.getTheta(sourceRDD.map(_._2.mbr))
-        val partitionBorder = Utils.getBordersOfMBR(partitioner.partitionBorders, theta).toArray
+        val theta = TileGranularities(sourceRDD.map(_._2.env))
+        val partitionBorder = partitioner.getAdjustedBordersOfMBR(theta)
         val giant = DirtyGIAnt(sourceRDD.map(_._2), partitionBorder, theta)
         val imRDD = giant.getDE9IM
 

@@ -3,22 +3,23 @@ package experiments
 import java.util.Calendar
 
 import interlinkers.progressive.ProgressiveAlgorithmsFactory
+import model.TileGranularities
 import model.entities.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
 import org.apache.spark.rdd.RDD
-import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
+import utils.Constants
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
-import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingFunction}
 import utils.Constants.WeightingFunction.WeightingFunction
+import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingFunction}
 import utils.configurationParser.ConfigurationParser
 import utils.readers.{GridPartitioner, Reader}
-import utils.{Constants, Utils}
 
 object ProgressiveExp {
 
@@ -106,8 +107,8 @@ object ProgressiveExp {
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
         val sourceCount = sourceRDD.count()
 
-        val theta = Utils.getTheta(sourceRDD.map(_._2.mbr))
-        val partitionBorder = Utils.getBordersOfMBR(partitioner.partitionBorders, theta).toArray
+        val theta = TileGranularities(sourceRDD.map(_._2.env))
+        val partitionBorder = partitioner.getAdjustedBordersOfMBR(theta)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis

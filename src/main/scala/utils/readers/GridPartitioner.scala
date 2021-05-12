@@ -1,7 +1,7 @@
 package utils.readers
 
 import model.entities.{Entity, FragmentedEntity, SpatialEntity, SpatioTemporalEntity}
-import model.MBR
+import model.{MBR, TileGranularities}
 import org.apache.sedona.core.enums.GridType
 import org.apache.sedona.core.spatialPartitioning.SpatialPartitioner
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -35,6 +35,30 @@ case class GridPartitioner(source: SpatialRDD[Geometry], partitions: Int, gt: Co
 
     lazy val partitionBorders: Seq[MBR] = spatialPartitioner.getGrids.asScala.map(e => MBR(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY))
 
+
+    def getAdjustedBordersOfMBR(tilesGranularities: TileGranularities): Array[MBR] ={
+        val adjustedMBRs = partitionBorders.map(_.adjust(tilesGranularities))
+
+        // get overall borders
+        val globalMinX: Double = adjustedMBRs.map(p => p.minX).min
+        val globalMaxX: Double = adjustedMBRs.map(p => p.maxX).max
+        val globalMinY: Double = adjustedMBRs.map(p => p.minY).min
+        val globalMaxY: Double = adjustedMBRs.map(p => p.maxY).max
+
+        // make them integers - filtering is discrete
+        val spaceMinX = math.floor(globalMinX).toInt - 1
+        val spaceMaxX = math.ceil(globalMaxX).toInt + 1
+        val spaceMinY = math.floor(globalMinY).toInt - 1
+        val spaceMaxY = math.ceil(globalMaxY).toInt + 1
+
+        adjustedMBRs.map { mbr =>
+            val minX = if (mbr.minX == globalMinX) spaceMinX else mbr.minX
+            val maxX = if (mbr.maxX == globalMaxX) spaceMaxX else mbr.maxX
+            val minY = if (mbr.minY == globalMinY) spaceMinY else mbr.minY
+            val maxY = if (mbr.maxY == globalMaxY) spaceMaxY else mbr.maxY
+            MBR(maxX, minX, maxY, minY)
+        }.toArray
+    }
 
     /**
      *  Loads a dataset into Spatial Partitioned RDD. The partitioner

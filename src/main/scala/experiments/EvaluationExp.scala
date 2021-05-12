@@ -3,8 +3,8 @@ package experiments
 
 import interlinkers.GIAnt
 import interlinkers.progressive.ProgressiveAlgorithmsFactory
-import model.MBR
 import model.entities.Entity
+import model.{MBR, TileGranularities}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -14,13 +14,13 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{Partitioner, SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
+import utils.Constants
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightingFunction.WeightingFunction
-import utils.Constants.{GridType, HYBRID, ProgressiveAlgorithm, Relation, WeightingFunction}
+import utils.Constants._
 import utils.configurationParser.ConfigurationParser
 import utils.readers.{GridPartitioner, Reader}
-import utils.{Constants, Utils}
 
 
 object EvaluationExp {
@@ -109,8 +109,8 @@ object EvaluationExp {
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
         val sourceCount = sourceRDD.count()
 
-        val theta = Utils.getTheta(sourceRDD.map(_._2.mbr))
-        val partitionBorder = Utils.getBordersOfMBR(partitioner.partitionBorders, theta).toArray
+        val theta = TileGranularities(sourceRDD.map(_._2.env))
+        val partitionBorder = partitioner.getAdjustedBordersOfMBR(theta)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val (totalVerifications, totalRelatedPairs) = if (options.contains("tv") && options.contains("qp"))
@@ -145,11 +145,11 @@ object EvaluationExp {
      * @param n  the size of list storing the results
      */
     def printResults(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)],
-                     thetaXY: (Double, Double), partitionBorders: Array[MBR], sourceCount: Long,
+                     theta: TileGranularities, partitionBorders: Array[MBR], sourceCount: Long,
                      partitioner: Partitioner, totalRelations: Int, budget: Int,
                      pa: ProgressiveAlgorithm, wf: (WeightingFunction, Option[WeightingFunction]), ws: Constants.WeightingScheme, n: Int = 10): Unit = {
 
-        val pma = ProgressiveAlgorithmsFactory.get(pa, source, target, thetaXY, partitionBorders, partitioner, sourceCount, budget, wf._1, wf._2, ws)
+        val pma = ProgressiveAlgorithmsFactory.get(pa, source, target, theta, partitionBorders, partitioner, sourceCount, budget, wf._1, wf._2, ws)
         val results = pma.evaluate(relation, n, totalRelations, takeBudget)
 
         results.zip(takeBudget).foreach { case ((pgr, qp, verifications, (verificationSteps, qualifiedPairsSteps)), b) =>

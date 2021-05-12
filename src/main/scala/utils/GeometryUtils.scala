@@ -30,11 +30,11 @@ object GeometryUtils {
     }
 
 
-    def splitBigGeometries(lineThreshold: Double = 2e-1, polygonThreshold: Double = 2e-1)(geometry: Geometry): Seq[Geometry] = {
+    def splitBigGeometries(lineThreshold: Double, polygonThreshold: Double)(geometry: Geometry): Seq[Geometry] = {
         val res = geometry match {
             case polygon: Polygon => splitPolygon(polygon, polygonThreshold)
             case line: LineString => splitLineString(line, lineThreshold)
-            case gc: GeometryCollection => flattenCollection(gc).flatMap(g => splitBigGeometries()(g))
+            case gc: GeometryCollection => flattenCollection(gc).flatMap(g => splitBigGeometries(polygonThreshold, polygonThreshold)(g))
             case _ => Seq(geometry)
         }
         res
@@ -49,29 +49,28 @@ object GeometryUtils {
      * @param threshold     input threshold
      * @return              a seq of smaller polygons
      */
-    def splitPolygon(polygon: Polygon, threshold: Double = 2e-2): Seq[Polygon] = {
+    def splitPolygon(polygon: Polygon, threshold: Double): Seq[Polygon] = {
 
         /**
          * Recursively, split the polygons into sub-polygons. The procedure is repeated
          * until the width and height of the produced polygons do not exceed predefined thresholds.
          *
          * @param polygons      a list of Polygons
-         * @param threshold     width and height threshold
          * @param accumulator   the list of sub-polygons produced in the previous recursion
          * @return A list of sub-polygons
          */
         @tailrec
-        def recursiveSplit(polygons: Seq[Polygon], threshold: Double, accumulator: Seq[Polygon] = Nil): Seq[Polygon] = {
+        def recursiveSplit(polygons: Seq[Polygon], accumulator: Seq[Polygon] = Nil): Seq[Polygon] = {
             val (bigPolygons, smallPolygons) = polygons.partition(p => p.getEnvelopeInternal.getWidth > threshold || p.getEnvelopeInternal.getHeight > threshold)
             val (widePolygons, nonWide) = bigPolygons.partition(p => p.getEnvelopeInternal.getWidth > threshold)
             val (tallPolygons, nonTall) = bigPolygons.partition(p => p.getEnvelopeInternal.getHeight > threshold)
             if (widePolygons.nonEmpty) {
                 val newPolygons = widePolygons.flatMap(p => split(p,  getBlade(p, isHorizontal = false)))
-                recursiveSplit(newPolygons ++ nonWide, threshold, smallPolygons ++ accumulator )
+                recursiveSplit(newPolygons ++ nonWide, smallPolygons ++ accumulator )
             }
             else if (tallPolygons.nonEmpty) {
                 val newPolygons = tallPolygons.flatMap(p => split(p, getBlade(p, isHorizontal = true)))
-                recursiveSplit(newPolygons ++ nonTall, threshold, smallPolygons ++ accumulator)
+                recursiveSplit(newPolygons ++ nonTall, smallPolygons ++ accumulator)
             }
             else
                 smallPolygons ++ accumulator
@@ -185,7 +184,7 @@ object GeometryUtils {
         }
 
         // apply
-        recursiveSplit(List(polygon), threshold)
+        recursiveSplit(List(polygon))
     }
 
 
@@ -205,23 +204,22 @@ object GeometryUtils {
          * Recursively, split the linestring into sub-lines. The procedure is repeated
          * until the width and height of the produced lines do not exceed predefined thresholds.
          *
-         * @param lines         a seq of linestrings
-         * @param threshold     width and height threshold
+         * @param lines         a seq of lineStrings
          * @param accumulator   the list of sub-lines produced in the previous recursion
          * @return              A list of sub-polygons
          */
         @tailrec
-        def recursiveSplit(lines: Seq[LineString], threshold: Double, accumulator: Seq[LineString] = Nil): Seq[LineString] ={
+        def recursiveSplit(lines: Seq[LineString], accumulator: Seq[LineString] = Nil): Seq[LineString] ={
             val (bigLines, smallLines) = lines.partition(l => l.getEnvelopeInternal.getWidth > threshold || l.getEnvelopeInternal.getHeight > threshold)
             val (wideLines, nonWide) = bigLines.partition(p => p.getEnvelopeInternal.getWidth > threshold)
             val (tallLines, nonTall) = bigLines.partition(p => p.getEnvelopeInternal.getHeight > threshold)
             if (wideLines.nonEmpty) {
                 val newLines = wideLines.flatMap(l => split(l, getBlade(l, isHorizontal = false) ))
-                recursiveSplit(newLines ++ nonWide, threshold, smallLines ++ accumulator )
+                recursiveSplit(newLines ++ nonWide, smallLines ++ accumulator )
             }
             else if (tallLines.nonEmpty) {
                 val newLines = tallLines.flatMap(l => split(l, getBlade(l, isHorizontal = true)))
-                recursiveSplit(newLines ++ nonTall, threshold, smallLines ++ accumulator)
+                recursiveSplit(newLines ++ nonTall, smallLines ++ accumulator)
             }
             else
                 smallLines ++ accumulator
@@ -261,7 +259,7 @@ object GeometryUtils {
         }
 
         // apply
-        recursiveSplit(Seq(line), threshold, Nil)
+        recursiveSplit(Seq(line), Nil)
     }
 
 

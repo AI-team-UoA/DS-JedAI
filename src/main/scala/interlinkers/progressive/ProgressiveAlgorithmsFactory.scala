@@ -1,6 +1,6 @@
 package interlinkers.progressive
 
-import model.MBR
+import model.{MBR, TileGranularities}
 import model.entities.Entity
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
@@ -13,22 +13,22 @@ object ProgressiveAlgorithmsFactory {
 
 
     def get(matchingAlgorithm: ProgressiveAlgorithm, source: RDD[(Int, Entity)], target: RDD[(Int, Entity)],
-            thetaXY: (Double, Double), partitionBorders: Array[MBR], partitioner: Partitioner, sourceCount: Long,
+            tileGranularities: TileGranularities, partitionBorders: Array[MBR], partitioner: Partitioner, sourceCount: Long,
             budget: Int = 0, mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction],
             ws: Constants.WeightingScheme ):
     ProgressiveInterlinkerT ={
 
         matchingAlgorithm match {
             case ProgressiveAlgorithm.RANDOM =>
-                RandomScheduling(source, target, thetaXY, partitionBorders, sourceCount, mainWF, secondaryWF, budget, partitioner, ws)
+                RandomScheduling(source, target, tileGranularities, partitionBorders, sourceCount, mainWF, secondaryWF, budget, partitioner, ws)
             case ProgressiveAlgorithm.TOPK =>
-                TopKPairs(source, target, thetaXY, partitionBorders, sourceCount, mainWF, secondaryWF, budget, partitioner, ws)
+                TopKPairs(source, target, tileGranularities, partitionBorders, sourceCount, mainWF, secondaryWF, budget, partitioner, ws)
             case ProgressiveAlgorithm.RECIPROCAL_TOPK =>
-                ReciprocalTopK(source, target, thetaXY, partitionBorders, sourceCount, mainWF, secondaryWF, budget, partitioner, ws)
+                ReciprocalTopK(source, target, tileGranularities, partitionBorders, sourceCount, mainWF, secondaryWF, budget, partitioner, ws)
             case ProgressiveAlgorithm.DYNAMIC_PROGRESSIVE_GIANT =>
-                DynamicProgressiveGIAnt(source, target, thetaXY, partitionBorders, sourceCount, mainWF, secondaryWF, budget, partitioner, ws)
+                DynamicProgressiveGIAnt(source, target, tileGranularities, partitionBorders, sourceCount, mainWF, secondaryWF, budget, partitioner, ws)
             case ProgressiveAlgorithm.PROGRESSIVE_GIANT | _ =>
-                ProgressiveGIAnt(source, target, thetaXY, partitionBorders, sourceCount, mainWF, secondaryWF, budget, partitioner, ws)
+                ProgressiveGIAnt(source, target, tileGranularities, partitionBorders, sourceCount, mainWF, secondaryWF, budget, partitioner, ws)
         }
     }
 }

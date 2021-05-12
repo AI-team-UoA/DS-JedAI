@@ -1,49 +1,72 @@
 package interlinkers
 
 import model.entities.Entity
-import model.{IM, MBR, SpatialIndex}
+import model.{IM, MBR, SpatialIndex, TileGranularities}
 import org.apache.spark.rdd.RDD
+import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 
 trait InterlinkerT {
 
-    val orderByWeight: Ordering[(Double, (Entity, Entity))] = Ordering.by[(Double, (Entity, Entity)), Double](_._1).reverse
-
     val joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
-    val thetaXY: (Double, Double)
+    val tileGranularities: TileGranularities
     val partitionBorders: Array[MBR]
 
+    val weightOrdering: Ordering[(Double, (Entity, Entity))] = Ordering.by[(Double, (Entity, Entity)), Double](_._1).reverse
+
 
     /**
-     * index a list of spatial entities
+     * filter redundant verifications based on spatial criteria
      *
-     * @param entities list of spatial entities
-     * @return a SpatialIndex
+     * @param s source spatial entity
+     * @param t source spatial entity
+     * @param relation examining relation
+     * @param block block the comparison belongs to
+     * @param partition the partition the comparisons belong to
+     * @return true if comparison is necessary
      */
-    def index(entities: Array[Entity]): SpatialIndex = {
-        val spatialIndex = new SpatialIndex()
-        entities.zipWithIndex.foreach { case (se, i) =>
-            val indices: Seq[(Int, Int)] = se.index(thetaXY)
-            indices.foreach(c => spatialIndex.insert(c, i))
-        }
-        spatialIndex
-    }
+    def filterVerifications(s: Entity, t: Entity, relation: Relation, block: (Int, Int), partition: MBR): Boolean =
+        s.intersectingMBR(t, relation) && s.referencePointFiltering(t, block, tileGranularities, partition)
 
     /**
-     * Extract the candidate geometries from source, using spatial index
-     * @param t target geometry
-     * @param source array of source geometries
-     * @param index spatial index
-     * @param partitionZone examining partition
-     * @param relation examining relations
-     * @return a sequence of candidate geometries
+     * count all the necessary verifications
+     * @return number of verifications
      */
-    def getCandidates(t: Entity, source: Array[Entity], index: SpatialIndex, partitionZone: MBR, relation: Relation): Seq[Entity] =
-        t.index(thetaXY, index.contains).view
-            .flatMap(block => index.get(block).map(i => (block, i)))
-            .filter{ case (block, i) => source(i).filter(t, relation, block, thetaXY, Some(partitionZone))}
-            .map{case (_, i) => source(i) }
-            .force
+    def countVerification: Long =
+        joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
+            .flatMap { p =>
+                val pid = p._1
+                val partition = partitionBorders(pid)
+                val source: Array[Entity] = p._2._1.toArray
+                val target: Iterable[Entity] = p._2._2
+                val sourceIndex = SpatialIndex(source, tileGranularities)
+
+                target.flatMap(t => getAllCandidates(t, sourceIndex, partition, Relation.DE9IM))
+            }.count()
+
+
+    /**
+     *  Given a spatial index, retrieve all candidate geometries and filter based on
+     *  spatial criteria
+     *
+     * @param se target Spatial entity
+     * @param index spatial index
+     * @param partition current partition
+     * @param relation examining relation
+     * @return all candidate geometries of se
+     */
+    def getAllCandidates(se: Entity, index: SpatialIndex, partition: MBR, relation: Relation): Seq[Entity] ={
+        index.indexEntity(se)
+            .flatMap { block =>
+                val blockCandidatesOpt = index.get(block)
+                blockCandidatesOpt match {
+                    case Some(blockCandidates) =>
+                        val filteredBlockCandidates = blockCandidates.filter(e => filterVerifications(e, se, relation, block, partition))
+                        Some(filteredBlockCandidates)
+                    case _ => None
+                }
+            }.flatten
+    }
 
     implicit class TupleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
         def +(p: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
