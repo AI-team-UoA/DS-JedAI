@@ -122,14 +122,14 @@ object GeometryUtils {
             // define the line and its points
             // the line will be either vertical or horizontal
             val (line, start, end) = if (isHorizontal) {
-                val start = new Coordinate(env.getMinX, y)
-                val end = new Coordinate(env.getMaxX, y)
+                val start = new Coordinate(env.getMinX-epsilon, y)
+                val end = new Coordinate(env.getMaxX+epsilon, y)
                 val line = geometryFactory.createLineString(Array(start, end))
                 (line, start, end)
             }
             else{
-                val start = new Coordinate(x, env.getMinY)
-                val end = new Coordinate(x, env.getMaxY)
+                val start = new Coordinate(x, env.getMinY-epsilon)
+                val end = new Coordinate(x, env.getMaxY+epsilon)
                 val line = geometryFactory.createLineString(Array(start, end))
                 (line, start, end)
 
@@ -234,7 +234,7 @@ object GeometryUtils {
          */
         def split(line: LineString, blade: LineString): Seq[LineString] = {
             val lines = line.difference(blade).asInstanceOf[MultiLineString]
-            val results = (0 until  lines.getNumGeometries).map(i => lines.getGeometryN(i).asInstanceOf[LineString])
+            val results = (0 until lines.getNumGeometries).map(i => lines.getGeometryN(i).asInstanceOf[LineString])
             results
         }
 
@@ -250,11 +250,11 @@ object GeometryUtils {
             val env = line.getEnvelopeInternal
             if (isHorizontal){
                 val midY = (env.getMaxY + env.getMinY)/2
-                geometryFactory.createLineString(Array(new Coordinate(env.getMinX, midY), new Coordinate(env.getMaxX, midY)))
+                geometryFactory.createLineString(Array(new Coordinate(env.getMinX-epsilon, midY), new Coordinate(env.getMaxX+epsilon, midY)))
             }
             else{
                 val midX = (env.getMaxX + env.getMinX)/2
-                geometryFactory.createLineString(Array(new Coordinate(midX, env.getMinY), new Coordinate(midX, env.getMaxY)))
+                geometryFactory.createLineString(Array(new Coordinate(midX, env.getMinY-epsilon), new Coordinate(midX, env.getMaxY+epsilon)))
             }
         }
 
