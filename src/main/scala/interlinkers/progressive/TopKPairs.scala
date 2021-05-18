@@ -1,15 +1,16 @@
 package interlinkers.progressive
 
 import model.entities.Entity
-import model.{MBR, SpatialIndex, StaticComparisonPQ, TileGranularities}
+import model.{SpatialIndex, StaticComparisonPQ, TileGranularities}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
+import org.locationtech.jts.geom.Envelope
 import utils.Constants
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightingFunction.WeightingFunction
 
 case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
-                     tileGranularities: TileGranularities, partitionBorders: Array[MBR],
+                     tileGranularities: TileGranularities, partitionBorders: Array[Envelope],
                      mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction], budget: Int,
                      totalSourceEntities: Long, ws: Constants.WeightingScheme)
     extends ProgressiveInterlinkerT {
@@ -21,11 +22,11 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
      *
      * @param source partition of source dataset
      * @param target partition of target dataset
-     * @param partition partition MBR
+     * @param partition partition Envelope
      * @param relation examining relation
      * @return prioritized comparisons in a PQ
      */
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): StaticComparisonPQ = {
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: Envelope, relation: Relation): StaticComparisonPQ = {
         val localBudget = math.ceil(budget*source.length.toDouble/totalSourceEntities.toDouble).toLong
         val sourceIndex = SpatialIndex(source, tileGranularities)
 
@@ -84,7 +85,7 @@ case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
 object TopKPairs{
 
     def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)],
-              tileGranularities: TileGranularities, partitionBorders: Array[MBR], sourceCount: Long, wf: WeightingFunction,
+              tileGranularities: TileGranularities, partitionBorders: Array[Envelope], sourceCount: Long, wf: WeightingFunction,
               swf: Option[WeightingFunction] = None, budget: Int, partitioner: Partitioner,
               ws: Constants.WeightingScheme): TopKPairs ={
 

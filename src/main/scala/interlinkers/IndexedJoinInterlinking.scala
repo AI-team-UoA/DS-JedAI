@@ -1,9 +1,10 @@
 package interlinkers
 
 import model.entities.Entity
-import model.{IM, MBR, SpatialIndex, TileGranularities}
+import model.{IM, SpatialIndex, TileGranularities}
 import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.RDD
+import org.locationtech.jts.geom.Envelope
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightingFunction.WeightingFunction
@@ -12,7 +13,7 @@ import utils.Constants.WeightingFunction.WeightingFunction
 
 
 case class IndexedJoinInterlinking(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)],
-                                   tileGranularities: TileGranularities, partitionBorders: Array[MBR]
+                                   tileGranularities: TileGranularities, partitionBorders: Array[Envelope]
                                   ) extends InterlinkerT {
 
     val joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))] = null

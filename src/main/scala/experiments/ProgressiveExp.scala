@@ -104,11 +104,12 @@ object ProgressiveExp {
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
         val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
         val targetRDD: RDD[(Int, Entity)] = partitioner.transform(targetSpatialRDD, conf.target)
+        val approximateSourceCount = partitioner.approximateCount
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
         val sourceCount = sourceRDD.count()
 
-        val theta = TileGranularities(sourceRDD.map(_._2.env))
-        val partitionBorder = partitioner.getAdjustedBordersOfMBR(theta)
+        val theta = TileGranularities(sourceRDD.map(_._2.env), approximateSourceCount, conf.getTheta)
+        val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis

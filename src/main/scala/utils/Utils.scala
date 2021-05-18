@@ -2,12 +2,13 @@ package utils
 
 
 import model.entities.Entity
-import model.{IM, MBR, TileGranularities}
+import model.{IM, TileGranularities}
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{Encoder, Encoders, Row, SparkSession}
+import org.locationtech.jts.geom.Envelope
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -22,10 +23,10 @@ object Utils extends Serializable {
 
 	implicit class TupleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
 		def +(p: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
-			(p._1 + t._1, p._2 + t._2, p._3 +t._3, p._4+t._4, p._5+t._5, p._6+t._6, p._7+t._7, p._8+t._8, p._9+t._9, p._10+t._10, p._11+t._11)
+			(p._1+t._1, p._2+t._2, p._3+t._3, p._4+t._4, p._5+t._5, p._6+t._6, p._7+t._7, p._8+t._8, p._9+t._9, p._10+t._10, p._11+t._11)
 	}
 
-	val accumulate: Iterator[IM] => (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = imIterator =>{
+	val accumulate: Iterator[IM] => (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = imIterator => {
 		var totalContains: Int = 0
 		var totalCoveredBy: Int = 0
 		var totalCovers: Int = 0
@@ -64,14 +65,14 @@ object Utils extends Serializable {
 
 
 
-	def printPartition(joinedRDD: RDD[(Int, (Iterable[Entity],  Iterable[Entity]))], bordersMBR: Array[MBR], tilesGranularities: TileGranularities): Unit ={
+	def printPartition(joinedRDD: RDD[(Int, (Iterable[Entity],  Iterable[Entity]))], bordersEnvelope: Array[Envelope], tilesGranularities: TileGranularities): Unit ={
 		val c = joinedRDD.map(p => (p._1, (p._2._1.size, p._2._2.size))).sortByKey().collect()
 		val log: Logger = LogManager.getRootLogger
 		log.info("Printing Partitions")
 		log.info("----------------------------------------------------------------------------")
 		var pSet = mutable.HashSet[String]()
 		c.foreach(p => {
-			val zoneStr = bordersMBR(p._1).getGeometry.toText
+			val zoneStr = bordersEnvelope(p._1).toString
 			pSet += zoneStr
 			log.info(p._1 + " ->  (" + p._2._1 + ", " + p._2._2 +  ") - " + zoneStr)
 		})
@@ -103,29 +104,27 @@ object Utils extends Serializable {
 		val overlaps = "<http://www.opengis.net/ont/geosparql#sfOverlaps>"
 		val touches = "<http://www.opengis.net/ont/geosparql#sfTouches>"
 		val within = "<http://www.opengis.net/ont/geosparql#sfWithin>"
-		rdd.mapPartitions { imIterator =>
+		rdd.map { im =>
 			val sb = new StringBuilder()
-			imIterator.foreach { im =>
-				if (im.isContains)
-					sb.append("<" + im.idPair._1 +">" + " " + contains + " " + "<" + im.idPair._2 + ">" + " .\n")
-				if (im.isCoveredBy)
-					sb.append("<" + im.idPair._1 +">" + " " + coveredBy + " " + "<" + im.idPair._2 + ">" + " .\n")
-				if (im.isCovers)
-					sb.append("<" + im.idPair._1 +">" + " " + covers + " " + "<" + im.idPair._2 + ">" + " .\n")
-				if (im.isCrosses)
-					sb.append("<" + im.idPair._1 +">" + " " + crosses + " " + "<" + im.idPair._2 + ">" + " .\n")
-				if (im.isEquals)
-					sb.append("<" + im.idPair._1 +">" + " " + equals + " " + "<" + im.idPair._2 + ">" + " .\n")
-				if (im.isIntersects)
-					sb.append("<" + im.idPair._1 +">" + " " + intersects + " " + "<" + im.idPair._2 + ">" + " .\n")
-				if (im.isOverlaps)
-					sb.append("<" + im.idPair._1 +">" + " " + overlaps + " " + "<" + im.idPair._2 + ">" + " .\n")
-				if (im.isTouches)
-					sb.append("<" + im.idPair._1 +">" + " " + touches + " " + "<" + im.idPair._2 + ">" + " .\n")
-				if (im.isWithin)
-					sb.append("<" + im.idPair._1 +">" + " " + within + " " + "<" + im.idPair._2 + ">" + " .\n")
-			}
-			Iterator(sb.toString())
+			if (im.isContains)
+				sb.append("<" + im.getId1 +">" + " " + contains + " " + "<" + im.getId2 + ">" + " .\n")
+			if (im.isCoveredBy)
+				sb.append("<" + im.getId1 +">" + " " + coveredBy + " " + "<" + im.getId2 + ">" + " .\n")
+			if (im.isCovers)
+				sb.append("<" + im.getId1 +">" + " " + covers + " " + "<" + im.getId2 + ">" + " .\n")
+			if (im.isCrosses)
+				sb.append("<" + im.getId1 +">" + " " + crosses + " " + "<" + im.getId2 + ">" + " .\n")
+			if (im.isEquals)
+				sb.append("<" + im.getId1 +">" + " " + equals + " " + "<" + im.getId2 + ">" + " .\n")
+			if (im.isIntersects)
+				sb.append("<" + im.getId1 +">" + " " + intersects + " " + "<" + im.getId2 + ">" + " .\n")
+			if (im.isOverlaps)
+				sb.append("<" + im.getId1 +">" + " " + overlaps + " " + "<" + im.getId2 + ">" + " .\n")
+			if (im.isTouches)
+				sb.append("<" + im.getId1 +">" + " " + touches + " " + "<" + im.getId2 + ">" + " .\n")
+			if (im.isWithin)
+				sb.append("<" + im.getId1 +">" + " " + within + " " + "<" + im.getId2 + ">" + " .\n")
+			sb.toString()
 		}.saveAsTextFile(path)
 	}
 }

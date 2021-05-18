@@ -3,8 +3,8 @@ package experiments
 
 import interlinkers.GIAnt
 import interlinkers.progressive.ProgressiveAlgorithmsFactory
+import model.TileGranularities
 import model.entities.Entity
-import model.{MBR, TileGranularities}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -13,7 +13,7 @@ import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{Partitioner, SparkConf, SparkContext}
-import org.locationtech.jts.geom.Geometry
+import org.locationtech.jts.geom.{Envelope, Geometry}
 import utils.Constants
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.Relation.Relation
@@ -106,11 +106,11 @@ object EvaluationExp {
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
         val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
         val targetRDD: RDD[(Int, Entity)] = partitioner.transform(targetSpatialRDD, conf.target)
+        val approximateSourceCount = partitioner.approximateCount
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
-        val sourceCount = sourceRDD.count()
 
-        val theta = TileGranularities(sourceRDD.map(_._2.env))
-        val partitionBorder = partitioner.getAdjustedBordersOfMBR(theta)
+        val theta = TileGranularities(sourceRDD.map(_._2.env), approximateSourceCount, conf.getTheta)
+        val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val (totalVerifications, totalRelatedPairs) = if (options.contains("tv") && options.contains("qp"))
@@ -124,11 +124,11 @@ object EvaluationExp {
         log.info("DS-JEDAI: Total Qualifying Pairs: " + totalRelatedPairs)
         log.info("\n")
 
-        printResults(sourceRDD, targetRDD, theta, partitionBorder, sourceCount, partitioner.hashPartitioner,
+        printResults(sourceRDD, targetRDD, theta, partitionBorder, approximateSourceCount, partitioner.hashPartitioner,
             totalRelatedPairs, budget, ProgressiveAlgorithm.RANDOM,  (WeightingFunction.CF, None), Constants.SINGLE)
 
         for (a <- algorithms ; ws <- weightingSchemes; wf <- weightingFunctions )
-            printResults(sourceRDD, targetRDD, theta, partitionBorder, sourceCount, partitioner.hashPartitioner,
+            printResults(sourceRDD, targetRDD, theta, partitionBorder, approximateSourceCount, partitioner.hashPartitioner,
                 totalRelatedPairs, budget, a, wf, ws)
     }
 
@@ -145,7 +145,7 @@ object EvaluationExp {
      * @param n  the size of list storing the results
      */
     def printResults(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)],
-                     theta: TileGranularities, partitionBorders: Array[MBR], sourceCount: Long,
+                     theta: TileGranularities, partitionBorders: Array[Envelope], sourceCount: Long,
                      partitioner: Partitioner, totalRelations: Int, budget: Int,
                      pa: ProgressiveAlgorithm, wf: (WeightingFunction, Option[WeightingFunction]), ws: Constants.WeightingScheme, n: Int = 10): Unit = {
 

@@ -1,19 +1,20 @@
 package interlinkers.progressive
 
-import model.{MBR, TileGranularities}
+import model.TileGranularities
 import model.entities.Entity
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
+import org.locationtech.jts.geom.Envelope
+import utils.Constants
+import utils.Constants.ProgressiveAlgorithm
 import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.Constants.WeightingFunction.WeightingFunction
-import utils.Constants.ProgressiveAlgorithm
-import utils.Constants
 
 object ProgressiveAlgorithmsFactory {
 
 
     def get(matchingAlgorithm: ProgressiveAlgorithm, source: RDD[(Int, Entity)], target: RDD[(Int, Entity)],
-            tileGranularities: TileGranularities, partitionBorders: Array[MBR], partitioner: Partitioner, sourceCount: Long,
+            tileGranularities: TileGranularities, partitionBorders: Array[Envelope], partitioner: Partitioner, sourceCount: Long,
             budget: Int = 0, mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction],
             ws: Constants.WeightingScheme ):
     ProgressiveInterlinkerT ={

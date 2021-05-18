@@ -3,9 +3,9 @@
 import org.locationtech.jts.geom.{Geometry, GeometryFactory, LineString, Polygon}
 import org.locationtech.jts.io.WKTReader
 import org.scalatest.funsuite.AnyFunSuite
-import utils.GeometryUtils
+import utils.DecompositionOp
 
-class GeometryUtilsTest extends AnyFunSuite {
+class DecompositionTest extends AnyFunSuite {
     val wktReader = new WKTReader()
     val geomFactory = new GeometryFactory()
     val delta = 1e-5
@@ -75,7 +75,7 @@ class GeometryUtilsTest extends AnyFunSuite {
         val emptyGeom: Geometry = geomFactory.createEmpty(2)
         assert(
             polygons.forall { gc =>
-                val geometries: Seq[Geometry] = GeometryUtils.flattenCollection(gc)
+                val geometries: Seq[Geometry] = DecompositionOp.flattenCollection(gc)
                 val merged = geometries.foldLeft(emptyGeom)(_ union _)
                 val diff = math.abs(merged.getArea - gc.getArea)
                 diff < delta
@@ -91,7 +91,7 @@ class GeometryUtilsTest extends AnyFunSuite {
         val emptyGeom: Geometry = geomFactory.createEmpty(2)
         assert(
             polygons.forall { p =>
-                val subPolygons: Seq[Polygon] = GeometryUtils.splitPolygon(p, polygonT)
+                val subPolygons: Seq[Polygon] = DecompositionOp.splitPolygon(p, polygonT)
                 val merged = subPolygons.foldLeft(emptyGeom)(_ union _)
                 val diff = math.abs(merged.getArea - p.getArea)
                 diff < delta
@@ -108,7 +108,7 @@ class GeometryUtilsTest extends AnyFunSuite {
         val emptyGeom: Geometry = geomFactory.createEmpty(2)
         assert(
             polygons.forall { p =>
-                val subPolygons: Seq[Polygon] = GeometryUtils.splitPolygon(p, polygonT)
+                val subPolygons: Seq[Polygon] = DecompositionOp.splitPolygon(p, polygonT)
                 val merged = subPolygons.foldLeft(emptyGeom)(_ union _)
                 val diff = math.abs(merged.getArea - p.getArea)
                 diff < delta
@@ -124,7 +124,7 @@ class GeometryUtilsTest extends AnyFunSuite {
         val lineStrings: Seq[LineString] = lineStringsWKT.map(g => wktReader.read(g).asInstanceOf[LineString])
         assert(
             lineStrings.forall { l =>
-                val lines: Seq[LineString] = GeometryUtils.splitLineString(l, lineT)
+                val lines: Seq[LineString] = DecompositionOp.splitLineString(l, lineT)
                 val linesLength: Double = lines.map(_.getLength).sum
                 val diff = math.abs(linesLength - l.getLength)
                 diff < delta
@@ -141,7 +141,7 @@ class GeometryUtilsTest extends AnyFunSuite {
         val geometries: Seq[Geometry] = wkt.map(g => wktReader.read(g))
         assert(
             geometries.forall { g =>
-                val res: Seq[Geometry] = GeometryUtils.splitBigGeometries(lineT, polygonT)(g)
+                val res: Seq[Geometry] = DecompositionOp.splitBigGeometries(lineT, polygonT)(g)
                 val gArea: Double = res.map(_.getArea).sum
                 val diffArea = math.abs(gArea - g.getArea)
                 diffArea < delta

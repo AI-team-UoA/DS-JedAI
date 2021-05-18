@@ -13,40 +13,45 @@ case class SpatialIndex(entities: Array[Entity], tileGranularities: TileGranular
     def indexEntity(se: Entity): Seq[(Int, Int)] = {
 
         if (se.getMinX == 0 && se.getMaxX == 0 && se.getMinY == 0 && se.getMaxY == 0) Seq((0, 0))
-        val maxX = math.ceil(se.getMaxX / tileGranularities.x).toInt
-        val minX = math.floor(se.getMinX / tileGranularities.x).toInt
-        val maxY = math.ceil(se.getMaxY / tileGranularities.y).toInt
-        val minY = math.floor(se.getMinY / tileGranularities.y).toInt
+        else{
+            val maxX = math.ceil(se.getMaxX / tileGranularities.x).toInt
+            val minX = math.floor(se.getMinX / tileGranularities.x).toInt
+            val maxY = math.ceil(se.getMaxY / tileGranularities.y).toInt
+            val minY = math.floor(se.getMinY / tileGranularities.y).toInt
 
-        for (x <- minX to maxX; y <- minY to maxY) yield (x, y)
+            for (x <- minX to maxX; y <- minY to maxY) yield (x, y)
+        }
     }
 
 
     def insert(c: (Int, Int), i: Int): Unit = {
-        if (index.contains(c._1))
-            if (index(c._1).contains(c._2))
-                index(c._1)(c._2).append(i)
+        val (x, y) = c
+        if (index.contains(x))
+            if (index(x).contains(y))
+                index(x)(y).append(i)
             else
-                index(c._1).put(c._2, ListBuffer[Int](i))
+                index(x).put(y, ListBuffer[Int](i))
         else {
             val l = ListBuffer[Int](i)
             val h = mutable.HashMap[Int, ListBuffer[Int]]()
-            h.put(c._2, l)
-            index.put(c._1, h)
+            h.put(y, l)
+            index.put(x, h)
         }
     }
 
-    def getCandidates(se: Entity): Seq[Entity] = indexEntity(se).flatMap(c => get(c)).flatten
+    def getCandidates(se: Entity): Seq[Entity] = indexEntity(se).flatMap(c => get(c))
 
     def contains(c: (Int, Int)): Boolean = index.contains(c._1) && index(c._1).contains(c._2)
 
-    def get(c:(Int, Int)): Option[Seq[Entity]] =  if (contains(c)) Some(index(c._1)(c._2).map(i => entities(i))) else None
+    def get(c:(Int, Int)): Seq[Entity] =  if (contains(c)) index(c._1)(c._2).map(i => entities(i)) else Seq()
 
-    def getWithIndex(c:(Int, Int)): Option[Seq[(Int, Entity)]] =  if (contains(c)) Some(index(c._1)(c._2).map(i => (i, entities(i)))) else None
+    def getWithIndex(c:(Int, Int)): Seq[(Int, Entity)] =  if (contains(c)) index(c._1)(c._2).map(i => (i, entities(i))) else Seq()
 
     def keys: mutable.HashMap[Int, scala.collection.Set[Int]] = index.map(i => i._1 -> i._2.keySet)
 
     def getIndices: Seq[(Int, Int)] = index.iterator.flatMap{ case (i, map) => map.keysIterator.map(j => (i, j))}.toSeq
+
+    def getValues: Seq[ListBuffer[Int]] = index.values.flatMap(hm => hm.values).toSeq
 
 
 

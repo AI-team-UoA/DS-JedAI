@@ -1,15 +1,16 @@
 package interlinkers
 
 import model.entities.Entity
-import model.{IM, MBR, SpatialIndex, TileGranularities}
+import model.{IM, SpatialIndex, TileGranularities}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
+import org.locationtech.jts.geom.Envelope
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 
 
 case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], tileGranularities: TileGranularities,
-                 partitionBorders: Array[MBR]) extends InterlinkerT {
+                 partitionBorders: Array[Envelope]) extends InterlinkerT {
 
 
     /**
@@ -62,7 +63,7 @@ case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], ti
 object GIAnt{
 
     def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)], tileGranularities: TileGranularities,
-              partitionBorders: Array[MBR], partitioner: Partitioner): GIAnt ={
+              partitionBorders: Array[Envelope], partitioner: Partitioner): GIAnt ={
         val joinedRDD = source.cogroup(target, partitioner)
         GIAnt(joinedRDD, tileGranularities, partitionBorders)
     }

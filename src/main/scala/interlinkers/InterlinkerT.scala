@@ -1,18 +1,50 @@
 package interlinkers
 
 import model.entities.Entity
-import model.{IM, MBR, SpatialIndex, TileGranularities}
+import model.{IM, SpatialIndex, TileGranularities}
 import org.apache.spark.rdd.RDD
+import org.locationtech.jts.geom.Envelope
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
+
+import scala.math.{max, min}
 
 trait InterlinkerT {
 
     val joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
     val tileGranularities: TileGranularities
-    val partitionBorders: Array[MBR]
+    val partitionBorders: Array[Envelope]
 
     val weightOrdering: Ordering[(Double, (Entity, Entity))] = Ordering.by[(Double, (Entity, Entity)), Double](_._1).reverse
+
+    /**
+     * Return true if the reference point is inside the block and inside the partition
+     * The reference point is the upper left point of their intersection
+     *
+     * @param s source entity
+     * @param t target entity
+     * @param b block
+     * @param partition current partition
+     * @return true if the reference point is in the block and in partition
+     */
+    def referencePointFiltering(s: Entity, t: Entity, b:(Int, Int), partition: Envelope): Boolean ={
+
+        val env1 = s.env
+        val env2 = t.env
+        val epsilon = 1e-8
+
+        val minX1 = env1.getMinX /tileGranularities.x
+        val minX2 = env2.getMinX /tileGranularities.x
+        val maxY1 = env1.getMaxY /tileGranularities.y
+        val maxY2 = env2.getMaxY /tileGranularities.y
+
+        val rfX: Double = max(minX1, minX2)+epsilon
+        val rfY: Double = min(maxY1, maxY2)+epsilon
+
+        val blockContainsRF: Boolean =  b._1 <= rfX && b._1+1 >= rfX && b._2 <= rfY && b._2+1 >= rfY
+        val partitionContainsRF: Boolean = partition.getMinX <= rfX && partition.getMaxX >= rfX && partition.getMinY <= rfY && partition.getMaxY >= rfY
+        blockContainsRF && partitionContainsRF
+    }
 
 
     /**
@@ -25,8 +57,8 @@ trait InterlinkerT {
      * @param partition the partition the comparisons belong to
      * @return true if comparison is necessary
      */
-    def filterVerifications(s: Entity, t: Entity, relation: Relation, block: (Int, Int), partition: MBR): Boolean =
-        s.intersectingMBR(t, relation) && s.referencePointFiltering(t, block, tileGranularities, partition)
+    def filterVerifications(s: Entity, t: Entity, relation: Relation, block: (Int, Int), partition: Envelope): Boolean =
+        s.intersectingMBR(t, relation) && referencePointFiltering(s, t, block, partition)
 
     /**
      * count all the necessary verifications
@@ -55,17 +87,12 @@ trait InterlinkerT {
      * @param relation examining relation
      * @return all candidate geometries of se
      */
-    def getAllCandidates(se: Entity, index: SpatialIndex, partition: MBR, relation: Relation): Seq[Entity] ={
+    def getAllCandidates(se: Entity, index: SpatialIndex, partition: Envelope, relation: Relation): Seq[Entity] ={
         index.indexEntity(se)
             .flatMap { block =>
-                val blockCandidatesOpt = index.get(block)
-                blockCandidatesOpt match {
-                    case Some(blockCandidates) =>
-                        val filteredBlockCandidates = blockCandidates.filter(e => filterVerifications(e, se, relation, block, partition))
-                        Some(filteredBlockCandidates)
-                    case _ => None
-                }
-            }.flatten
+                val blockCandidates = index.get(block)
+                blockCandidates.filter(candidate => filterVerifications(candidate, se, relation, block, partition))
+            }
     }
 
     implicit class TupleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {

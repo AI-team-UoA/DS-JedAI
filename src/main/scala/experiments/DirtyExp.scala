@@ -15,9 +15,9 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
 import utils.Constants.GridType
-import utils.readers.{GridPartitioner, Reader}
 import utils.Utils
 import utils.configurationParser.ConfigurationParser
+import utils.readers.{GridPartitioner, Reader}
 
 object DirtyExp {
 
@@ -81,12 +81,13 @@ object DirtyExp {
         // spatial partition
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
         val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
+        val approximateSourceCount = partitioner.approximateCount
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-        val theta = TileGranularities(sourceRDD.map(_._2.env))
-        val partitionBorder = partitioner.getAdjustedBordersOfMBR(theta)
+        val theta = TileGranularities(sourceRDD.map(_._2.env), approximateSourceCount, conf.getTheta)
+        val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
         val giant = DirtyGIAnt(sourceRDD.map(_._2), partitionBorder, theta)
         val imRDD = giant.getDE9IM
 

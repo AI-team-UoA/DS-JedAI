@@ -9,7 +9,7 @@ import org.locationtech.jts.operation.union.UnaryUnionOp
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
-object GeometryUtils {
+object DecompositionOp {
 
     val csf: CoordinateArraySequenceFactory = CoordinateArraySequenceFactory.instance()
     val geometryFactory = new GeometryFactory()

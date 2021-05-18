@@ -16,7 +16,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
 import utils.configurationParser.ConfigurationParser
 import utils.readers.{GridPartitioner, Reader}
-import utils.{GeometryUtils, Utils}
+import utils.{DecompositionOp, Utils}
 
 object FragmentationExp {
 
@@ -70,16 +70,17 @@ object FragmentationExp {
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions)
         val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
         val targetRDD: RDD[(Int, Entity)] = partitioner.transform(targetSpatialRDD, conf.target)
+        val approximateSourceCount = partitioner.approximateCount
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
-        val theta = TileGranularities(sourceRDD.map(_._2.env))
-        val partitionBorder = partitioner.getAdjustedBordersOfMBR(theta)
+        val theta = TileGranularities(sourceRDD.map(_._2.env), approximateSourceCount, conf.getTheta)
+        val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
 
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         // spatial partition and fragmentation
         val splitThreshold = 3*math.max(theta.x, theta.y)
-        val fragmentationF: Geometry => Seq[Geometry] = GeometryUtils.splitBigGeometries(splitThreshold, splitThreshold)
+        val fragmentationF: Geometry => Seq[Geometry] = DecompositionOp.splitBigGeometries(splitThreshold, splitThreshold)
         val fragmentedSourceRDD: RDD[(Int, Entity)] = sourceRDD.map(se => (se._1, FragmentedEntity(se._2)(fragmentationF)))
         val fragmentedTargetRDD: RDD[(Int, Entity)] = targetRDD.map(se => (se._1, FragmentedEntity(se._2)(fragmentationF)))
 

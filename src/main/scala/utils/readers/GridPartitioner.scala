@@ -1,7 +1,7 @@
 package utils.readers
 
-import model.entities.{Entity, FragmentedEntity, SpatialEntity, SpatioTemporalEntity}
-import model.{MBR, TileGranularities}
+import model.TileGranularities
+import model.entities._
 import org.apache.sedona.core.enums.GridType
 import org.apache.sedona.core.spatialPartitioning.SpatialPartitioner
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -9,7 +9,7 @@ import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.RDD
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
-import org.locationtech.jts.geom.Geometry
+import org.locationtech.jts.geom.{Envelope, Geometry}
 import utils.Constants
 import utils.configurationParser.DatasetConfigurations
 
@@ -31,19 +31,21 @@ case class GridPartitioner(source: SpatialRDD[Geometry], partitions: Int, gt: Co
         source.getPartitioner
     }
 
+    lazy val approximateCount: Long = source.approximateTotalCount
+
     lazy val hashPartitioner: HashPartitioner = new HashPartitioner(spatialPartitioner.numPartitions)
 
-    lazy val partitionBorders: Seq[MBR] = spatialPartitioner.getGrids.asScala.map(e => MBR(e.getMaxX, e.getMinX, e.getMaxY, e.getMinY))
+    lazy val partitionBorders: Seq[Envelope] = spatialPartitioner.getGrids.asScala
 
 
-    def getAdjustedBordersOfMBR(tilesGranularities: TileGranularities): Array[MBR] ={
-        val adjustedMBRs = partitionBorders.map(_.adjust(tilesGranularities))
+    def getAdjustedPartitionsBorders(tilesGranularities: TileGranularities): Array[Envelope] ={
+        val adjustedEnvs = partitionBorders.map(env => EnvelopeOp.adjust(env, tilesGranularities))
 
         // get overall borders
-        val globalMinX: Double = adjustedMBRs.map(p => p.minX).min
-        val globalMaxX: Double = adjustedMBRs.map(p => p.maxX).max
-        val globalMinY: Double = adjustedMBRs.map(p => p.minY).min
-        val globalMaxY: Double = adjustedMBRs.map(p => p.maxY).max
+        val globalMinX: Double = adjustedEnvs.map(p => p.getMinX).min
+        val globalMaxX: Double = adjustedEnvs.map(p => p.getMaxX).max
+        val globalMinY: Double = adjustedEnvs.map(p => p.getMinY).min
+        val globalMaxY: Double = adjustedEnvs.map(p => p.getMaxY).max
 
         // make them integers - filtering is discrete
         val spaceMinX = math.floor(globalMinX).toInt - 1
@@ -51,12 +53,12 @@ case class GridPartitioner(source: SpatialRDD[Geometry], partitions: Int, gt: Co
         val spaceMinY = math.floor(globalMinY).toInt - 1
         val spaceMaxY = math.ceil(globalMaxY).toInt + 1
 
-        adjustedMBRs.map { mbr =>
-            val minX = if (mbr.minX == globalMinX) spaceMinX else mbr.minX
-            val maxX = if (mbr.maxX == globalMaxX) spaceMaxX else mbr.maxX
-            val minY = if (mbr.minY == globalMinY) spaceMinY else mbr.minY
-            val maxY = if (mbr.maxY == globalMaxY) spaceMaxY else mbr.maxY
-            MBR(maxX, minX, maxY, minY)
+        adjustedEnvs.map { env =>
+            val minX = if (env.getMinX == globalMinX) spaceMinX else env.getMinX
+            val maxX = if (env.getMaxX == globalMaxX) spaceMaxX else env.getMaxX
+            val minY = if (env.getMinY == globalMinY) spaceMinY else env.getMinY
+            val maxY = if (env.getMaxY == globalMaxY) spaceMaxY else env.getMaxY
+            new Envelope(minX, maxX, minY, maxY)
         }.toArray
     }
 
@@ -101,7 +103,6 @@ case class GridPartitioner(source: SpatialRDD[Geometry], partitions: Int, gt: Co
 
         val rdd: RDD[Entity] =
             srdd.rawSpatialRDD.rdd.map( geom =>  FragmentedEntity(geom.getUserData.asInstanceOf[String].split("\t")(0), geom)(f))
-
         distribute(rdd)
     }
 

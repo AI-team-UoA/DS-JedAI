@@ -6,6 +6,7 @@ import interlinkers.InterlinkerT
 import model._
 import model.entities.Entity
 import org.apache.spark.rdd.RDD
+import org.locationtech.jts.geom.Envelope
 import utils.Constants
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
@@ -30,10 +31,10 @@ trait ProgressiveInterlinkerT extends InterlinkerT {
      * the number of all blocks in all partitions
      */
     lazy val totalBlocks: Double = {
-        val globalMinX: Double = partitionBorders.map(p => p.minX / tileGranularities.x).min
-        val globalMaxX: Double = partitionBorders.map(p => p.maxX / tileGranularities.x).max
-        val globalMinY: Double = partitionBorders.map(p => p.minY / tileGranularities.y).min
-        val globalMaxY: Double = partitionBorders.map(p => p.maxY / tileGranularities.y).max
+        val globalMinX: Double = partitionBorders.map(p => p.getMinX / tileGranularities.x).min
+        val globalMaxX: Double = partitionBorders.map(p => p.getMaxX / tileGranularities.x).max
+        val globalMinY: Double = partitionBorders.map(p => p.getMinY / tileGranularities.y).min
+        val globalMaxY: Double = partitionBorders.map(p => p.getMaxY / tileGranularities.y).max
 
         (globalMaxX - globalMinX + 1) * (globalMaxY - globalMinY + 1)
     }
@@ -49,18 +50,14 @@ trait ProgressiveInterlinkerT extends InterlinkerT {
      * @param relation examining relation
      * @return all candidate geometries of se
      */
-    def getAllCandidatesWithIndex(se: Entity, index: SpatialIndex, partition: MBR, relation: Relation): Seq[(Int, Entity)] ={
+    def getAllCandidatesWithIndex(se: Entity, index: SpatialIndex, partition: Envelope, relation: Relation): Seq[(Int, Entity)] ={
         index.indexEntity(se)
             .flatMap { block =>
-                val blockCandidatesOpt = index.getWithIndex(block)
-                blockCandidatesOpt match {
-                    case Some(blockCandidates) =>
-                        val filteredBlockCandidates = blockCandidates.filter{ case (i, e) => filterVerifications(e, se, relation, block, partition)}
-                        Some(filteredBlockCandidates)
-                    case _ => None
-                }
-            }.flatten
+                val blockCandidates = index.getWithIndex(block)
+                blockCandidates.filter(candidate => filterVerifications(candidate._2, se, relation, block, partition))
+            }
     }
+
     /**
      * Compute the  9-IM of the entities of a PQ
      * @param pq a Priority Queue
@@ -228,7 +225,7 @@ trait ProgressiveInterlinkerT extends InterlinkerT {
         results
     }
 
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): ComparisonPQ
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: Envelope, relation: Relation): ComparisonPQ
 
 
 }
