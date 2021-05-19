@@ -1,6 +1,6 @@
 name := "DS-JedAI"
 version := "0.1"
-scalaVersion := "2.11.12"
+scalaVersion := "2.12.12"
 val sparkVersion = "2.4.3"
 
 
@@ -36,6 +36,9 @@ libraryDependencies += "net.jcazevedo" %% "moultingyaml" % "0.4.0"
 
 // https://mvnrepository.com/artifact/org.apache.commons/commons-math3
 libraryDependencies += "org.apache.commons" % "commons-math3" % "3.0"
+
+// https://mvnrepository.com/artifact/org.typelevel/cats-core
+libraryDependencies += "org.typelevel" %% "cats-core" % "2.6.0"
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.7" % Test
 

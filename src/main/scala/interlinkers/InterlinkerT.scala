@@ -8,6 +8,7 @@ import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 
 import scala.math.{max, min}
+import cats.implicits._
 
 trait InterlinkerT {
 
@@ -95,11 +96,6 @@ trait InterlinkerT {
             }
     }
 
-    implicit class TupleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
-        def +(p: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
-            (p._1 + t._1, p._2 + t._2, p._3 +t._3, p._4+t._4, p._5+t._5, p._6+t._6, p._7+t._7, p._8+t._8, p._9+t._9, p._10+t._10, p._11+t._11)
-    }
-
     def accumulate(imIterator: Iterator[IM]): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) ={
         var totalContains: Int = 0
         var totalCoveredBy: Int = 0
@@ -134,12 +130,12 @@ trait InterlinkerT {
     def countAllRelations: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
         getDE9IM
             .mapPartitions { imIterator => Iterator(accumulate(imIterator)) }
-            .treeReduce({ case (im1, im2) => im1 + im2}, 4)
+            .treeReduce({ case (im1, im2) => im1 |+| im2}, 4)
 
     def take(budget: Int): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
         getDE9IM
             .mapPartitions { imIterator => Iterator(accumulate(imIterator)) }
-            .take(budget).reduceLeft(_ + _)
+            .take(budget).reduceLeft(_ |+| _)
 
     def countRelation(relation: Relation): Long = relate(relation).count()
 

@@ -12,19 +12,13 @@ import org.locationtech.jts.geom.Envelope
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
-
-
+import cats.implicits._
 
 object Utils extends Serializable {
 
 	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
 	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
 	implicit def tuple[String, Int](implicit s: Encoder[String], t: Encoder[Int]): Encoder[(String,Int)] = Encoders.tuple[String,Int](s, t)
-
-	implicit class TupleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
-		def +(p: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
-			(p._1+t._1, p._2+t._2, p._3+t._3, p._4+t._4, p._5+t._5, p._6+t._6, p._7+t._7, p._8+t._8, p._9+t._9, p._10+t._10, p._11+t._11)
-	}
 
 	val accumulate: Iterator[IM] => (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = imIterator => {
 		var totalContains: Int = 0
@@ -60,7 +54,7 @@ object Utils extends Serializable {
 	def countAllRelations(imRDD: RDD[IM]): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
 		imRDD
 			.mapPartitions { imIterator => Iterator(accumulate(imIterator)) }
-			.treeReduce({ case (im1, im2) => im1 + im2}, 4)
+			.treeReduce({ case (im1, im2) => im1 |+| im2}, 4)
 
 
 
