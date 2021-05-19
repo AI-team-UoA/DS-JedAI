@@ -1,43 +1,27 @@
-package utils
+package utils.decompose
 
-import org.apache.sedona.core.spatialRDD.SpatialRDD
 import org.locationtech.jts.geom._
-import org.locationtech.jts.geom.impl.CoordinateArraySequenceFactory
 import org.locationtech.jts.operation.polygonize.Polygonizer
 import org.locationtech.jts.operation.union.UnaryUnionOp
+import utils.decompose.GeometryUtils.flattenCollection
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
-object DecompositionOp {
+object RecursiveFragmentation {
 
-    val csf: CoordinateArraySequenceFactory = CoordinateArraySequenceFactory.instance()
+
     val geometryFactory = new GeometryFactory()
     val epsilon: Double = 1e-8
-
-
-    def flattenCollection(collection: Geometry): Seq[Geometry] =
-        for (i <- 0 until collection.getNumGeometries) yield {
-            val g = collection.getGeometryN(i)
-            g.setUserData(collection.getUserData)
-            g
-        }
-
-
-    def flattenSRDDCollections(srdd: SpatialRDD[Geometry]): SpatialRDD[Geometry] ={
-        srdd.rawSpatialRDD = srdd.rawSpatialRDD.rdd.flatMap(g => if (g.getNumGeometries > 1) flattenCollection(g) else Seq(g))
-        srdd
-    }
-
+    val xYEpsilon: (Double, Double) =  (epsilon, 0d)
 
     def splitBigGeometries(lineThreshold: Double, polygonThreshold: Double)(geometry: Geometry): Seq[Geometry] = {
-        val res = geometry match {
+        geometry match {
             case polygon: Polygon => splitPolygon(polygon, polygonThreshold)
             case line: LineString => splitLineString(line, lineThreshold)
             case gc: GeometryCollection => flattenCollection(gc).flatMap(g => splitBigGeometries(polygonThreshold, polygonThreshold)(g))
             case _ => Seq(geometry)
         }
-        res
     }
 
 
@@ -119,29 +103,29 @@ object DecompositionOp {
             val x = centroid.getX
             val y = centroid.getY
 
+            // epsilon is a small value to add in the segments so to slightly intersect thus not result to dangling lines
+            val (xEpsilon, yEpsilon) = if (isHorizontal) xYEpsilon
+                                        else xYEpsilon.swap
+
             // define the line and its points
             // the line will be either vertical or horizontal
-            val (line, start, end) = if (isHorizontal) {
-                val start = new Coordinate(env.getMinX-epsilon, y)
-                val end = new Coordinate(env.getMaxX+epsilon, y)
-                val line = geometryFactory.createLineString(Array(start, end))
-                (line, start, end)
-            }
-            else{
-                val start = new Coordinate(x, env.getMinY-epsilon)
-                val end = new Coordinate(x, env.getMaxY+epsilon)
-                val line = geometryFactory.createLineString(Array(start, end))
-                (line, start, end)
-
-            }
+            val (start, end) =
+                if (isHorizontal) {
+                    val start = new Coordinate(env.getMinX-epsilon, y)
+                    val end = new Coordinate(env.getMaxX+epsilon, y)
+                    (start, end)
+                }
+                else{
+                    val start = new Coordinate(x, env.getMinY-epsilon)
+                    val end = new Coordinate(x, env.getMaxY+epsilon)
+                    (start, end)
+                }
+            val line = geometryFactory.createLineString(Array(start, end))
 
             // define the cross condition based on line direction
-            val crossCondition: Envelope => Boolean =
-                if (isHorizontal) env => y >= env.getMinY && y <= env.getMaxY
-                else env => x >= env.getMinX && x <= env.getMaxX
+            val crossCondition: Envelope => Boolean = if (isHorizontal) env => y >= env.getMinY && y <= env.getMaxY
+                                                        else env => x >= env.getMinX && x <= env.getMaxX
 
-            // epsilon is a small value to add in the segments so to slightly intersect thus not result to dangling lines
-            val (xEpsilon, yEpsilon) = if (isHorizontal) (epsilon, 0d) else (0d, epsilon)
 
             // ordering of the coordinates, to define max and min
             implicit val ordering: Ordering[Coordinate] = Ordering.by[Coordinate, Double](c => if (isHorizontal) c.x else c.y)

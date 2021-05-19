@@ -16,7 +16,8 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
 import utils.configurationParser.ConfigurationParser
 import utils.readers.{GridPartitioner, Reader}
-import utils.{DecompositionOp, Utils}
+import utils.Utils
+import utils.decompose.RecursiveFragmentation
 
 object FragmentationExp {
 
@@ -80,7 +81,7 @@ object FragmentationExp {
 
         // spatial partition and fragmentation
         val splitThreshold = 3*math.max(theta.x, theta.y)
-        val fragmentationF: Geometry => Seq[Geometry] = DecompositionOp.splitBigGeometries(splitThreshold, splitThreshold)
+        val fragmentationF: Geometry => Seq[Geometry] = RecursiveFragmentation.splitBigGeometries(splitThreshold, splitThreshold)
         val fragmentedSourceRDD: RDD[(Int, Entity)] = sourceRDD.map(se => (se._1, FragmentedEntity(se._2)(fragmentationF)))
         val fragmentedTargetRDD: RDD[(Int, Entity)] = targetRDD.map(se => (se._1, FragmentedEntity(se._2)(fragmentationF)))
 
