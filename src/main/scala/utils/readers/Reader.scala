@@ -10,7 +10,7 @@ import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.{SparkConf, SparkContext}
-import org.locationtech.jts.geom.Geometry
+import org.locationtech.jts.geom.{Geometry, GeometryFactory}
 import org.locationtech.jts.io.WKTReader
 import utils.Constants.FileTypes
 import utils.configurationParser.DatasetConfigurations
@@ -43,7 +43,8 @@ object Reader {
             case FileTypes.NTRIPLES =>
                 loadRdfAsTextual(dc.path, dc.geometryField)
         }
-        srdd.rawSpatialRDD = srdd.rawSpatialRDD.rdd.filter(g => g.getGeometryType != Geometry.TYPENAME_GEOMETRYCOLLECTION && g.isValid)
+        srdd.rawSpatialRDD = srdd.rawSpatialRDD
+            .rdd.filter(g => g.getGeometryType != Geometry.TYPENAME_GEOMETRYCOLLECTION && g.isValid && !g.isEmpty)
         srdd
     }
 
@@ -56,6 +57,8 @@ object Reader {
      * @param dateField date field if exists
      * @param delimiter delimiter
      * @return a spatial RDD
+     *
+     * TODO handle date
      */
     def loadDelimitedFile(filepath: String, realIdField: String, geometryField: String, dateField: Option[String], delimiter: String): SpatialRDD[Geometry] ={
 //        WktReader.readToGeometryRDD(sc, filepath, geometryField.toInt, false, true)
@@ -65,12 +68,13 @@ object Reader {
 
         val geomRDD: RDD[Geometry] = rawTextRDD.mapPartitions{ p =>
             val reader = new WKTReader()
+            val geometryFactory = new GeometryFactory()
             p.map{line =>
                 val tokens = line.split(delimiter)
                 val geomText = tokens(geometryIndex)
                 val id = tokens(idIndex)
-
-                val geom = reader.read(geomText)
+                val geom = if(geomText.nonEmpty) reader.read(geomText)
+                            else geometryFactory.createEmpty(2)
                 geom.setUserData(id)
                 geom
             }
@@ -105,7 +109,7 @@ object Reader {
         val query = "SELECT ST_GeomFromWKT(GEOMETRIES.WKT) AS WKT,  GEOMETRIES.Subject AS Subject FROM GEOMETRIES".stripMargin
 
         val spatialDF = spark.sql(query)
-        Adapter.toSpatialRdd(spatialDF, "0",Seq("WKT", "Subject"))
+        Adapter.toSpatialRdd(spatialDF, "0", Seq("WKT", "Subject"))
     }
 
 
