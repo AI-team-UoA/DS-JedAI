@@ -1,10 +1,12 @@
 
 
+import model.TileGranularities
 import model.entities.{FragmentedEntity, SpatialEntity}
 import org.locationtech.jts.geom.{Geometry, GeometryFactory, Polygon}
 import org.locationtech.jts.io.WKTReader
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should._
+import utils.Constants.ThetaOption
 import utils.decompose.RecursiveFragmentation
 
 class FragmentedEntityIMTest extends AnyFunSuite with Matchers  {
@@ -33,9 +35,10 @@ class FragmentedEntityIMTest extends AnyFunSuite with Matchers  {
         val polygon1 = wktReader.read(polygon1WKT)
         val polygon2 = wktReader.read(polygon2WKT)
 
-        val lineT = 12000
-        val polygonT = 12000
-        val fragmentationF: Geometry => Seq[Geometry] = RecursiveFragmentation.splitBigGeometries(lineT, polygonT)
+//        val lineT = 12000
+//        val polygonT = 12000
+        val theta = TileGranularities(Seq(polygon1.getEnvelopeInternal, polygon2.getEnvelopeInternal), 2, ThetaOption.AVG_x2)
+        val fragmentationF: Geometry => Seq[Geometry] = RecursiveFragmentation.splitBigGeometries(theta)
 
         check(polygon1, polygon2, fragmentationF) shouldBe true
     }
@@ -63,10 +66,8 @@ class FragmentedEntityIMTest extends AnyFunSuite with Matchers  {
         val polygon1 = wktReader.read(polygon1WKT)
         val polygon2 = wktReader.read(polygon2WKT)
 
-        val lineT = 15000
-        val polygonT = 15000
-        val fragmentationF: Geometry => Seq[Geometry] = RecursiveFragmentation.splitBigGeometries(lineT, polygonT)
-
+        val theta = TileGranularities(Seq(polygon1.getEnvelopeInternal, polygon2.getEnvelopeInternal), 2, ThetaOption.AVG_x2)
+        val fragmentationF: Geometry => Seq[Geometry] = RecursiveFragmentation.splitBigGeometries(theta)
         check(polygon1, polygon2, fragmentationF) shouldBe true
     }
 
@@ -81,9 +82,8 @@ class FragmentedEntityIMTest extends AnyFunSuite with Matchers  {
         val polygon2b: Polygon = wktReader.read(polygon2bWKT).asInstanceOf[Polygon]
         val polygon2 = geometryFactory.createMultiPolygon(Array(polygon2a, polygon2b))
 
-        val lineT = 15000
-        val polygonT = 15000
-        val fragmentationF: Geometry => Seq[Geometry] = RecursiveFragmentation.splitBigGeometries(lineT, polygonT)
+        val theta = TileGranularities(Seq(polygon1.getEnvelopeInternal, polygon2.getEnvelopeInternal), 2, ThetaOption.AVG_x2)
+        val fragmentationF: Geometry => Seq[Geometry] = RecursiveFragmentation.splitBigGeometries(theta)
 
         check(polygon1, polygon2, fragmentationF) shouldBe true
     }
@@ -99,9 +99,8 @@ class FragmentedEntityIMTest extends AnyFunSuite with Matchers  {
         val polygon2b: Polygon = wktReader.read(polygon2bWKT).asInstanceOf[Polygon]
         val polygon2 = geometryFactory.createMultiPolygon(Array(polygon2a, polygon2b))
 
-        val lineT = 3500
-        val polygonT = 3500
-        val fragmentationF: Geometry => Seq[Geometry] = RecursiveFragmentation.splitBigGeometries(lineT, polygonT)
+        val theta = TileGranularities(Seq(polygon1.getEnvelopeInternal, polygon2.getEnvelopeInternal), 2, ThetaOption.AVG_x2)
+        val fragmentationF: Geometry => Seq[Geometry] = RecursiveFragmentation.splitBigGeometries(theta)
 
         check(polygon1, polygon2, fragmentationF) shouldBe true
     }
@@ -117,10 +116,8 @@ class FragmentedEntityIMTest extends AnyFunSuite with Matchers  {
         val polygon2b: Polygon = wktReader.read(polygon2bWKT).asInstanceOf[Polygon]
         val polygon2 = geometryFactory.createMultiPolygon(Array(polygon2a, polygon2b))
 
-        val lineT = 20000
-        val polygonT = 20000
-        val fragmentationF: Geometry => Seq[Geometry] = RecursiveFragmentation.splitBigGeometries(lineT, polygonT)
-
+        val theta = TileGranularities(Seq(polygon1.getEnvelopeInternal, polygon2.getEnvelopeInternal), 2, ThetaOption.AVG_x2)
+        val fragmentationF: Geometry => Seq[Geometry] = RecursiveFragmentation.splitBigGeometries(theta)
         check(polygon1, polygon2, fragmentationF) shouldBe true
     }
 

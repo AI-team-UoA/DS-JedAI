@@ -18,8 +18,8 @@ case class SpatialIndex(entities: Array[Entity], tileGranularities: TileGranular
             val minX = math.floor(se.getMinX / tileGranularities.x).toInt
             val maxY = math.ceil(se.getMaxY / tileGranularities.y).toInt
             val minY = math.floor(se.getMinY / tileGranularities.y).toInt
-
-            for (x <- minX to maxX; y <- minY to maxY) yield (x, y)
+            //TODO check here that until is correct
+            for (x <- minX until maxX; y <- minY until maxY) yield (x, y)
         }
     }
 

@@ -1,5 +1,6 @@
 package utils.decompose
 
+import model.TileGranularities
 import org.locationtech.jts.geom._
 import org.locationtech.jts.operation.polygonize.Polygonizer
 import org.locationtech.jts.operation.union.UnaryUnionOp
@@ -10,19 +11,115 @@ import scala.collection.JavaConverters._
 
 object RecursiveFragmentation {
 
-
     val geometryFactory = new GeometryFactory()
     val epsilon: Double = 1e-8
     val xYEpsilon: (Double, Double) =  (epsilon, 0d)
 
-    def splitBigGeometries(lineThreshold: Double, polygonThreshold: Double)(geometry: Geometry): Seq[Geometry] = {
+
+    def splitBigGeometries(theta: TileGranularities)(geometry: Geometry): Seq[Geometry] = {
         geometry match {
-            case polygon: Polygon => splitPolygon(polygon, polygonThreshold)
-            case line: LineString => splitLineString(line, lineThreshold)
-            case gc: GeometryCollection => flattenCollection(gc).flatMap(g => splitBigGeometries(polygonThreshold, polygonThreshold)(g))
+            case polygon: Polygon => splitPolygon(polygon, theta)
+            case line: LineString => splitLineString(line, theta)
+            case gc: GeometryCollection => flattenCollection(gc).flatMap(g => splitBigGeometries(theta)(g))
             case _ => Seq(geometry)
         }
     }
+
+
+    def getVerticalBlade(geom: Geometry): LineString = {
+        val env = geom.getEnvelopeInternal
+        val x = geom match {
+            case p: Polygon => p.getCentroid.getX
+            case _ => (env.getMaxX + env.getMinX)/2
+        }
+        val start = new Coordinate(x, env.getMinY-epsilon)
+        val end = new Coordinate(x, env.getMaxY+epsilon)
+        geometryFactory.createLineString(Array(start, end))
+    }
+
+
+    def getHorizontalBlade(geom: Geometry): LineString = {
+        val env = geom.getEnvelopeInternal
+        val y = geom match {
+            case p: Polygon => p.getCentroid.getY
+            case _ => (env.getMaxY + env.getMinY)/2
+        }
+        val start = new Coordinate(env.getMinX-epsilon, y)
+        val end = new Coordinate(env.getMaxX+epsilon, y)
+        geometryFactory.createLineString(Array(start, end))
+    }
+
+
+    /**
+     * Adjust the horizontal or vertical blade that passes through polygon's inner holes.
+     * In case the polygon contains inner holes, then adjust the lines so to not overlap the holes
+     *
+     *                _________|__________
+     *               /  _ _    |          /
+     *          ----/--/_ _|---|---------/-------
+     *             |           |        /
+     *              \_________ |_______/
+     *                         |
+     *
+     * @param polygon input polygon
+     * @param blade the blade to combine with the inner holes
+     * @param innerRings the inner holes as a sequence of inner lineRings
+     * @param isHorizontal the requested blade is horizontal otherwise it will be vertical
+     * @return
+     */
+    def combineBladeWithInteriorRings(polygon: Polygon, blade: LineString, innerRings: Seq[Geometry], isHorizontal: Boolean): Seq[LineString] = {
+
+        // ordering of the coordinates, to define max and min
+        implicit val ordering: Ordering[Coordinate] = Ordering.by[Coordinate, Double](c => if (isHorizontal) c.x else c.y)
+
+        // epsilon is a small value to add in the segments so to slightly intersect thus not result to dangling lines
+        val (xEpsilon, yEpsilon) = if (isHorizontal) xYEpsilon else xYEpsilon.swap
+
+        // the blade is a linestring formed by two points
+        val start = blade.getCoordinateN(0)
+        val end = blade.getCoordinateN(1)
+
+        // define the cross condition based on line's orientation
+        val crossCondition: Envelope => Boolean = if (isHorizontal) env => start.y >= env.getMinY && start.y <= env.getMaxY
+                                                    else env => start.x >= env.getMinX && start.x <= env.getMaxX
+
+        // sort inner rings envelope by y
+        // find the ones that intersect with the line
+        // for each intersecting inner ring find the intersection coordinates,
+        //   - sort them and get the first and the last,
+        //   - create line segments that do not overlap the inner ring
+        var checkpoint = start
+        val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
+        val segments = innerRings
+            .map(ir => (ir, ir.getEnvelopeInternal))
+            .filter{ case (_, env) => crossCondition(env)}
+            .sortBy{ case (_, env) => if (isHorizontal) env.getMinX else env.getMinY }
+            .map{ case (ir, _) =>
+
+                val intersectingCollection = ir.intersection(blade)
+                val ip: Seq[Coordinate] = (0 until intersectingCollection.getNumGeometries)
+                    .map(i => intersectingCollection.getGeometryN(i))
+                    .flatMap(g => g.getCoordinates)
+
+                val stopPoint = ip.min(ordering)
+                stopPoint.setX(stopPoint.x+xEpsilon)
+                stopPoint.setY(stopPoint.y+yEpsilon)
+
+                val newStart = ip.max(ordering)
+                newStart.setX(newStart.x-xEpsilon)
+                newStart.setY(newStart.y-yEpsilon)
+
+                val segment = geometryFactory.createLineString(Array(checkpoint, stopPoint))
+
+                checkpoint = newStart
+                segment
+            }.toList
+
+        // create the last line segment
+        val segment = geometryFactory.createLineString(Array(checkpoint, end))
+        segment ::  segments
+    }
+
 
 
     /**
@@ -30,10 +127,10 @@ object RecursiveFragmentation {
      * The width and the height of the produced polygons will not exceed the threshold
      *
      * @param polygon       input polygon
-     * @param threshold     input threshold
+     * @param theta         tile granularities
      * @return              a seq of smaller polygons
      */
-    def splitPolygon(polygon: Polygon, threshold: Double): Seq[Polygon] = {
+    def splitPolygon(polygon: Polygon, theta: TileGranularities): Seq[Polygon] = {
 
         /**
          * Recursively, split the polygons into sub-polygons. The procedure is repeated
@@ -45,15 +142,25 @@ object RecursiveFragmentation {
          */
         @tailrec
         def recursiveSplit(polygons: Seq[Polygon], accumulator: Seq[Polygon] = Nil): Seq[Polygon] = {
-            val (bigPolygons, smallPolygons) = polygons.partition(p => p.getEnvelopeInternal.getWidth > threshold || p.getEnvelopeInternal.getHeight > threshold)
-            val (widePolygons, nonWide) = bigPolygons.partition(p => p.getEnvelopeInternal.getWidth > threshold)
-            val (tallPolygons, nonTall) = bigPolygons.partition(p => p.getEnvelopeInternal.getHeight > threshold)
+            val (bigPolygons, smallPolygons) = polygons.partition(p => p.getEnvelopeInternal.getWidth > theta.x || p.getEnvelopeInternal.getHeight > theta.y)
+            val (widePolygons, nonWide) = bigPolygons.partition(p => p.getEnvelopeInternal.getWidth > theta.x)
+            val (tallPolygons, nonTall) = bigPolygons.partition(p => p.getEnvelopeInternal.getHeight > theta.y)
             if (widePolygons.nonEmpty) {
-                val newPolygons = widePolygons.flatMap(p => split(p,  getBlade(p, isHorizontal = false)))
+                val newPolygons = widePolygons.flatMap{ polygon =>
+                    val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
+                    val verticalBlade = getVerticalBlade(polygon)
+                    val blades = combineBladeWithInteriorRings(polygon, verticalBlade, innerRings, isHorizontal=false)
+                    split(polygon,  blades)
+                }
                 recursiveSplit(newPolygons ++ nonWide, smallPolygons ++ accumulator )
             }
             else if (tallPolygons.nonEmpty) {
-                val newPolygons = tallPolygons.flatMap(p => split(p, getBlade(p, isHorizontal = true)))
+                val newPolygons = tallPolygons.flatMap{ polygon =>
+                    val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
+                    val horizontalBlade = getHorizontalBlade(polygon)
+                    val blades = combineBladeWithInteriorRings(polygon, horizontalBlade, innerRings, isHorizontal=true)
+                    split(polygon,  blades)
+                }
                 recursiveSplit(newPolygons ++ nonTall, smallPolygons ++ accumulator)
             }
             else
@@ -82,91 +189,6 @@ object RecursiveFragmentation {
         }
 
 
-        /**
-         * Get a horizontal or vertical blade that passes from the centroid of the Polygon
-         * In case the polygon contains inner holes, then adjust the lines so to not overlap the holes
-         *
-         *                _________|__________
-         *               /  _      |          /
-         *          ----/--/_\-----|---------/-------
-         *             |           |        /
-         *              \_________ |_______/
-         *                         |
-         *
-         * @param polygon input polygon
-         * @param isHorizontal the requested blade is horizontal otherwise it will be vertical
-         * @return a blade that passes through the centroing of polygon
-         */
-        def getBlade(polygon: Polygon, isHorizontal: Boolean): Seq[LineString] = {
-            val centroid = polygon.getCentroid
-            val env = polygon.getEnvelopeInternal
-            val x = centroid.getX
-            val y = centroid.getY
-
-            // epsilon is a small value to add in the segments so to slightly intersect thus not result to dangling lines
-            val (xEpsilon, yEpsilon) = if (isHorizontal) xYEpsilon
-                                        else xYEpsilon.swap
-
-            // define the line and its points
-            // the line will be either vertical or horizontal
-            val (start, end) =
-                if (isHorizontal) {
-                    val start = new Coordinate(env.getMinX-epsilon, y)
-                    val end = new Coordinate(env.getMaxX+epsilon, y)
-                    (start, end)
-                }
-                else{
-                    val start = new Coordinate(x, env.getMinY-epsilon)
-                    val end = new Coordinate(x, env.getMaxY+epsilon)
-                    (start, end)
-                }
-            val line = geometryFactory.createLineString(Array(start, end))
-
-            // define the cross condition based on line direction
-            val crossCondition: Envelope => Boolean = if (isHorizontal) env => y >= env.getMinY && y <= env.getMaxY
-                                                        else env => x >= env.getMinX && x <= env.getMaxX
-
-
-            // ordering of the coordinates, to define max and min
-            implicit val ordering: Ordering[Coordinate] = Ordering.by[Coordinate, Double](c => if (isHorizontal) c.x else c.y)
-
-            // sort inner rings envelope by y
-            // find the ones that intersect with the line
-            // for each intersecting inner ring find the intersection coordinates,
-            //   - sort them and get the first and the last,
-            //   - create line segments that do not overlap the inner ring
-            var checkpoint = start
-            val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
-            val segments = innerRings
-                .map(ir => (ir, ir.getEnvelopeInternal))
-                .filter{ case (_, env) => crossCondition(env)}
-                .sortBy{ case (_, env) => if (isHorizontal) env.getMinX else env.getMinY }
-                .map{ case (ir, _) =>
-
-                    val intersectingCollection = ir.intersection(line)
-                    val ip: Seq[Coordinate] = (0 until intersectingCollection.getNumGeometries)
-                        .map(i => intersectingCollection.getGeometryN(i))
-                        .flatMap(g => g.getCoordinates)
-
-                    val stopPoint = ip.min(ordering)
-                    stopPoint.setX(stopPoint.x+xEpsilon)
-                    stopPoint.setY(stopPoint.y+yEpsilon)
-
-                    val newStart = ip.max(ordering)
-                    newStart.setX(stopPoint.x+xEpsilon)
-                    newStart.setY(stopPoint.y+yEpsilon)
-
-                    val segment = geometryFactory.createLineString(Array(checkpoint, stopPoint))
-
-                    checkpoint = newStart
-                    segment
-                }.toList
-
-            // create the last line segment
-            val segment = geometryFactory.createLineString(Array(checkpoint, end))
-            segment ::  segments
-        }
-
         // apply
         recursiveSplit(List(polygon))
     }
@@ -179,10 +201,10 @@ object RecursiveFragmentation {
      * The width and the height of the produced linestrings will not exceed the threshold
      *
      * @param line           input linestring
-     * @param threshold     input threshold
+     * @param theta         tile granularities
      * @return              a seq of smaller linestring
      */
-    def splitLineString(line: LineString, threshold: Double = 2e-2): Seq[LineString] = {
+    def splitLineString(line: LineString, theta: TileGranularities): Seq[LineString] = {
 
         /**
          * Recursively, split the linestring into sub-lines. The procedure is repeated
@@ -194,15 +216,16 @@ object RecursiveFragmentation {
          */
         @tailrec
         def recursiveSplit(lines: Seq[LineString], accumulator: Seq[LineString] = Nil): Seq[LineString] ={
-            val (bigLines, smallLines) = lines.partition(l => l.getEnvelopeInternal.getWidth > threshold || l.getEnvelopeInternal.getHeight > threshold)
-            val (wideLines, nonWide) = bigLines.partition(p => p.getEnvelopeInternal.getWidth > threshold)
-            val (tallLines, nonTall) = bigLines.partition(p => p.getEnvelopeInternal.getHeight > threshold)
+            val (bigLines, smallLines) = lines.partition(l => l.getEnvelopeInternal.getWidth > theta.x || l.getEnvelopeInternal.getHeight > theta.y)
+            val (wideLines, nonWide) = bigLines.partition(p => p.getEnvelopeInternal.getWidth > theta.x)
+            val (tallLines, nonTall) = bigLines.partition(p => p.getEnvelopeInternal.getHeight > theta.y)
+
             if (wideLines.nonEmpty) {
-                val newLines = wideLines.flatMap(l => split(l, getBlade(l, isHorizontal = false) ))
+                val newLines = wideLines.flatMap(l => split(l, getVerticalBlade(l)))
                 recursiveSplit(newLines ++ nonWide, smallLines ++ accumulator )
             }
             else if (tallLines.nonEmpty) {
-                val newLines = tallLines.flatMap(l => split(l, getBlade(l, isHorizontal = true)))
+                val newLines = tallLines.flatMap(l => split(l, getHorizontalBlade(l)))
                 recursiveSplit(newLines ++ nonTall, smallLines ++ accumulator)
             }
             else
@@ -217,29 +240,9 @@ object RecursiveFragmentation {
          * @return      a Seq of sub-line
          */
         def split(line: LineString, blade: LineString): Seq[LineString] = {
-            val lines = line.difference(blade).asInstanceOf[MultiLineString]
-            val results = (0 until lines.getNumGeometries).map(i => lines.getGeometryN(i).asInstanceOf[LineString])
+            val lineSegments = line.difference(blade).asInstanceOf[MultiLineString]
+            val results = (0 until lineSegments.getNumGeometries).map(i => lineSegments.getGeometryN(i).asInstanceOf[LineString])
             results
-        }
-
-
-        /**
-         * Get a blade that crosses the line in the middle vertical or horizontal point
-         *
-         * @param line          input line
-         * @param isHorizontal  the requested blade is horizontal otherwise it will be vertical
-         * @return              a linestring
-         */
-        def getBlade(line: LineString, isHorizontal: Boolean): LineString = {
-            val env = line.getEnvelopeInternal
-            if (isHorizontal){
-                val midY = (env.getMaxY + env.getMinY)/2
-                geometryFactory.createLineString(Array(new Coordinate(env.getMinX-epsilon, midY), new Coordinate(env.getMaxX+epsilon, midY)))
-            }
-            else{
-                val midX = (env.getMaxX + env.getMinX)/2
-                geometryFactory.createLineString(Array(new Coordinate(midX, env.getMinY-epsilon), new Coordinate(midX, env.getMaxY+epsilon)))
-            }
         }
 
         // apply
