@@ -1,15 +1,15 @@
 name := "DS-JedAI"
 version := "0.1"
-scalaVersion := "2.12.12"
-val sparkVersion = "2.4.3"
+scalaVersion := "2.11.12"
+val sparkVersion = "2.4.4"
 
 
-
+scalacOptions ++= Seq("-feature", "-language:reflectiveCalls")
 
 libraryDependencies ++= Seq(
 	"org.apache.spark" %%  "spark-core" % sparkVersion % Provided,
-	"org.apache.spark" %%  "spark-sql" % sparkVersion  % Provided,
-	"org.apache.spark" %% "spark-graphx" % sparkVersion % Provided
+	"org.apache.spark" %%  "spark-sql" % sparkVersion  % Provided
+//	"org.apache.spark" %% "spark-graphx" % sparkVersion % Provided
 )
 
 // https://mvnrepository.com/artifact/org.apache.sedona/sedona-core-2.4
@@ -29,18 +29,18 @@ libraryDependencies += "org.wololo" % "jts2geojson" % "0.14.3"
 
 dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7"
 
-// https://mvnrepository.com/artifact/org.yaml/snakeyaml
-libraryDependencies += "org.yaml" % "snakeyaml" % "1.8"
-
 libraryDependencies += "net.jcazevedo" %% "moultingyaml" % "0.4.0"
 
 // https://mvnrepository.com/artifact/org.apache.commons/commons-math3
 libraryDependencies += "org.apache.commons" % "commons-math3" % "3.0"
 
 // https://mvnrepository.com/artifact/org.typelevel/cats-core
-libraryDependencies += "org.typelevel" %% "cats-core" % "2.6.0"
+libraryDependencies += "org.typelevel" %% "cats-core" % "2.0.0-RC3"
 
+
+// https://mvnrepository.com/artifact/org.scalatest/scalatest
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.7" % Test
+
 
 
 assemblyMergeStrategy in assembly := {

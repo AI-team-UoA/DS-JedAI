@@ -12,6 +12,7 @@ import org.joda.time.format.DateTimeFormat
 import org.locationtech.jts.geom.{Envelope, Geometry}
 import utils.Constants
 import utils.configurationParser.DatasetConfigurations
+import utils.geometryUtils.EnvelopeOp
 
 import scala.collection.JavaConverters._
 

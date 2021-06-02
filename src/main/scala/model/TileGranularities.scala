@@ -5,7 +5,9 @@ import org.locationtech.jts.geom.Envelope
 import utils.Constants.ThetaOption
 import utils.Constants.ThetaOption.ThetaOption
 
-case class TileGranularities(x: Double, y: Double)
+case class TileGranularities(x: Double, y: Double){
+    def *(n: Int) : TileGranularities = TileGranularities(x*3, y*3)
+}
 
 object TileGranularities {
 

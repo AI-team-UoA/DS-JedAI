@@ -1,10 +1,10 @@
-package utils.decompose
+package utils.geometryUtils
 
 import model.TileGranularities
 import org.locationtech.jts.geom._
 import org.locationtech.jts.operation.polygonize.Polygonizer
 import org.locationtech.jts.operation.union.UnaryUnionOp
-import utils.decompose.GeometryUtils.flattenCollection
+import utils.geometryUtils.GeometryUtils.flattenCollection
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._

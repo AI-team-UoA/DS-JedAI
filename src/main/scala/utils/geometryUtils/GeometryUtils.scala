@@ -1,4 +1,4 @@
-package utils.decompose
+package utils.geometryUtils
 
 import org.apache.sedona.core.spatialRDD.SpatialRDD
 import org.locationtech.jts.geom._
