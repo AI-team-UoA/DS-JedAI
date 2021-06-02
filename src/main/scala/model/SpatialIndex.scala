@@ -1,30 +1,59 @@
 package model
 
-import model.entities.Entity
+import java.math.MathContext
+
+import org.locationtech.jts.geom.Envelope
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.math.BigDecimal.RoundingMode
 
-case class SpatialIndex(entities: Array[Entity], tileGranularities: TileGranularities){
-
+case class SpatialIndex[T <: {def getEnvelopeInternal(): Envelope}](entities: Array[T], theta: TileGranularities) {
+    val scale: Int = 6
     var index: mutable.HashMap[Int, mutable.HashMap[Int, ListBuffer[Int]]] = new mutable.HashMap[Int, mutable.HashMap[Int, ListBuffer[Int]]]()
-    entities.zipWithIndex.foreach(e => indexEntity(e._1).foreach(c => insert(c, e._2)))
+    entities.zipWithIndex.foreach { case (e, i) =>
+        val indices = index(e)
+        indices.foreach(c => insert(c, i))
+    }
 
-    def indexEntity(se: Entity): Seq[(Int, Int)] = {
+    lazy val indices: Set[(Int, Int)] = getIndices.toSet
 
-        if (se.getMinX == 0 && se.getMaxX == 0 && se.getMinY == 0 && se.getMaxY == 0) Seq((0, 0))
-        else{
-            val maxX = math.ceil(se.getMaxX / tileGranularities.x).toInt
-            val minX = math.floor(se.getMinX / tileGranularities.x).toInt
-            val maxY = math.ceil(se.getMaxY / tileGranularities.y).toInt
-            val minY = math.floor(se.getMinY / tileGranularities.y).toInt
-            //TODO check here that until is correct
-            for (x <- minX until maxX; y <- minY until maxY) yield (x, y)
+
+
+
+    def index(t: T): Seq[(Int, Int)] = {
+        val env = t.getEnvelopeInternal()
+        val minX = env.getMinX
+        val maxX = env.getMaxX
+        val minY = env.getMinY
+        val maxY = env.getMaxY
+        if (minX == 0 && maxX == 0 && minY == 0 && maxY == 0) Seq((0, 0))
+        else {
+            val x1 = math.floor(BigDecimal(minX / theta.x).setScale(scale, RoundingMode.HALF_EVEN).toDouble).toInt
+            val x2 = math.ceil(BigDecimal(maxX / theta.x).setScale(scale, RoundingMode.HALF_EVEN).toDouble).toInt
+            val y1 = math.floor(BigDecimal(minY / theta.y).setScale(scale, RoundingMode.HALF_EVEN).toDouble).toInt
+            val y2 = math.ceil(BigDecimal(maxY / theta.y).setScale(scale, RoundingMode.HALF_EVEN).toDouble).toInt
+            val tiles = for (x <- x1 until x2; y <- y1 until y2) yield (x, y)
+            if(tiles.length > 1 && ((maxX-minX) >theta.x || (maxY-minY)>theta.y)) {
+                val k = 2
+            }
+            tiles
         }
     }
 
+    def indexByEnv(t: T): Seq[(Int, Int)] = {
+        val env = t.getEnvelopeInternal()
+        val midX = (env.getMaxX + env.getMinX)/2
+        val midY = (env.getMaxY + env.getMinY)/2
+        val x = math.floor(midX/theta.x).toInt
+        val y = math.floor(midY/theta.y).toInt
+        Seq((x, y))
+    }
 
-    def insert(c: (Int, Int), i: Int): Unit = {
+
+
+
+    private def insert(c: (Int, Int), i: Int): Unit = {
         val (x, y) = c
         if (index.contains(x))
             if (index(x).contains(y))
@@ -39,23 +68,47 @@ case class SpatialIndex(entities: Array[Entity], tileGranularities: TileGranular
         }
     }
 
-    def getCandidates(se: Entity): Seq[Entity] = indexEntity(se).flatMap(c => get(c))
+    def getCandidates(t: T): Seq[T] = index(t).flatMap(c => get(c))
 
     def contains(c: (Int, Int)): Boolean = index.contains(c._1) && index(c._1).contains(c._2)
 
-    def get(c:(Int, Int)): Seq[Entity] =  if (contains(c)) index(c._1)(c._2).map(i => entities(i)) else Seq()
+    def get(c: (Int, Int)): Seq[T] = if (contains(c)) index(c._1)(c._2).map(i => entities(i)) else Seq()
 
-    def getWithIndex(c:(Int, Int)): Seq[(Int, Entity)] =  if (contains(c)) index(c._1)(c._2).map(i => (i, entities(i))) else Seq()
+    def getIndices(c: (Int, Int)): Seq[Int] = if (contains(c)) index(c._1)(c._2) else Seq()
+
+    def getWithIndex(c: (Int, Int)): Seq[(Int, T)] = if (contains(c)) index(c._1)(c._2).map(i => (i, entities(i))) else Seq()
+
+    def getDistinctFromTiles(tiles: Seq[(Int, Int)]): Seq[T] = {
+        val indices = for (t <- tiles ; if contains(t)) yield index(t._1)(t._2)
+        indices.flatten.distinct.map(i => entities(i))
+    }
 
     def keys: mutable.HashMap[Int, scala.collection.Set[Int]] = index.map(i => i._1 -> i._2.keySet)
 
-    def getIndices: Seq[(Int, Int)] = index.iterator.flatMap{ case (i, map) => map.keysIterator.map(j => (i, j))}.toSeq
+    def getIndices: Seq[(Int, Int)] = index.iterator.flatMap { case (i, map) => map.keysIterator.map(j => (i, j)) }.toSeq
 
     def getValues: Seq[ListBuffer[Int]] = index.values.flatMap(hm => hm.values).toSeq
 
-
+}
 
 /** Alternative implementation, slower but prettier */
+
+//    def index(t: T): Seq[(Int, Int)] = {
+//        val env = t.getEnvelopeInternal()
+//        val minX = env.getMinX
+//        val maxX = env.getMaxX
+//        val minY = env.getMinY
+//        val maxY = env.getMaxY
+//        if (minX == 0 && maxX == 0 && minY == 0 && maxY == 0) Seq((0, 0))
+//        else {
+//            val x1 = math.floor(minX / theta.x).toInt
+//            val x2 = math.ceil(maxX / theta.x).toInt
+//            val y1 = math.floor(minY / theta.y).toInt
+//            val y2 = math.ceil(maxY / theta.y).toInt
+//            for (x <- x1 until x2; y <- y1 until y2) yield (x, y)
+//        }
+//    }
+
 
 //    val index: Map[Int, Map[Int, List[Int]]] = buildIndex()
 //
@@ -92,4 +145,3 @@ case class SpatialIndex(entities: Array[Entity], tileGranularities: TileGranular
 //    def getIndices: Seq[(Int, Int)] = index.iterator.flatMap{ case (i, map) => map.keysIterator.map(j => (i, j))}.toSeq
 
 
-}

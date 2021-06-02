@@ -4,6 +4,7 @@ import model.IM
 import org.locationtech.jts.geom.{Envelope, Geometry}
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
+import utils.geometryUtils.EnvelopeOp
 
 import scala.language.implicitConversions
 
@@ -17,6 +18,7 @@ trait Entity extends Serializable {
     val geometry: Geometry
     val env: Envelope = geometry.getEnvelopeInternal
 
+    def getEnvelopeInternal(): Envelope = env
     def getMinX: Double = env.getMinX
     def getMaxX: Double = env.getMaxX
     def getMinY: Double = env.getMinY

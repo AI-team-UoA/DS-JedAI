@@ -50,8 +50,8 @@ trait ProgressiveInterlinkerT extends InterlinkerT {
      * @param relation examining relation
      * @return all candidate geometries of se
      */
-    def getAllCandidatesWithIndex(se: Entity, index: SpatialIndex, partition: Envelope, relation: Relation): Seq[(Int, Entity)] ={
-        index.indexEntity(se)
+    def getAllCandidatesWithIndex(se: Entity, index: SpatialIndex[Entity], partition: Envelope, relation: Relation): Seq[(Int, Entity)] ={
+        index.index(se)
             .flatMap { block =>
                 val blockCandidates = index.getWithIndex(block)
                 blockCandidates.filter(candidate => filterVerifications(candidate._2, se, relation, block, partition))

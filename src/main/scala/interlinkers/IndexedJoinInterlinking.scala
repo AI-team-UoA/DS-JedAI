@@ -26,14 +26,14 @@ case class IndexedJoinInterlinking(source:RDD[(Int, Entity)], target:RDD[(Int, E
 
 
     def indexedJoin(): RDD[((Int, Int), (Iterable[(Int, Entity)], Iterable[(Int, Entity)]))] = {
-        val index = SpatialIndex(Array(), tileGranularities)
+        val index = SpatialIndex[Entity](Array(), tileGranularities)
         val indexedSource: RDD[((Int, Int), Iterable[(Int, Entity)])] = source
-            .map(se => (index.indexEntity(se._2), se))
+            .map(se => (index.index(se._2), se))
             .flatMap{ case (indices, (pid, se)) => indices.map(i => (i, (pid, se)))}
             .groupByKey(partitioner)
 
         val indexedTarget: RDD[((Int, Int), Iterable[(Int, Entity)])] = target
-            .map(se =>  (index.indexEntity(se._2), se))
+            .map(se =>  (index.index(se._2), se))
             .flatMap{ case (indices, (pid, se)) => indices.map(i => (i, (pid, se)))}
             .groupByKey(partitioner)
 

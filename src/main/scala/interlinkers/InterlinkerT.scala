@@ -88,11 +88,11 @@ trait InterlinkerT {
      * @param relation examining relation
      * @return all candidate geometries of se
      */
-    def getAllCandidates(se: Entity, index: SpatialIndex, partition: Envelope, relation: Relation): Seq[Entity] ={
-        index.indexEntity(se)
+    def getAllCandidates(se: Entity, index: SpatialIndex[Entity], partition: Envelope, relation: Relation): Seq[Entity] ={
+        index.index(se)
             .flatMap { block =>
                 val blockCandidates = index.get(block)
-                blockCandidates.filter(candidate => filterVerifications(candidate, se, relation, block, partition))
+                blockCandidates.filter(candidate => `filterVerifications`(candidate, se, relation, block, partition))
             }
     }
 
