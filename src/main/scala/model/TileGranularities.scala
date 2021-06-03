@@ -6,7 +6,7 @@ import utils.Constants.ThetaOption
 import utils.Constants.ThetaOption.ThetaOption
 
 case class TileGranularities(x: Double, y: Double){
-    def *(n: Int) : TileGranularities = TileGranularities(x*3, y*3)
+    def *(n: Double) : TileGranularities = TileGranularities(x*n, y*n)
 }
 
 object TileGranularities {

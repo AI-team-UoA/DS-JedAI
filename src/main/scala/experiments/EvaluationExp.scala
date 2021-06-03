@@ -179,12 +179,12 @@ object EvaluationExp {
      * @return PGR and qp
      */
     def computeOptimalMetrics(bu: Double, qp: Double): (Double, Double) ={
-        val qpSum = (1d to qp by 1d).sum
+        val qpSum = BigDecimal(1d).until(qp, 1d).sum
         val rest = bu - qp
         val pgr = ((qpSum + (rest*qp))/qp.toDouble)/bu.toDouble
         val precision = qp.toDouble/bu.toDouble
 
-        (pgr, precision)
+        (pgr.toDouble, precision)
     }
 
 }

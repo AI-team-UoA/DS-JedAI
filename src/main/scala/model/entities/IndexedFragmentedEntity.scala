@@ -22,21 +22,12 @@ case class IndexedFragmentedEntity(originalID: String, geometry: Geometry, fragm
 
     override def intersectingMBR(e: Entity, relation: Relation): Boolean = {
         lazy val fragmentsIntersection: Boolean = e match {
-
             case fe: IndexedFragmentedEntity =>
                 index.indices.intersect(fe.getTileIndices).nonEmpty
-
             case fe: FragmentedEntity =>
-                fragments.exists { fg1 =>
-                    val fragmentEnv = fg1.getEnvelopeInternal
-                    fe.fragments.exists(fg2 => EnvelopeOp.checkIntersection(fragmentEnv, fg2.getEnvelopeInternal, relation))
-                }
-
+                fragments.exists { fg1 => fe.fragments.exists(fg2 => EnvelopeOp.checkIntersection(fg1.getEnvelopeInternal, fg2.getEnvelopeInternal, relation)) }
             case _ =>
-                fragments.exists { fg =>
-                    val fragmentEnv = fg.getEnvelopeInternal
-                    EnvelopeOp.checkIntersection(fragmentEnv, e.env, relation)
-                }
+                fragments.exists { fg => EnvelopeOp.checkIntersection(fg.getEnvelopeInternal, e.env, relation)}
         }
         val envIntersection: Boolean = EnvelopeOp.checkIntersection(env, e.env, relation)
         envIntersection && fragmentsIntersection
@@ -53,8 +44,10 @@ case class IndexedFragmentedEntity(originalID: String, geometry: Geometry, fragm
                     im
                 else {
                     val newIm = g1.relate(g2)
-                    im.add(newIm)
-                    if (im.isCrosses(g1.getDimension, g2.getDimension) || im.isOverlaps(g1.getDimension, g2.getDimension))
+                    if (newIm.isIntersects)
+                        im.add(newIm)
+                    if (im.isEquals(g1.getDimension, g2.getDimension) &&
+                        (im.isCrosses(g1.getDimension, g2.getDimension) || im.isOverlaps(g1.getDimension, g2.getDimension)))
                         im
                     else
                         ruleBasedVerification(tail, im)
@@ -63,63 +56,54 @@ case class IndexedFragmentedEntity(originalID: String, geometry: Geometry, fragm
     }
 
 
-     override def getIntersectionMatrix(e: Entity): IM = {
+    // WARNING: the extra points introduced by the blades affect the results,
+    //  - consider to remove it
+    //  - or add the same point in fragment
+    def fragmentsVerification(fe: IndexedFragmentedEntity, commonTiles: Seq[(Int, Int)]): IntersectionMatrix ={
+        val verifications: Seq[(Geometry, Geometry)] =
 
-         e match {
-             case fe: IndexedFragmentedEntity =>
-
-                 val intersectingTiles = index.indices.intersect(fe.getTileIndices).toSeq
-
-                 // WARNING: the extra points introduced by the blades affect the results,
-                 //  - consider to remove it
-                 //  - or add the same point in fragment
-                 val verifications: Seq[(Geometry, Geometry)] =
-
-                     if (fe.fragments.length == 1){
+            if (fe.fragments.length == 1){
 //                         val intersectingFragments = intersectingTiles.flatMap{ t => getFragmentsFromTile(t)}
 //                         val unifiedFragmentsTry = Try(UnaryUnionOp.union(intersectingFragments.asJava))
 //                         unifiedFragmentsTry match {
 //                             case Failure(_)                => intersectingFragments.map(g => (g, fe.geometry))
 //                             case Success(unifiedFragments) => Seq((unifiedFragments, fe.geometry))
 //                         }
-                         Seq((geometry, fe.geometry))
-
-                     }
-                     else if (fragments.length == 1){
+                Seq((geometry, fe.geometry))
+            }
+            else if (fragments.length == 1){
 //                         val intersectingFragments = intersectingTiles.flatMap{ t => fe.getFragmentsFromTile(t)}
 //                         val unifiedFragmentsTry = Try(UnaryUnionOp.union(intersectingFragments.asJava))
 //                         unifiedFragmentsTry match {
 //                             case Failure(_)                => intersectingFragments.map(g => (geometry, g))
 //                             case Success(unifiedFragments) => Seq((geometry, unifiedFragments))
 //                         }
-                         Seq((geometry, fe.geometry))
+                Seq((geometry, fe.geometry))
+            }
+            else {
+                commonTiles
+                    .map(t => (getFragmentsIndexFromTile(t), fe.getFragmentsIndexFromTile(t)))
+                    .flatMap { case (indices1, indices2) => for (i <- indices1; j <- indices2) yield (i, j) }
+                    .map{ case (i, j) => (fragments(i), fe.fragments(j))}
+            }
 
-                     }
-                     else {
-                         intersectingTiles
-                             .map(t => (getFragmentsIndexFromTile(t), fe.getFragmentsIndexFromTile(t)))
-                             .flatMap { case (indices1, indices2) => for (i <- indices1; j <- indices2) yield (i, j) }
-                             .map{ case (i, j) => (fragments(i), fe.fragments(j))}
-                     }
+        val typedVerifications: List[(EnvelopeIntersectionTypes, (Geometry, Geometry))] =
+            verifications.map { case (g1, g2) =>
+                val envelopeIntersectionType = EnvelopeOp.getIntersectingEnvelopesType(g1.getEnvelopeInternal, g2.getEnvelopeInternal)
+                (envelopeIntersectionType, (g1, g2))
+            }.sortBy(_._1).toList
 
-                 val typedVerifications: List[(EnvelopeIntersectionTypes, (Geometry, Geometry))] =
-                     verifications.map { case (g1, g2) =>
-                         val envelopeIntersectionType = EnvelopeOp.getIntersectingEnvelopesType(g1.getEnvelopeInternal, g2.getEnvelopeInternal)
-                         (envelopeIntersectionType, (g1, g2))
-                     }.sortBy(_._1).toList
+        val emptyIM = new IntersectionMatrix("FFFFFFFFF")
+        ruleBasedVerification(typedVerifications, emptyIM)
+    }
 
-                 val emptyIM = new IntersectionMatrix("FFFFFFFFF")
-                 val im = ruleBasedVerification(typedVerifications, emptyIM)
 
-//                 val im1 = IM(this, fe, im)
-//                 val imGT = geometry.relate(fe.geometry)
-//                 val im2 = IM(this, fe, imGT)
-//                 if( im1 != im2){
-//                     val emptyIM = new IntersectionMatrix("FFFFFFFFF")
-//                     val m = ruleBasedVerification(typedVerifications, emptyIM)
-//                     val k = 2
-//                 }
+     override def getIntersectionMatrix(e: Entity): IM = {
+         e match {
 
+             case fe: IndexedFragmentedEntity =>
+                 val commonTiles = index.indices.intersect(fe.getTileIndices).toSeq
+                 val im = if (commonTiles.length < 10) fragmentsVerification(fe, commonTiles) else geometry.relate(fe.geometry)
                  IM(this, fe, im)
 
              case e: Entity => super.getIntersectionMatrix(e)

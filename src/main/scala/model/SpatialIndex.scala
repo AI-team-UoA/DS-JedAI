@@ -1,7 +1,5 @@
 package model
 
-import java.math.MathContext
-
 import org.locationtech.jts.geom.Envelope
 
 import scala.collection.mutable
@@ -9,17 +7,16 @@ import scala.collection.mutable.ListBuffer
 import scala.math.BigDecimal.RoundingMode
 
 case class SpatialIndex[T <: {def getEnvelopeInternal(): Envelope}](entities: Array[T], theta: TileGranularities) {
-    val scale: Int = 6
+
+    val divisionPrecision: Int = 6
     var index: mutable.HashMap[Int, mutable.HashMap[Int, ListBuffer[Int]]] = new mutable.HashMap[Int, mutable.HashMap[Int, ListBuffer[Int]]]()
+
     entities.zipWithIndex.foreach { case (e, i) =>
         val indices = index(e)
         indices.foreach(c => insert(c, i))
     }
 
     lazy val indices: Set[(Int, Int)] = getIndices.toSet
-
-
-
 
     def index(t: T): Seq[(Int, Int)] = {
         val env = t.getEnvelopeInternal()
@@ -29,27 +26,13 @@ case class SpatialIndex[T <: {def getEnvelopeInternal(): Envelope}](entities: Ar
         val maxY = env.getMaxY
         if (minX == 0 && maxX == 0 && minY == 0 && maxY == 0) Seq((0, 0))
         else {
-            val x1 = math.floor(BigDecimal(minX / theta.x).setScale(scale, RoundingMode.HALF_EVEN).toDouble).toInt
-            val x2 = math.ceil(BigDecimal(maxX / theta.x).setScale(scale, RoundingMode.HALF_EVEN).toDouble).toInt
-            val y1 = math.floor(BigDecimal(minY / theta.y).setScale(scale, RoundingMode.HALF_EVEN).toDouble).toInt
-            val y2 = math.ceil(BigDecimal(maxY / theta.y).setScale(scale, RoundingMode.HALF_EVEN).toDouble).toInt
-            val tiles = for (x <- x1 until x2; y <- y1 until y2) yield (x, y)
-            if(tiles.length > 1 && ((maxX-minX) >theta.x || (maxY-minY)>theta.y)) {
-                val k = 2
-            }
-            tiles
+            val x1 = math.floor(BigDecimal(minX / theta.x).setScale(divisionPrecision, RoundingMode.HALF_EVEN).toDouble).toInt
+            val x2 = math.ceil(BigDecimal(maxX / theta.x).setScale(divisionPrecision, RoundingMode.HALF_EVEN).toDouble).toInt
+            val y1 = math.floor(BigDecimal(minY / theta.y).setScale(divisionPrecision, RoundingMode.HALF_EVEN).toDouble).toInt
+            val y2 = math.ceil(BigDecimal(maxY / theta.y).setScale(divisionPrecision, RoundingMode.HALF_EVEN).toDouble).toInt
+            for (x <- x1 until x2; y <- y1 until y2) yield (x, y)
         }
     }
-
-    def indexByEnv(t: T): Seq[(Int, Int)] = {
-        val env = t.getEnvelopeInternal()
-        val midX = (env.getMaxX + env.getMinX)/2
-        val midY = (env.getMaxY + env.getMinY)/2
-        val x = math.floor(midX/theta.x).toInt
-        val y = math.floor(midY/theta.y).toInt
-        Seq((x, y))
-    }
-
 
 
 

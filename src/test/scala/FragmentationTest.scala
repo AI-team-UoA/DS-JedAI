@@ -104,7 +104,7 @@ class FragmentationTest extends AnyWordSpec {
 
         "produce fragments of same area as the initial Polygon, despite inner holes" in {
             val geometries = polygonsWithHoles
-            val theta = TileGranularities(geometries.map(p => p.getEnvelopeInternal), polygons.length, ThetaOption.AVG_x2)
+            val theta = TileGranularities(geometries.map(p => p.getEnvelopeInternal), geometries.length, ThetaOption.AVG_x2)
             assert(
                 geometries.forall { p =>
                     val fragments: Seq[Geometry] = GridFragmentation.splitBigGeometries(theta)(p)

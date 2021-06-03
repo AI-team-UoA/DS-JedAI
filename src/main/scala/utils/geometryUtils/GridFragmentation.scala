@@ -1,7 +1,6 @@
 package utils.geometryUtils
 
 import model.TileGranularities
-import org.locationtech.jts.awt.PointShapeFactory.X
 import org.locationtech.jts.geom._
 import org.locationtech.jts.operation.polygonize.Polygonizer
 import org.locationtech.jts.operation.union.UnaryUnionOp
@@ -9,15 +8,14 @@ import org.locationtech.jts.precision.GeometryPrecisionReducer
 import utils.geometryUtils.GeometryUtils.flattenCollection
 
 import scala.collection.JavaConverters._
-import scala.math.BigDecimal.RoundingMode
 
 object GridFragmentation {
     val geometryFactory = new GeometryFactory()
     val epsilon: Double = 1e-8
     val xYEpsilon: (Double, Double) =  (epsilon, 0d)
-    val scale: Int = 8
 
-    val precisionModel = new PrecisionModel(1e+7)
+    val geometryPrecision = 1e+11
+    val precisionModel = new PrecisionModel(geometryPrecision)
     val precisionReducer = new GeometryPrecisionReducer(precisionModel)
     precisionReducer.setPointwise(true)
     precisionReducer.setChangePrecisionModel(true)
@@ -38,7 +36,7 @@ object GridFragmentation {
         val minX = env.getMinX
         val maxX = env.getMaxX
         val n = math.floor(minX / thetaX) + 1
-        val bladeStart: BigDecimal = BigDecimal(thetaX).bigDecimal.multiply(BigDecimal(n).bigDecimal)
+        val bladeStart: BigDecimal = BigDecimal(thetaX*n)
 
         for (x <- bladeStart until maxX by thetaX)
             yield {
@@ -55,7 +53,7 @@ object GridFragmentation {
         val minY = env.getMinY
         val maxY = env.getMaxY
         val n = math.floor(minY/thetaY) + 1
-        val bladeStart: BigDecimal = BigDecimal(thetaY).bigDecimal.multiply(BigDecimal(n).bigDecimal)
+        val bladeStart: BigDecimal = BigDecimal(thetaY*n)
 
         for (y <- bladeStart until maxY by thetaY)
             yield {
@@ -91,34 +89,34 @@ object GridFragmentation {
         //   - create line segments that do not overlap the inner ring
         var checkpoint = start
 
-        val segments = innerRings
+        val segments: Seq[LineString] = innerRings
             .map(ir => (ir, ir.getEnvelopeInternal))
             .filter{ case (_, env) => crossCondition(env)}
             .sortBy{ case (_, env) => if (isHorizontal) env.getMinX else env.getMinY }
-            .map{ case (ir, _) =>
+            .flatMap { case (ir, _) =>
 
                 val intersectingCollection = ir.intersection(blade)
-                val ip: Seq[Coordinate] = (0 until intersectingCollection.getNumGeometries)
+                val intersectionPoints: Seq[Coordinate] = (0 until intersectingCollection.getNumGeometries)
                     .map(i => intersectingCollection.getGeometryN(i))
                     .flatMap(g => g.getCoordinates)
+                    .sorted(ordering)
 
-                val stopPoint = ip.min(ordering)
-                stopPoint.setX(stopPoint.x + xEpsilon)
-                stopPoint.setY(stopPoint.y + yEpsilon)
+                val segmentsPoints = start +: intersectionPoints :+ end
+                for (point <- segmentsPoints.sliding(2, 2)) yield {
+                    val start = point.head
+                    start.setX(start.x + xEpsilon)
+                    start.setY(start.y + yEpsilon)
 
-                val newStart = ip.max(ordering)
-                newStart.setX(newStart.x - xEpsilon)
-                newStart.setY(newStart.y - yEpsilon)
-
-                val segment = geometryFactory.createLineString(Array(checkpoint, stopPoint))
-
-                checkpoint = newStart
-                segment
-            }.toList
+                    val end = point.last
+                    end.setX(end.x - xEpsilon)
+                    end.setY(end.y - yEpsilon)
+                    geometryFactory.createLineString(Array(start, end))
+                }
+            }
 
         // create the last line segment
         val segment = geometryFactory.createLineString(Array(checkpoint, end))
-        segment ::  segments
+        segments :+ segment
     }
 
 
@@ -142,7 +140,7 @@ object GridFragmentation {
 
             val newPolygons = polygonizer.getPolygons.asScala.map(p => p.asInstanceOf[Polygon])
                 .filter(p => polygon.contains(p.getInteriorPoint))
-//                .map(p => precisionReducer.reduce(p))
+                .map(p => precisionReducer.reduce(p))
                 .toSeq
             newPolygons
         }
@@ -161,7 +159,8 @@ object GridFragmentation {
             val blades = geometryFactory.createMultiLineString((verticalBlades ++ horizontalBlades).toArray)
             val lineSegments = line.difference(blades).asInstanceOf[MultiLineString]
             (0 until lineSegments.getNumGeometries).map(i => lineSegments.getGeometryN(i))
-//                .map(p => precisionReducer.reduce(p))
+                .map(l => precisionReducer.reduce(l))
+
         }
 
         val env = line.getEnvelopeInternal

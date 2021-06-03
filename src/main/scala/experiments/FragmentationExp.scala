@@ -83,8 +83,8 @@ object FragmentationExp {
 //        val fragmentedSourceRDD: RDD[(Int, Entity)] = sourceRDD.map(se => (se._1, FragmentedEntity(se._2)(fragmentationF)))
 //        val fragmentedTargetRDD: RDD[(Int, Entity)] = targetRDD.map(se => (se._1, FragmentedEntity(se._2)(fragmentationF)))
 
-        val fragmentedSourceRDD: RDD[(Int, Entity)] = sourceRDD.map(se => (se._1, IndexedFragmentedEntity(se._2, theta*2)))
-        val fragmentedTargetRDD: RDD[(Int, Entity)] = targetRDD.map(se => (se._1, IndexedFragmentedEntity(se._2, theta*2)))
+        val fragmentedSourceRDD: RDD[(Int, Entity)] = sourceRDD.map(se => (se._1, IndexedFragmentedEntity(se._2, theta*3)))
+        val fragmentedTargetRDD: RDD[(Int, Entity)] = targetRDD.map(se => (se._1, IndexedFragmentedEntity(se._2, theta*3)))
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
         val giant = GIAnt(fragmentedSourceRDD, fragmentedTargetRDD, theta, partitionBorder, partitioner.hashPartitioner)
