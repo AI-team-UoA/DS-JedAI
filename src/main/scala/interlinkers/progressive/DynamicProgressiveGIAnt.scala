@@ -4,6 +4,7 @@ import model._
 import model.entities.Entity
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
+import org.locationtech.jts.geom.Envelope
 import utils.Constants
 import utils.Constants.Relation
 import utils.Constants.Relation.Relation
@@ -13,7 +14,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
-                                   thetaXY: (Double, Double), partitionBorders: Array[MBR],
+                                   tileGranularities: TileGranularities, partitionBorders: Array[Envelope],
                                    mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction], budget: Int,
                                    totalSourceEntities: Long, ws: Constants.WeightingScheme)
     extends ProgressiveInterlinkerT {
@@ -28,10 +29,9 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
      * @param target target
      * @return a PQ with the top comparisons
      */
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): ComparisonPQ ={
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: Envelope, relation: Relation): ComparisonPQ ={
         val localBudget = math.ceil(budget*source.length.toDouble/totalSourceEntities.toDouble).toLong
-        val sourceIndex = index(source)
-        val filterIndices = (b: (Int, Int)) => sourceIndex.contains(b)
+        val sourceIndex = SpatialIndex(source, tileGranularities)
         val pq: DynamicComparisonPQ = DynamicComparisonPQ(localBudget)
         var counter = 0
         // weight and put the comparisons in a PQ
@@ -39,17 +39,12 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
             .indices
             .foreach {j =>
                 val t = target(j)
-                t.index(thetaXY, filterIndices)
-                    .foreach { block =>
-                        sourceIndex.get(block)
-                            .filter(i => source(i).filter(t, relation, block, thetaXY, Some(partition)))
-                            .foreach { i =>
-                                val s = source(i)
-                                val wp = getWeightedPair(counter, s, i, t, j)
-                                pq.enqueue(wp)
-                                counter += 1
-                            }
-                    }
+                val candidates = getAllCandidatesWithIndex(t, sourceIndex, partition, relation)
+                candidates.foreach { case (i, s) =>
+                    val wp = weightedPairFactory.createWeightedPair(counter, s, i, t, j)
+                    pq.enqueue(wp)
+                    counter += 1
+                }
             }
         pq
     }
@@ -64,7 +59,7 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
                 val wp = pq.dequeueHead()
                 val s = source(wp.entityId1)
                 val t = target(wp.entityId2)
-                val im = IM(s, t)
+                val im = s.getIntersectionMatrix(t)
                 val isRelated = im.relate
                 if (isRelated) {
                     sourceCandidates.getOrElse(wp.entityId1, List()).foreach(wp => pq.dynamicUpdate(wp))
@@ -136,7 +131,7 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
                         val s = source(wp.entityId1)
                         val t = target(wp.entityId2)
                         val isRelated = relation match {
-                            case Relation.DE9IM => IM(s, t).relate
+                            case Relation.DE9IM => s.getIntersectionMatrix(t).relate
                             case _ => s.relate(t, relation)
                         }
                         if (isRelated){
@@ -190,12 +185,12 @@ case class DynamicProgressiveGIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Itera
 object DynamicProgressiveGIAnt {
 
     def apply(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)],
-              thetaXY: (Double, Double), partitionBorders: Array[MBR], sourceCount: Long, wf: WeightingFunction,
+              tileGranularities: TileGranularities, partitionBorders: Array[Envelope], sourceCount: Long, wf: WeightingFunction,
               swf: Option[WeightingFunction] = None, budget: Int, partitioner: Partitioner,
               ws: Constants.WeightingScheme): DynamicProgressiveGIAnt ={
 
         val joinedRDD = source.cogroup(target, partitioner)
-        DynamicProgressiveGIAnt(joinedRDD, thetaXY, partitionBorders,  wf, swf, budget, sourceCount, ws)
+        DynamicProgressiveGIAnt(joinedRDD, tileGranularities, partitionBorders,  wf, swf, budget, sourceCount, ws)
     }
 
 

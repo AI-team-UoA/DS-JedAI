@@ -4,6 +4,7 @@ package experiments
 import java.util.Calendar
 
 import interlinkers.GIAnt
+import model.TileGranularities
 import model.entities.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
@@ -15,9 +16,9 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
 import utils.Constants.{GridType, Relation}
-import utils.readers.{GridPartitioner, Reader}
 import utils.Utils
 import utils.configurationParser.ConfigurationParser
+import utils.readers.{GridPartitioner, Reader}
 
 object GiantExp {
 
@@ -83,10 +84,11 @@ object GiantExp {
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
         val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
         val targetRDD: RDD[(Int, Entity)] = partitioner.transform(targetSpatialRDD, conf.target)
+        val approximateSourceCount = partitioner.approximateCount
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
-        val theta = Utils.getTheta(sourceRDD.map(_._2.mbr))
-        val partitionBorder = Utils.getBordersOfMBR(partitioner.partitionBorders, theta).toArray
+        val theta = TileGranularities(sourceRDD.map(_._2.env), approximateSourceCount, conf.getTheta)
+        val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
@@ -99,7 +101,7 @@ object GiantExp {
             log.info(s"DS-JEDAI: Source geometries: $sourceCount")
             log.info(s"DS-JEDAI: Target geometries: $targetCount")
             log.info(s"DS-JEDAI: Cartesian: ${sourceCount*targetCount}")
-            log.info(s"DS-JEDAI: Candidate Pairs: ${giant.countCandidates}")
+            log.info(s"DS-JEDAI: Verifications: ${giant.countVerification}")
         }
         else if (relation.equals(Relation.DE9IM)) {
             val imRDD = giant.getDE9IM
@@ -139,6 +141,5 @@ object GiantExp {
 
         val endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Total Execution Time: " + (endTime - startTime) / 1000.0)
-        System.in.read()
     }
 }

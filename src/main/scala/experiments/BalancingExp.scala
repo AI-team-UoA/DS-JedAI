@@ -3,6 +3,7 @@ package experiments
 import java.util.Calendar
 
 import interlinkers.{GIAnt, IndexedJoinInterlinking}
+import model.TileGranularities
 import model.entities.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
@@ -14,9 +15,8 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.locationtech.jts.geom.Geometry
 import utils.Constants.{GridType, Relation}
-import utils.readers.{GridPartitioner, Reader}
-import utils.Utils
 import utils.configurationParser.ConfigurationParser
+import utils.readers.{GridPartitioner, Reader}
 
 
 object BalancingExp {
@@ -84,8 +84,8 @@ object BalancingExp {
         val targetRDD: RDD[(Int, Entity)] = partitioner.transform(targetSpatialRDD, conf.target)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
-        val theta = Utils.getTheta(sourceRDD.map(_._2.mbr))
-        val partitionBorder = Utils.getBordersOfMBR(partitioner.partitionBorders, theta).toArray
+        val theta = TileGranularities(sourceRDD.map(_._2.env))
+        val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val sourcePartitions: RDD[(Int, Iterator[Entity])] = sourceRDD.mapPartitions(si => Iterator((TaskContext.getPartitionId(), si.map(_._2))))

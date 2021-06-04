@@ -5,113 +5,58 @@ import java.util.Calendar
 import interlinkers.InterlinkerT
 import model._
 import model.entities.Entity
-import org.apache.commons.math3.stat.inference.ChiSquareTest
 import org.apache.spark.rdd.RDD
+import org.locationtech.jts.geom.Envelope
 import utils.Constants
+import utils.Constants.Relation
 import utils.Constants.Relation.Relation
 import utils.Constants.WeightingFunction.WeightingFunction
-import utils.Constants.{COMPOSITE, HYBRID, Relation, SINGLE, WeightingFunction}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.math.{ceil, floor, max, min}
 
 
 
-trait ProgressiveInterlinkerT extends InterlinkerT{
+trait ProgressiveInterlinkerT extends InterlinkerT {
 
     val budget: Int
     val mainWF: WeightingFunction
     val secondaryWF: Option[WeightingFunction]
     val ws: Constants.WeightingScheme
     val totalSourceEntities: Long
+    val weightedPairFactory: WeightedPairFactory = WeightedPairFactory(mainWF, secondaryWF, ws, tileGranularities, totalBlocks)
 
 
     /**
      * the number of all blocks in all partitions
      */
     lazy val totalBlocks: Double = {
-        val globalMinX: Double = partitionBorders.map(p => p.minX / thetaXY._1).min
-        val globalMaxX: Double = partitionBorders.map(p => p.maxX / thetaXY._1).max
-        val globalMinY: Double = partitionBorders.map(p => p.minY / thetaXY._2).min
-        val globalMaxY: Double = partitionBorders.map(p => p.maxY / thetaXY._2).max
+        val globalMinX: Double = partitionBorders.map(p => p.getMinX / tileGranularities.x).min
+        val globalMaxX: Double = partitionBorders.map(p => p.getMaxX / tileGranularities.x).max
+        val globalMinY: Double = partitionBorders.map(p => p.getMinY / tileGranularities.y).min
+        val globalMaxY: Double = partitionBorders.map(p => p.getMaxY / tileGranularities.y).max
 
         (globalMaxX - globalMinX + 1) * (globalMaxY - globalMinY + 1)
     }
 
-    /**
-     * compute the main weight of a pair of entities
-     * @param s source entity
-     * @param t target entity
-     * @return a weight
-     */
-    def getMainWeight(s: Entity, t: Entity): Float = getWeight(s, t, mainWF)
-
 
     /**
-     * compute the secondary weight of a pair of entities, if the secondary scheme was provided
-     * @param s source entity
-     * @param t target entity
-     * @return a weight
+     *  Given a spatial index, retrieve all candidate geometries and filter based on
+     *  spatial criteria
+     *
+     * @param se target Spatial entity
+     * @param index spatial index
+     * @param partition current partition
+     * @param relation examining relation
+     * @return all candidate geometries of se
      */
-    def getSecondaryWeight(s: Entity, t: Entity): Float =
-        secondaryWF match {
-            case Some(wf) => getWeight(s, t, wf)
-            case None => 0f
-        }
-
-    /**
-     * Weight a pair
-     * @param s        Spatial entity
-     * @param t        Spatial entity
-     * @return weight
-     */
-    def getWeight(s: Entity, t: Entity, wf: WeightingFunction): Float = {
-        val sBlocks = (ceil(s.mbr.maxX/thetaXY._1).toInt - floor(s.mbr.minX/thetaXY._1).toInt + 1) * (ceil(s.mbr.maxY/thetaXY._2).toInt - floor(s.mbr.minY/thetaXY._2).toInt + 1)
-        val tBlocks = (ceil(t.mbr.maxX/thetaXY._1).toInt - floor(t.mbr.minX/thetaXY._1).toInt + 1) * (ceil(t.mbr.maxY/thetaXY._2).toInt - floor(t.mbr.minY/thetaXY._2).toInt + 1)
-        lazy val cb = (min(ceil(s.mbr.maxX/thetaXY._1), ceil(t.mbr.maxX/thetaXY._1)).toInt - max(floor(s.mbr.minX/thetaXY._1), floor(t.mbr.minX/thetaXY._1)).toInt + 1) *
-            (min(ceil(s.mbr.maxY/thetaXY._2), ceil(t.mbr.maxY/thetaXY._2)).toInt - max(floor(s.mbr.minY/thetaXY._2), floor(t.mbr.minY/thetaXY._2)).toInt + 1)
-
-        wf match {
-            case WeightingFunction.MBRO =>
-                val intersectionArea = s.mbr.getIntersectingMBR(t.mbr).getArea
-                val w = intersectionArea / (s.mbr.getArea + t.mbr.getArea - intersectionArea)
-                if (!w.isNaN) w else 0f
-
-            case WeightingFunction.ISP =>
-                1f / (s.geometry.getNumPoints + t.geometry.getNumPoints);
-
-            case WeightingFunction.JS =>
-                cb / (sBlocks + tBlocks - cb)
-
-            case WeightingFunction.PEARSON_X2 =>
-                val v1: Array[Long] = Array[Long](cb, (tBlocks - cb).toLong)
-                val v2: Array[Long] = Array[Long]((sBlocks - cb).toLong, (totalBlocks - (v1(0) + v1(1) + (sBlocks - cb))).toLong)
-                val chiTest = new ChiSquareTest()
-                chiTest.chiSquare(Array(v1, v2)).toFloat
-
-            case WeightingFunction.CF | _ =>
-                cb.toFloat
-        }
+    def getAllCandidatesWithIndex(se: Entity, index: SpatialIndex[Entity], partition: Envelope, relation: Relation): Seq[(Int, Entity)] ={
+        index.index(se)
+            .flatMap { block =>
+                val blockCandidates = index.getWithIndex(block)
+                blockCandidates.filter(candidate => filterVerifications(candidate._2, se, relation, block, partition))
+            }
     }
-
-
-    def getWeightedPair(counter: Int, s: Entity, sIndex: Int, t:Entity, tIndex: Int): WeightedPair = {
-        ws match {
-            case SINGLE =>
-                val mw = getWeight(s, t, mainWF)
-                MainWP(counter, sIndex, tIndex, mw)
-            case COMPOSITE =>
-                val mw = getWeight(s, t, mainWF)
-                val sw = getSecondaryWeight(s, t)
-                CompositeWP(counter, sIndex, tIndex, mw, sw)
-            case HYBRID =>
-                val mw = getWeight(s, t, mainWF)
-                val sw = getSecondaryWeight(s, t)
-                HybridWP(counter, sIndex, tIndex, mw, sw)
-        }
-    }
-
 
     /**
      * Compute the  9-IM of the entities of a PQ
@@ -125,7 +70,7 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
             pq.dequeueAll.map{ wp =>
                 val s = source(wp.entityId1)
                 val t = target(wp.entityId2)
-                IM(s, t)
+                s.getIntersectionMatrix(t)
             }.takeWhile(_ => !pq.isEmpty)
         else Iterator()
 
@@ -236,7 +181,7 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
                         val s = source(wp.entityId1)
                         val t = target(wp.entityId2)
                         relation match {
-                            case Relation.DE9IM => (wp, IM(s, t).relate)
+                            case Relation.DE9IM => (wp, s.getIntersectionMatrix(t).relate)
                             case _ => (wp, s.relate(t, relation))
                         }
                     }.takeWhile(_ => !pq.isEmpty)
@@ -280,7 +225,7 @@ trait ProgressiveInterlinkerT extends InterlinkerT{
         results
     }
 
-    def prioritize(source: Array[Entity], target: Array[Entity], partition: MBR, relation: Relation): ComparisonPQ
+    def prioritize(source: Array[Entity], target: Array[Entity], partition: Envelope, relation: Relation): ComparisonPQ
 
 
 }

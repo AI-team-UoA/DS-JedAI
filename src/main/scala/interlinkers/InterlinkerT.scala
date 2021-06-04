@@ -1,53 +1,99 @@
 package interlinkers
 
 import model.entities.Entity
-import model.{IM, MBR, SpatialIndex}
+import model.{IM, SpatialIndex, TileGranularities}
 import org.apache.spark.rdd.RDD
+import org.locationtech.jts.geom.Envelope
+import utils.Constants.Relation
 import utils.Constants.Relation.Relation
+
+import scala.math.{max, min}
+import cats.implicits._
 
 trait InterlinkerT {
 
-    val orderByWeight: Ordering[(Double, (Entity, Entity))] = Ordering.by[(Double, (Entity, Entity)), Double](_._1).reverse
-
     val joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))]
-    val thetaXY: (Double, Double)
-    val partitionBorders: Array[MBR]
+    val tileGranularities: TileGranularities
+    val partitionBorders: Array[Envelope]
 
+    val weightOrdering: Ordering[(Double, (Entity, Entity))] = Ordering.by[(Double, (Entity, Entity)), Double](_._1).reverse
 
     /**
-     * index a list of spatial entities
+     * Return true if the reference point is inside the block and inside the partition
+     * The reference point is the upper left point of their intersection
      *
-     * @param entities list of spatial entities
-     * @return a SpatialIndex
+     * @param s source entity
+     * @param t target entity
+     * @param b block
+     * @param partition current partition
+     * @return true if the reference point is in the block and in partition
      */
-    def index(entities: Array[Entity]): SpatialIndex = {
-        val spatialIndex = new SpatialIndex()
-        entities.zipWithIndex.foreach { case (se, i) =>
-            val indices: Seq[(Int, Int)] = se.index(thetaXY)
-            indices.foreach(c => spatialIndex.insert(c, i))
-        }
-        spatialIndex
+    def referencePointFiltering(s: Entity, t: Entity, b:(Int, Int), partition: Envelope): Boolean ={
+
+        val env1 = s.env
+        val env2 = t.env
+        val epsilon = 1e-8
+
+        val minX1 = env1.getMinX /tileGranularities.x
+        val minX2 = env2.getMinX /tileGranularities.x
+        val maxY1 = env1.getMaxY /tileGranularities.y
+        val maxY2 = env2.getMaxY /tileGranularities.y
+
+        val rfX: Double = max(minX1, minX2)+epsilon
+        val rfY: Double = min(maxY1, maxY2)+epsilon
+
+        val blockContainsRF: Boolean =  b._1 <= rfX && b._1+1 >= rfX && b._2 <= rfY && b._2+1 >= rfY
+        val partitionContainsRF: Boolean = partition.getMinX <= rfX && partition.getMaxX >= rfX && partition.getMinY <= rfY && partition.getMaxY >= rfY
+        blockContainsRF && partitionContainsRF
     }
 
-    /**
-     * Extract the candidate geometries from source, using spatial index
-     * @param t target geometry
-     * @param source array of source geometries
-     * @param index spatial index
-     * @param partitionZone examining partition
-     * @param relation examining relations
-     * @return a sequence of candidate geometries
-     */
-    def getCandidates(t: Entity, source: Array[Entity], index: SpatialIndex, partitionZone: MBR, relation: Relation): Seq[Entity] =
-        t.index(thetaXY, index.contains).view
-            .flatMap(block => index.get(block).map(i => (block, i)))
-            .filter{ case (block, i) => source(i).filter(t, relation, block, thetaXY, Some(partitionZone))}
-            .map{case (_, i) => source(i) }
-            .force
 
-    implicit class TupleAdd(t: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)) {
-        def +(p: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
-            (p._1 + t._1, p._2 + t._2, p._3 +t._3, p._4+t._4, p._5+t._5, p._6+t._6, p._7+t._7, p._8+t._8, p._9+t._9, p._10+t._10, p._11+t._11)
+    /**
+     * filter redundant verifications based on spatial criteria
+     *
+     * @param s source spatial entity
+     * @param t source spatial entity
+     * @param relation examining relation
+     * @param block block the comparison belongs to
+     * @param partition the partition the comparisons belong to
+     * @return true if comparison is necessary
+     */
+    def filterVerifications(s: Entity, t: Entity, relation: Relation, block: (Int, Int), partition: Envelope): Boolean =
+        s.intersectingMBR(t, relation) && referencePointFiltering(s, t, block, partition)
+
+    /**
+     * count all the necessary verifications
+     * @return number of verifications
+     */
+    def countVerification: Long =
+        joinedRDD.filter(j => j._2._1.nonEmpty && j._2._2.nonEmpty)
+            .flatMap { p =>
+                val pid = p._1
+                val partition = partitionBorders(pid)
+                val source: Array[Entity] = p._2._1.toArray
+                val target: Iterable[Entity] = p._2._2
+                val sourceIndex = SpatialIndex(source, tileGranularities)
+
+                target.flatMap(t => getAllCandidates(t, sourceIndex, partition, Relation.DE9IM))
+            }.count()
+
+
+    /**
+     *  Given a spatial index, retrieve all candidate geometries and filter based on
+     *  spatial criteria
+     *
+     * @param se target Spatial entity
+     * @param index spatial index
+     * @param partition current partition
+     * @param relation examining relation
+     * @return all candidate geometries of se
+     */
+    def getAllCandidates(se: Entity, index: SpatialIndex[Entity], partition: Envelope, relation: Relation): Seq[Entity] ={
+        index.index(se)
+            .flatMap { block =>
+                val blockCandidates = index.get(block)
+                blockCandidates.filter(candidate => `filterVerifications`(candidate, se, relation, block, partition))
+            }
     }
 
     def accumulate(imIterator: Iterator[IM]): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) ={
@@ -84,12 +130,12 @@ trait InterlinkerT {
     def countAllRelations: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
         getDE9IM
             .mapPartitions { imIterator => Iterator(accumulate(imIterator)) }
-            .treeReduce({ case (im1, im2) => im1 + im2}, 4)
+            .treeReduce({ case (im1, im2) => im1 |+| im2}, 4)
 
     def take(budget: Int): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
         getDE9IM
             .mapPartitions { imIterator => Iterator(accumulate(imIterator)) }
-            .take(budget).reduceLeft(_ + _)
+            .take(budget).reduceLeft(_ |+| _)
 
     def countRelation(relation: Relation): Long = relate(relation).count()
 
