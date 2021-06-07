@@ -5,7 +5,7 @@ package utils
  */
 object Constants {
 
-	final val defaultDatePattern = "yyyy-MM-dd HH:mm:ss"
+	val defaultDatePattern = "yyyy-MM-dd HH:mm:ss"
 
 
 	/**
@@ -67,14 +67,23 @@ object Constants {
 	/**
 	 * Weighting Strategies
 	 */
-	object WeightingScheme extends Enumeration {
-		type WeightingScheme = Value
+	object WeightingFunction extends Enumeration {
+		type WeightingFunction = Value
 
-		val CF: Constants.WeightingScheme.Value = Value("CF")
-		val JS: Constants.WeightingScheme.Value = Value("JS")
-		val PEARSON_X2: Constants.WeightingScheme.Value = Value("PEARSON_X2")
-		val MBR_INTERSECTION: Constants.WeightingScheme.Value = Value("MBR_INTERSECTION")
-		val POINTS: Constants.WeightingScheme.Value = Value("POINTS")
+		// co-occurrence frequency
+		val CF: Constants.WeightingFunction.Value = Value("CF")
+
+		// jaccard  similarity
+		val JS: Constants.WeightingFunction.Value = Value("JS")
+
+		// Pearson's chi squared test
+		val PEARSON_X2: Constants.WeightingFunction.Value = Value("PEARSON_X2")
+
+		// minimum bounding rectangle overlap
+		val MBRO: Constants.WeightingFunction.Value = Value("MBRO")
+
+		// inverse sum of points
+		val ISP: Constants.WeightingFunction.Value = Value("ISP")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
@@ -87,9 +96,12 @@ object Constants {
 		val CONF_PARTITIONS = "partitions"
 		val CONF_THETA_GRANULARITY = "thetaGranularity"
 		val CONF_PROGRESSIVE_ALG = "progressiveAlgorithm"
-		val CONF_WEIGHTING_SCHM = "weightingScheme"
+		val CONF_MAIN_WF = "mainWF"
+		val CONF_SECONDARY_WF = "secondaryWF"
 		val CONF_BUDGET = "budget"
 		val CONF_GRIDTYPE = "gridType"
+		val CONF_WS = "ws"
+		val OUTPUT = "outputPath"
 	}
 
 	object GridType extends Enumeration{
@@ -107,6 +119,7 @@ object Constants {
 	object ProgressiveAlgorithm extends Enumeration {
 		type ProgressiveAlgorithm = Value
 		val PROGRESSIVE_GIANT: Constants.ProgressiveAlgorithm.Value = Value("PROGRESSIVE_GIANT")
+		val DYNAMIC_PROGRESSIVE_GIANT: Constants.ProgressiveAlgorithm.Value = Value("DYNAMIC_PROGRESSIVE_GIANT")
 		val GEOMETRY_CENTRIC: Constants.ProgressiveAlgorithm.Value = Value("GEOMETRY_CENTRIC")
 		val TOPK: Constants.ProgressiveAlgorithm.Value = Value("TOPK")
 		val RECIPROCAL_TOPK: Constants.ProgressiveAlgorithm.Value = Value("RECIPROCAL_TOPK")
@@ -115,6 +128,34 @@ object Constants {
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
 
+	sealed trait WeightingScheme extends Serializable {val value: String }
+	case object SINGLE extends WeightingScheme {val value = "SINGLE"}
+	case object COMPOSITE extends WeightingScheme {val value = "COMPOSITE"}
+	case object HYBRID extends WeightingScheme {val value = "HYBRID"}
 
+	def WeightingSchemeFactory(ws: String): WeightingScheme ={
+		ws.toLowerCase() match {
+			case "single" => SINGLE
+			case "composite" => COMPOSITE
+			case "hybrid" => HYBRID
+			case _ => SINGLE
+		}
+	}
+
+
+	def checkWS(ws: String): Boolean ={
+		ws.toLowerCase() match {
+			case "single" | "composite" | "hybrid" => true
+			case _ => false
+		}
+	}
 
 }
+
+
+
+
+
+
+
+

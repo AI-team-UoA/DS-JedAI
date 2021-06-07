@@ -2,7 +2,7 @@ package experiments
 
 import java.util.Calendar
 
-import interlinkers.progressive.ProgressiveAlgorithmsFactory
+import interlinkers.DirtyGIAnt
 import model.TileGranularities
 import model.entities.Entity
 import org.apache.log4j.{Level, LogManager, Logger}
@@ -14,14 +14,12 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
-import utils.Constants
-import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
-import utils.Constants.WeightingFunction.WeightingFunction
-import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingFunction}
+import utils.Constants.GridType
+import utils.Utils
 import utils.configurationParser.ConfigurationParser
 import utils.readers.{GridPartitioner, Reader}
 
-object ProgressiveExp {
+object DirtyExp {
 
     def main(args: Array[String]): Unit = {
         Logger.getLogger("org").setLevel(Level.ERROR)
@@ -44,22 +42,14 @@ object ProgressiveExp {
                 case Nil => map
                 case ("-c" | "-conf") :: value :: tail =>
                     nextOption(map ++ Map("conf" -> value), tail)
-                case ("-b" | "-budget") :: value :: tail =>
-                    nextOption(map ++ Map("budget" -> value), tail)
-                case "-mwf" :: value :: tail =>
-                    nextOption(map ++ Map("mwf" -> value), tail)
-                case "-swf" :: value :: tail =>
-                    nextOption(map ++ Map("swf" -> value), tail)
-                case "-pa" :: value :: tail =>
-                    nextOption(map ++ Map("pa" -> value), tail)
-                case "-gt" :: value :: tail =>
-                    nextOption(map ++ Map("gt" -> value), tail)
                 case ("-p" | "-partitions") :: value :: tail =>
                     nextOption(map ++ Map("partitions" -> value), tail)
-                case "-ws" :: value :: tail =>
-                    nextOption(map ++ Map("ws" -> value), tail)
-                case "-time" :: tail =>
-                    nextOption(map ++ Map("time" -> "true"), tail)
+                case "-gt" :: value :: tail =>
+                    nextOption(map ++ Map("gt" -> value), tail)
+                case "-print" :: tail =>
+                    nextOption(map ++ Map("print" -> "true"), tail)
+                case "-o" :: value :: tail =>
+                    nextOption(map ++ Map("output" -> value), tail)
                 case _ :: tail =>
                     log.warn("DS-JEDAI: Unrecognized argument")
                     nextOption(map, tail)
@@ -75,64 +65,36 @@ object ProgressiveExp {
             System.exit(1)
         }
 
-        // extract arguments
         val confPath = options("conf")
-        val conf = ConfigurationParser.parse(confPath)
+        val conf = ConfigurationParser.parseDirty(confPath)
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
         val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
-        val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
-        val mainWF: WeightingFunction = if (options.contains("mwf")) WeightingFunction.withName(options("mwf")) else conf.getMainWF
-        val secondaryWF: Option[WeightingFunction] = if (options.contains("swf")) Option(WeightingFunction.withName(options("swf"))) else conf.getSecondaryWF
-        val ws: Constants.WeightingScheme = if (options.contains("ws")) utils.Constants.WeightingSchemeFactory(options("ws")) else conf.getWS
-        val pa: ProgressiveAlgorithm = if (options.contains("pa")) ProgressiveAlgorithm.withName(options("pa")) else conf.getProgressiveAlgorithm
-        val timeExp: Boolean = options.contains("time")
-        val relation = conf.getRelation
+        val output: Option[String] = if (options.contains("output")) options.get("output") else conf.getOutputPath
 
-        log.info(s"DS-JEDAI: Weighting Scheme: ${ws.value}")
-        log.info(s"DS-JEDAI: Input Budget: $budget")
-        log.info(s"DS-JEDAI: Main Weighting Function: ${mainWF.toString}")
-        if (secondaryWF.isDefined) log.info(s"DS-JEDAI: Secondary Weighting Function: ${secondaryWF.get.toString}")
-        log.info(s"DS-JEDAI: Progressive Algorithm: ${pa.toString}")
+        val print = options.getOrElse("print", "false").toBoolean
 
         val startTime = Calendar.getInstance().getTimeInMillis
 
         // load datasets
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
-        val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
 
         // spatial partition
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
         val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
-        val targetRDD: RDD[(Int, Entity)] = partitioner.transform(targetSpatialRDD, conf.target)
         val approximateSourceCount = partitioner.approximateCount
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
-        val sourceCount = sourceRDD.count()
+
+        log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val theta = TileGranularities(sourceRDD.map(_._2.env), approximateSourceCount, conf.getTheta)
         val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
-        log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
+        val giant = DirtyGIAnt(sourceRDD.map(_._2), partitionBorder, theta)
+        val imRDD = giant.getDE9IM
 
-        val matchingStartTime = Calendar.getInstance().getTimeInMillis
-        val method = ProgressiveAlgorithmsFactory.get(pa, sourceRDD, targetRDD, theta, partitionBorder,
-            partitioner.hashPartitioner, sourceCount, budget, mainWF, secondaryWF, ws)
-
-        if(timeExp){
-            //invoke load of target
-            targetRDD.count()
-
-            val times = method.time
-            val schedulingTime = times._1
-            val verificationTime = times._2
-            val matchingTime = times._3
-
-            log.info(s"DS-JEDAI: Scheduling time: $schedulingTime")
-            log.info(s"DS-JEDAI: Verification time: $verificationTime")
-            log.info(s"DS-JEDAI: Interlinking Time: $matchingTime")
-        }
-
-        else if (relation.equals(Relation.DE9IM)) {
+        if (print) {
+            imRDD.persist(StorageLevel.MEMORY_AND_DISK)
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-            totalOverlaps, totalTouches, totalWithin, verifications, qp) = method.countAllRelations
+            totalOverlaps, totalTouches, totalWithin, verifications, qp) = Utils.countAllRelations(imRDD)
 
             val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
                 totalIntersects + totalOverlaps + totalTouches + totalWithin
@@ -148,19 +110,10 @@ object ProgressiveExp {
             log.info("DS-JEDAI: OVERLAPS: " + totalOverlaps)
             log.info("DS-JEDAI: TOUCHES: " + totalTouches)
             log.info("DS-JEDAI: WITHIN: " + totalWithin)
-            log.info("DS-JEDAI: Total Relations Discovered: " + totalRelations)
+            log.info("DS-JEDAI: Total Discovered Relations: " + totalRelations)
         }
-
-        else{
-            val totalMatches = method.countRelation(relation)
-            log.info("DS-JEDAI: " + relation.toString +": " + totalMatches)
-        }
-
-        val matchingEndTime = Calendar.getInstance().getTimeInMillis
-        log.info("DS-JEDAI: Interlinking Time: " + (matchingEndTime - matchingStartTime) / 1000.0)
-
+        if(output.isDefined) Utils.exportRDF(imRDD, output.get)
         val endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Total Execution Time: " + (endTime - startTime) / 1000.0)
     }
-
 }

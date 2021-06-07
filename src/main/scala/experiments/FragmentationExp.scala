@@ -1,11 +1,10 @@
 package experiments
 
-
 import java.util.Calendar
 
 import interlinkers.GIAnt
 import model.TileGranularities
-import model.entities.Entity
+import model.entities.{Entity, FragmentedEntity, IndexedFragmentedEntity}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -15,12 +14,12 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
-import utils.Constants.{GridType, Relation}
 import utils.Utils
 import utils.configurationParser.ConfigurationParser
+import utils.geometryUtils.RecursiveFragmentation
 import utils.readers.{GridPartitioner, Reader}
 
-object GiantExp {
+object FragmentationExp {
 
     def main(args: Array[String]): Unit = {
         Logger.getLogger("org").setLevel(Level.ERROR)
@@ -45,12 +44,6 @@ object GiantExp {
                     nextOption(map ++ Map("conf" -> value), tail)
                 case ("-p" | "-partitions") :: value :: tail =>
                     nextOption(map ++ Map("partitions" -> value), tail)
-                case "-gt" :: value :: tail =>
-                    nextOption(map ++ Map("gt" -> value), tail)
-                case "-s" :: tail =>
-                    nextOption(map ++ Map("stats" -> "true"), tail)
-                case "-o" :: value :: tail =>
-                    nextOption(map ++ Map("output" -> value), tail)
                 case _ :: tail =>
                     log.warn("DS-JEDAI: Unrecognized argument")
                     nextOption(map, tail)
@@ -69,73 +62,56 @@ object GiantExp {
         val confPath = options("conf")
         val conf = ConfigurationParser.parse(confPath)
         val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
-        val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
-        val relation = conf.getRelation
-        val printCount = options.getOrElse("stats", "false").toBoolean
-        val output: Option[String] = if (options.contains("output")) options.get("output") else conf.getOutputPath
 
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        // load datasets
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
         val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
 
-        // spatial partition
-        val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
+        val partitioner = GridPartitioner(sourceSpatialRDD, partitions)
         val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
         val targetRDD: RDD[(Int, Entity)] = partitioner.transform(targetSpatialRDD, conf.target)
         val approximateSourceCount = partitioner.approximateCount
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
-        val theta = TileGranularities(sourceRDD.map(_._2.env), approximateSourceCount, conf.getTheta)
+        val theta = TileGranularities(sourceSpatialRDD.rawSpatialRDD.rdd.map(_.getEnvelopeInternal), approximateSourceCount, conf.getTheta)
         val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
+
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
+//        spatial partition and fragmentation
+        val splitThreshold = theta*4
+        val fragmentationF: Geometry => Seq[Geometry] = RecursiveFragmentation.splitBigGeometries(splitThreshold)
+        val fragmentedSourceRDD: RDD[(Int, Entity)] = sourceRDD.map(se => (se._1, FragmentedEntity(se._2)(fragmentationF)))
+        val fragmentedTargetRDD: RDD[(Int, Entity)] = targetRDD.map(se => (se._1, FragmentedEntity(se._2)(fragmentationF)))
+
+//        val fragmentedSourceRDD: RDD[(Int, Entity)] = sourceRDD.map(se => (se._1, IndexedFragmentedEntity(se._2, splitThreshold)))
+//        val fragmentedTargetRDD: RDD[(Int, Entity)] = targetRDD.map(se => (se._1, IndexedFragmentedEntity(se._2, splitThreshold)))
+
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
-        val giant = GIAnt(sourceRDD, targetRDD, theta, partitionBorder, partitioner.hashPartitioner)
+        val giant = GIAnt(fragmentedSourceRDD, fragmentedTargetRDD, theta, partitionBorder, partitioner.hashPartitioner)
+        val imRDD = giant.getDE9IM
 
-        // print statistics about the datasets
-        if (printCount){
-            val sourceCount = sourceSpatialRDD.rawSpatialRDD.count()
-            val targetCount = targetSpatialRDD.rawSpatialRDD.count()
-            log.info(s"DS-JEDAI: Source geometries: $sourceCount")
-            log.info(s"DS-JEDAI: Target geometries: $targetCount")
-            log.info(s"DS-JEDAI: Cartesian: ${sourceCount*targetCount}")
-            log.info(s"DS-JEDAI: Verifications: ${giant.countVerification}")
-        }
-        else if (relation.equals(Relation.DE9IM)) {
-            val imRDD = giant.getDE9IM
+        // log results
+        val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
+        totalOverlaps, totalTouches, totalWithin, verifications, qp) = Utils.countAllRelations(imRDD)
 
-            // export results as RDF
-            if (output.isDefined) {
-                imRDD.persist(StorageLevel.MEMORY_AND_DISK)
-                Utils.exportRDF(imRDD, output.get)
-            }
+        val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
+            totalIntersects + totalOverlaps + totalTouches + totalWithin
+        log.info("DS-JEDAI: Total Verifications: " + verifications)
+        log.info("DS-JEDAI: Qualifying Pairs : " + qp)
 
-            // log results
-            val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-            totalOverlaps, totalTouches, totalWithin, verifications, qp) = Utils.countAllRelations(imRDD)
+        log.info("DS-JEDAI: CONTAINS: " + totalContains)
+        log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
+        log.info("DS-JEDAI: COVERS: " + totalCovers)
+        log.info("DS-JEDAI: CROSSES: " + totalCrosses)
+        log.info("DS-JEDAI: EQUALS: " + totalEquals)
+        log.info("DS-JEDAI: INTERSECTS: " + totalIntersects)
+        log.info("DS-JEDAI: OVERLAPS: " + totalOverlaps)
+        log.info("DS-JEDAI: TOUCHES: " + totalTouches)
+        log.info("DS-JEDAI: WITHIN: " + totalWithin)
+        log.info("DS-JEDAI: Total Discovered Relations: " + totalRelations)
 
-            val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
-                totalIntersects + totalOverlaps + totalTouches + totalWithin
-            log.info("DS-JEDAI: Total Verifications: " + verifications)
-            log.info("DS-JEDAI: Qualifying Pairs : " + qp)
-
-            log.info("DS-JEDAI: CONTAINS: " + totalContains)
-            log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
-            log.info("DS-JEDAI: COVERS: " + totalCovers)
-            log.info("DS-JEDAI: CROSSES: " + totalCrosses)
-            log.info("DS-JEDAI: EQUALS: " + totalEquals)
-            log.info("DS-JEDAI: INTERSECTS: " + totalIntersects)
-            log.info("DS-JEDAI: OVERLAPS: " + totalOverlaps)
-            log.info("DS-JEDAI: TOUCHES: " + totalTouches)
-            log.info("DS-JEDAI: WITHIN: " + totalWithin)
-            log.info("DS-JEDAI: Total Discovered Relations: " + totalRelations)
-        }
-        else{
-            val totalMatches = giant.countRelation(relation)
-            log.info("DS-JEDAI: " + relation.toString +": " + totalMatches)
-        }
         val matchingEndTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Interlinking Time: " + (matchingEndTime - matchingStartTime) / 1000.0)
 
