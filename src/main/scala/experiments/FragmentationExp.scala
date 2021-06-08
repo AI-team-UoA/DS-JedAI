@@ -4,7 +4,7 @@ import java.util.Calendar
 
 import interlinkers.GIAnt
 import model.TileGranularities
-import model.entities.{Entity, FragmentedEntity, IndexedFragmentedEntity}
+import model.entities.{Entity, FragmentedEntityType}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -15,8 +15,7 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
 import utils.Utils
-import utils.configurationParser.ConfigurationParser
-import utils.geometryUtils.RecursiveFragmentation
+import utils.configuration.ConfigurationParser
 import utils.readers.{GridPartitioner, Reader}
 
 object FragmentationExp {
@@ -69,27 +68,20 @@ object FragmentationExp {
         val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
 
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions)
-        val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
-        val targetRDD: RDD[(Int, Entity)] = partitioner.transform(targetSpatialRDD, conf.target)
         val approximateSourceCount = partitioner.approximateCount
+        val theta = TileGranularities(sourceSpatialRDD.rawSpatialRDD.rdd.map(_.getEnvelopeInternal), approximateSourceCount, conf.getTheta)
+
+        val splitThreshold = theta*4
+        val entityType = FragmentedEntityType(splitThreshold)
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.transformAndDistribute(sourceSpatialRDD, entityType)
+        val targetRDD: RDD[(Int, Entity)] = partitioner.transformAndDistribute(targetSpatialRDD, entityType)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
-        val theta = TileGranularities(sourceSpatialRDD.rawSpatialRDD.rdd.map(_.getEnvelopeInternal), approximateSourceCount, conf.getTheta)
         val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
-
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-//        spatial partition and fragmentation
-        val splitThreshold = theta*4
-        val fragmentationF: Geometry => Seq[Geometry] = RecursiveFragmentation.splitBigGeometries(splitThreshold)
-        val fragmentedSourceRDD: RDD[(Int, Entity)] = sourceRDD.map(se => (se._1, FragmentedEntity(se._2)(fragmentationF)))
-        val fragmentedTargetRDD: RDD[(Int, Entity)] = targetRDD.map(se => (se._1, FragmentedEntity(se._2)(fragmentationF)))
-
-//        val fragmentedSourceRDD: RDD[(Int, Entity)] = sourceRDD.map(se => (se._1, IndexedFragmentedEntity(se._2, splitThreshold)))
-//        val fragmentedTargetRDD: RDD[(Int, Entity)] = targetRDD.map(se => (se._1, IndexedFragmentedEntity(se._2, splitThreshold)))
-
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
-        val giant = GIAnt(fragmentedSourceRDD, fragmentedTargetRDD, theta, partitionBorder, partitioner.hashPartitioner)
+        val giant = GIAnt(sourceRDD, targetRDD, theta, partitionBorder, partitioner.hashPartitioner)
         val imRDD = giant.getDE9IM
 
         // log results

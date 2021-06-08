@@ -1,10 +1,10 @@
-package utils.configurationParser
+package utils.configuration
 
 import net.jcazevedo.moultingyaml.{DefaultYamlProtocol, _}
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.SparkContext
-import utils.Constants
-import utils.Constants._
+import utils.configuration.Constants._
+import utils.configuration.Constants.{ProgressiveAlgorithm, ThetaOption, WeightingFunction, YamlConfiguration}
 
 /**
  * Yaml parsers
@@ -16,6 +16,7 @@ object ConfigurationYAML extends DefaultYamlProtocol {
 }
 
 /**
+ * TODO add command line argument parsing here
  * Yaml Configuration Parser
  */
 object ConfigurationParser {
@@ -70,7 +71,7 @@ object ConfigurationParser {
 						log.error(s"DS-JEDAI: Weighting Function \'$value\' is not supported")
 						false
 					}
-				case YamlConfiguration.CONF_GRIDTYPE=>
+				case YamlConfiguration.CONF_GRID_TYPE=>
 					if (! GridType.exists(value)){
 						log.error(s"DS-JEDAI: Grid Type \'$value\' is not supported")
 						false
@@ -79,6 +80,12 @@ object ConfigurationParser {
 				case YamlConfiguration.CONF_WS=>
 					if (! Constants.checkWS(value)){
 						log.error(s"DS-JEDAI: Weighting Scheme \'$value\' is not supported")
+						false
+					}
+
+				case YamlConfiguration.CONF_ENTITY_TYPE=>
+					if (! EntityTypeENUM.exists(value)){
+						log.error(s"DS-JEDAI: Entity Type \'$value\' is not supported")
 						false
 					}
 				case _ =>

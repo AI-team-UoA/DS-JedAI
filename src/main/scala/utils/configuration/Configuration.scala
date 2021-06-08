@@ -1,15 +1,15 @@
-package utils.configurationParser
+package utils.configuration
 
 import org.apache.log4j.{LogManager, Logger}
 import org.joda.time.format.DateTimeFormat
-import utils.Constants
-import utils.Constants.FileTypes.FileTypes
-import utils.Constants.GridType.GridType
-import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
-import utils.Constants.Relation.Relation
-import utils.Constants.ThetaOption.ThetaOption
-import utils.Constants.WeightingFunction.WeightingFunction
-import utils.Constants._
+import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
+import utils.configuration.Constants.FileTypes.FileTypes
+import utils.configuration.Constants.GridType.GridType
+import utils.configuration.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
+import utils.configuration.Constants.Relation.Relation
+import utils.configuration.Constants.ThetaOption.ThetaOption
+import utils.configuration.Constants.WeightingFunction.WeightingFunction
+import utils.configuration.Constants._
 
 /**
  * Configuration Interface
@@ -17,7 +17,7 @@ import utils.Constants._
 sealed trait ConfigurationT {
 
     val relation: String
-    val configurations: Map[String, String]
+    var configurations: Map[String, String]
 
     def getRelation: Relation= Relation.withName(relation)
 
@@ -37,13 +37,15 @@ sealed trait ConfigurationT {
         Constants.WeightingSchemeFactory(ws)
     }
 
-    def getGridType: GridType = GridType.withName(configurations.getOrElse(YamlConfiguration.CONF_GRIDTYPE, "QUADTREE"))
+    def getGridType: GridType = GridType.withName(configurations.getOrElse(YamlConfiguration.CONF_GRID_TYPE, "QUADTREE"))
 
     def getBudget: Int = configurations.getOrElse(YamlConfiguration.CONF_BUDGET, "0").toInt
 
     def getProgressiveAlgorithm: ProgressiveAlgorithm = ProgressiveAlgorithm.withName(configurations.getOrElse(YamlConfiguration.CONF_PROGRESSIVE_ALG, "PROGRESSIVE_GIANT"))
 
-    def getOutputPath: Option[String] = configurations.get(YamlConfiguration.OUTPUT)
+    def getOutputPath: Option[String] = configurations.get(YamlConfiguration.CONF_OUTPUT)
+
+    def getEntityType: EntityTypeENUM = EntityTypeENUM.withName(configurations.getOrElse(YamlConfiguration.CONF_ENTITY_TYPE, "SPATIAL_ENTITY"))
 }
 
 
@@ -54,10 +56,13 @@ sealed trait ConfigurationT {
  * @param relation examined relation
  * @param configurations execution configurations
  */
-case class Configuration(source: DatasetConfigurations, target:DatasetConfigurations, relation: String, configurations: Map[String, String]) extends ConfigurationT {
+case class Configuration(source: DatasetConfigurations, target:DatasetConfigurations, relation: String, var configurations: Map[String, String]) extends ConfigurationT {
 
     def getSource: String = source.path
     def getTarget: String = target.path
+
+    def combine(conf: Map[String, String]): Unit =
+        configurations = configurations ++ conf
 }
 
 
@@ -67,9 +72,12 @@ case class Configuration(source: DatasetConfigurations, target:DatasetConfigurat
  * @param relation examined relation
  * @param configurations execution configurations
  */
-case class DirtyConfiguration(source: DatasetConfigurations, relation: String, configurations: Map[String, String]) extends  ConfigurationT {
+case class DirtyConfiguration(source: DatasetConfigurations, relation: String, var configurations: Map[String, String]) extends  ConfigurationT {
 
     def getSource: String = source.path
+
+    def combine(conf: Map[String, String]): Unit =
+        configurations = configurations ++ conf
 }
 
 

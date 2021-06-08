@@ -5,8 +5,8 @@ import model.{IM, SpatialIndex, TileGranularities}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import org.locationtech.jts.geom.Envelope
-import utils.Constants.Relation
-import utils.Constants.Relation.Relation
+import utils.configuration.Constants.Relation
+import utils.configuration.Constants.Relation.Relation
 
 
 case class GIAnt(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))], tileGranularities: TileGranularities,

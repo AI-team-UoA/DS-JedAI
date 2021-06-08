@@ -2,8 +2,8 @@ package model
 
 import model.entities.Entity
 import org.apache.commons.math3.stat.inference.ChiSquareTest
-import utils.Constants.WeightingFunction.WeightingFunction
-import utils.Constants._
+import utils.configuration.Constants.WeightingFunction.WeightingFunction
+import utils.configuration.Constants._
 
 import scala.math.{ceil, floor, max, min}
 

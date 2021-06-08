@@ -7,11 +7,8 @@ import org.apache.sedona.core.spatialPartitioning.SpatialPartitioner
 import org.apache.sedona.core.spatialRDD.SpatialRDD
 import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.RDD
-import org.joda.time.DateTime
-import org.joda.time.format.DateTimeFormat
 import org.locationtech.jts.geom.{Envelope, Geometry}
-import utils.Constants
-import utils.configurationParser.DatasetConfigurations
+import utils.configuration.Constants
 import utils.geometryUtils.EnvelopeOp
 
 import scala.collection.JavaConverters._
@@ -63,47 +60,18 @@ case class GridPartitioner(source: SpatialRDD[Geometry], partitions: Int, gt: Co
         }.toArray
     }
 
-    /**
-     *  Loads a dataset into Spatial Partitioned RDD. The partitioner
-     *  is defined by the first dataset (i.e. the source dataset)
-     * @param dc dataset configuration
-     * @return a spatial partitioned rdd
-     */
-    def transform(srdd: SpatialRDD[Geometry], dc: DatasetConfigurations): RDD[(Int, Entity)] = {
-        val withTemporal = dc.dateField.isDefined
-
-        // create Spatial or SpatioTemporal entities
-        val rdd: RDD[Entity] =
-            if(!withTemporal)
-                srdd.rawSpatialRDD.rdd.map( geom =>  SpatialEntity(geom.getUserData.asInstanceOf[String].split("\t")(0), geom))
-            else
-                srdd.rawSpatialRDD.rdd.mapPartitions{ geomIterator =>
-                    val pattern = dc.datePattern.get
-                    val formatter = DateTimeFormat.forPattern(pattern)
-                    geomIterator.map{ geom =>
-                            val userdata = geom.getUserData.asInstanceOf[String].split("\t")
-                            val realID = userdata(0)
-                            val dateStr = userdata(1)
-                            val date: DateTime = formatter.parseDateTime(dateStr)
-                            val dateStr_ = date.toString(Constants.defaultDatePattern)
-                            SpatioTemporalEntity(realID, geom, dateStr_)
-                    }
-                }
-
-        distribute(rdd)
-    }
-
 
     /**
-     *  Loads a dataset into Spatial Partitioned RDD. The partitioner
-     *  is defined by the first dataset (i.e. the source dataset)
-     * @param dc dataset configuration
-     * @return a spatial partitioned rdd
+     *  Transform a Spatial RDD into an RDD of entities and spatial partition based
+     *  on the built spatial partitioner
+     *
+     * @param srdd  rdd to transform
+     * @param entityType type of entity to transform to
+     * @return a spatially distributed RDD of entities
      */
-    def transformAndFragment(srdd: SpatialRDD[Geometry], dc: DatasetConfigurations)(f: Geometry => Seq[Geometry]): RDD[(Int, Entity)] = {
-
-        val rdd: RDD[Entity] =
-            srdd.rawSpatialRDD.rdd.map( geom =>  FragmentedEntity(geom.getUserData.asInstanceOf[String].split("\t")(0), geom)(f))
+    def transformAndDistribute(srdd: SpatialRDD[Geometry], entityType: EntityType): RDD[(Int, Entity)] = {
+        val transformationF = entityType.transform
+        val rdd: RDD[Entity] = srdd.rawSpatialRDD.rdd.mapPartitions{ geomIterator => geomIterator.map(geom => transformationF(geom)) }
         distribute(rdd)
     }
 

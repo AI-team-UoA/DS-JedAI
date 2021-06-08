@@ -4,7 +4,7 @@ package experiments
 import interlinkers.GIAnt
 import interlinkers.progressive.ProgressiveAlgorithmsFactory
 import model.TileGranularities
-import model.entities.Entity
+import model.entities.{Entity, SpatialEntityType}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -14,12 +14,11 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{Partitioner, SparkConf, SparkContext}
 import org.locationtech.jts.geom.{Envelope, Geometry}
-import utils.Constants
-import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
-import utils.Constants.Relation.Relation
-import utils.Constants.WeightingFunction.WeightingFunction
-import utils.Constants._
-import utils.configurationParser.ConfigurationParser
+import utils.configuration.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
+import utils.configuration.Constants.Relation.Relation
+import utils.configuration.Constants.WeightingFunction.WeightingFunction
+import utils.configuration.Constants._
+import utils.configuration.{ConfigurationParser, Constants}
 import utils.readers.{GridPartitioner, Reader}
 
 
@@ -103,9 +102,10 @@ object EvaluationExp {
         val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
 
         // spatial partition
+        val entityType = SpatialEntityType()
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
-        val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
-        val targetRDD: RDD[(Int, Entity)] = partitioner.transform(targetSpatialRDD, conf.target)
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.transformAndDistribute(sourceSpatialRDD, entityType)
+        val targetRDD: RDD[(Int, Entity)] = partitioner.transformAndDistribute(targetSpatialRDD, entityType)
         val approximateSourceCount = partitioner.approximateCount
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 

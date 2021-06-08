@@ -4,7 +4,7 @@ import java.util.Calendar
 
 import interlinkers.progressive.ProgressiveAlgorithmsFactory
 import model.TileGranularities
-import model.entities.Entity
+import model.entities.{Entity, SpatialEntityType}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -14,11 +14,11 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
-import utils.Constants
-import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
-import utils.Constants.WeightingFunction.WeightingFunction
-import utils.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingFunction}
-import utils.configurationParser.ConfigurationParser
+import utils.configuration.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
+import utils.configuration.Constants.WeightingFunction.WeightingFunction
+import utils.configuration.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingFunction}
+import utils.configuration
+import utils.configuration.{ConfigurationParser, Constants}
 import utils.readers.{GridPartitioner, Reader}
 
 object ProgressiveExp {
@@ -83,7 +83,7 @@ object ProgressiveExp {
         val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
         val mainWF: WeightingFunction = if (options.contains("mwf")) WeightingFunction.withName(options("mwf")) else conf.getMainWF
         val secondaryWF: Option[WeightingFunction] = if (options.contains("swf")) Option(WeightingFunction.withName(options("swf"))) else conf.getSecondaryWF
-        val ws: Constants.WeightingScheme = if (options.contains("ws")) utils.Constants.WeightingSchemeFactory(options("ws")) else conf.getWS
+        val ws: Constants.WeightingScheme = if (options.contains("ws")) configuration.Constants.WeightingSchemeFactory(options("ws")) else conf.getWS
         val pa: ProgressiveAlgorithm = if (options.contains("pa")) ProgressiveAlgorithm.withName(options("pa")) else conf.getProgressiveAlgorithm
         val timeExp: Boolean = options.contains("time")
         val relation = conf.getRelation
@@ -102,8 +102,9 @@ object ProgressiveExp {
 
         // spatial partition
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
-        val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
-        val targetRDD: RDD[(Int, Entity)] = partitioner.transform(targetSpatialRDD, conf.target)
+        val entityType = SpatialEntityType()
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.transformAndDistribute(sourceSpatialRDD, entityType)
+        val targetRDD: RDD[(Int, Entity)] = partitioner.transformAndDistribute(targetSpatialRDD, entityType)
         val approximateSourceCount = partitioner.approximateCount
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
         val sourceCount = sourceRDD.count()

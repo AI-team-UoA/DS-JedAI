@@ -5,7 +5,7 @@ import model.{IM, SpatialIndex, TileGranularities}
 import org.locationtech.jts.geom.GeometryFactory
 import org.locationtech.jts.io.WKTReader
 import org.scalatest.wordspec.AnyWordSpec
-import utils.Constants.ThetaOption
+import utils.configuration.Constants.ThetaOption
 
 class IntersectionMatrixTest extends AnyWordSpec  {
 

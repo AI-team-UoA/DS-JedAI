@@ -5,9 +5,9 @@ import model.{SpatialIndex, StaticComparisonPQ, TileGranularities}
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import org.locationtech.jts.geom.Envelope
-import utils.Constants
-import utils.Constants.Relation.Relation
-import utils.Constants.WeightingFunction.WeightingFunction
+import utils.configuration.Constants.Relation.Relation
+import utils.configuration.Constants.WeightingFunction.WeightingFunction
+import utils.configuration.Constants
 
 case class TopKPairs(joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))],
                      tileGranularities: TileGranularities, partitionBorders: Array[Envelope],

@@ -2,8 +2,8 @@ package model.entities
 
 import org.locationtech.jts.geom.Geometry
 import org.locationtech.jts.io.WKTReader
-import utils.Constants.Relation
-import utils.Constants.Relation.Relation
+import utils.configuration.Constants.Relation
+import utils.configuration.Constants.Relation.Relation
 import utils.geometryUtils.EnvelopeOp
 
 case class FragmentedEntity(originalID: String = "", geometry: Geometry, fragments: Seq[Geometry]) extends Entity {
@@ -51,24 +51,6 @@ case class FragmentedEntity(originalID: String = "", geometry: Geometry, fragmen
                      if EnvelopeOp.checkIntersection(f1.getEnvelopeInternal, e.env, Relation.DE9IM)
                      ) yield (f1, e.geometry)
         }
-
-//    override def getIntersectionMatrix(e: Entity): IM ={
-//        // WARNING still does not catch all cases: in case
-//        //      env not Contains e.env but geometry Contains e.geometry
-//        //      and the blade has passed through e.geometry
-//        if(env.contains(e.env) || e.env.contains(env))
-//            super.getIntersectionMatrix(e)
-//        else {
-//            val fragmentsVerifications = findIntersectingFragments(e)
-//            val ims = fragmentsVerifications.map { case (f1, f2) => f1.relate(f2) }
-//
-//            val emptyImStr = if (fragments.exists(f => f.getEnvelopeInternal.disjoint(e.env))) "FF*FF*FF*" else "*********"
-//            val combinedIM =  new IntersectionMatrix(emptyImStr)
-//            ims.foreach(im => combinedIM add im)
-//            val im = IM(this, e, combinedIM)
-//            im
-//        }
-//    }
 }
 
 object FragmentedEntity {

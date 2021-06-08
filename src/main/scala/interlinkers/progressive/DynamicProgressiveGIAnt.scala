@@ -5,10 +5,10 @@ import model.entities.Entity
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import org.locationtech.jts.geom.Envelope
-import utils.Constants
-import utils.Constants.Relation
-import utils.Constants.Relation.Relation
-import utils.Constants.WeightingFunction.WeightingFunction
+import utils.configuration.Constants
+import utils.configuration.Constants.Relation
+import utils.configuration.Constants.Relation.Relation
+import utils.configuration.Constants.WeightingFunction.WeightingFunction
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer

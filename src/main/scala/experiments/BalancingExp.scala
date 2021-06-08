@@ -4,7 +4,7 @@ import java.util.Calendar
 
 import interlinkers.{GIAnt, IndexedJoinInterlinking}
 import model.TileGranularities
-import model.entities.Entity
+import model.entities.{Entity, SpatialEntityType}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -14,8 +14,8 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.locationtech.jts.geom.Geometry
-import utils.Constants.{GridType, Relation}
-import utils.configurationParser.ConfigurationParser
+import utils.configuration.Constants.{GridType, Relation}
+import utils.configuration.ConfigurationParser
 import utils.readers.{GridPartitioner, Reader}
 
 
@@ -79,9 +79,10 @@ object BalancingExp {
         val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
 
         // spatial partition
+        val entityType = SpatialEntityType()
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
-        val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
-        val targetRDD: RDD[(Int, Entity)] = partitioner.transform(targetSpatialRDD, conf.target)
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.transformAndDistribute(sourceSpatialRDD, entityType)
+        val targetRDD: RDD[(Int, Entity)] = partitioner.transformAndDistribute(targetSpatialRDD, entityType)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
         val theta = TileGranularities(sourceRDD.map(_._2.env))

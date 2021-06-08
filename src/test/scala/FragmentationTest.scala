@@ -4,7 +4,7 @@ import model.{SpatialIndex, TileGranularities}
 import org.locationtech.jts.geom._
 import org.locationtech.jts.io.WKTReader
 import org.scalatest.wordspec.AnyWordSpec
-import utils.Constants.ThetaOption
+import utils.configuration.Constants.ThetaOption
 import utils.geometryUtils.{GeometryUtils, GridFragmentation, RecursiveFragmentation}
 import TestingGeometries._
 

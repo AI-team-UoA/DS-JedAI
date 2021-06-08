@@ -10,8 +10,8 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.{col, udf}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
-import utils.Constants.{FileTypes, Relation}
-import utils.configurationParser.ConfigurationParser
+import utils.configuration.Constants.{FileTypes, Relation}
+import utils.configuration.ConfigurationParser
 
 object SedonaExp {
 

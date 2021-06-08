@@ -3,7 +3,7 @@ package model.entities
 import model.{IM, SpatialIndex, TileGranularities}
 import org.locationtech.jts.geom.{Geometry, IntersectionMatrix}
 import org.locationtech.jts.operation.union.UnaryUnionOp
-import utils.Constants.Relation.Relation
+import utils.configuration.Constants.Relation.Relation
 import utils.geometryUtils.EnvelopeOp.EnvelopeIntersectionTypes
 import utils.geometryUtils.EnvelopeOp.EnvelopeIntersectionTypes.EnvelopeIntersectionTypes
 import utils.geometryUtils.{EnvelopeOp, GridFragmentation}
@@ -118,5 +118,11 @@ object IndexedFragmentedEntity{
         val geometryFragments = GridFragmentation.splitBigGeometries(theta)(e.geometry).toArray
         val index = SpatialIndex(geometryFragments, theta)
         IndexedFragmentedEntity(e.originalID, e.geometry, geometryFragments, index)
+    }
+
+    def apply(id: String, geometry: Geometry, theta: TileGranularities): IndexedFragmentedEntity = {
+        val geometryFragments = GridFragmentation.splitBigGeometries(theta)(geometry).toArray
+        val index = SpatialIndex(geometryFragments, theta)
+        IndexedFragmentedEntity(id, geometry, geometryFragments, index)
     }
 }

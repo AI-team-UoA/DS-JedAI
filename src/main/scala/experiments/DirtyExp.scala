@@ -4,7 +4,7 @@ import java.util.Calendar
 
 import interlinkers.DirtyGIAnt
 import model.TileGranularities
-import model.entities.Entity
+import model.entities.{Entity, SpatialEntityType}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -14,9 +14,9 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
-import utils.Constants.GridType
+import utils.configuration.Constants.GridType
 import utils.Utils
-import utils.configurationParser.ConfigurationParser
+import utils.configuration.ConfigurationParser
 import utils.readers.{GridPartitioner, Reader}
 
 object DirtyExp {
@@ -79,8 +79,9 @@ object DirtyExp {
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
 
         // spatial partition
+        val entityType = SpatialEntityType()
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
-        val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.transformAndDistribute(sourceSpatialRDD, entityType)
         val approximateSourceCount = partitioner.approximateCount
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 

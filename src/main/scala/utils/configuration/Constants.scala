@@ -1,4 +1,4 @@
-package utils
+package utils.configuration
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
@@ -99,9 +99,10 @@ object Constants {
 		val CONF_MAIN_WF = "mainWF"
 		val CONF_SECONDARY_WF = "secondaryWF"
 		val CONF_BUDGET = "budget"
-		val CONF_GRIDTYPE = "gridType"
+		val CONF_GRID_TYPE = "gridType"
 		val CONF_WS = "ws"
-		val OUTPUT = "outputPath"
+		val CONF_OUTPUT = "outputPath"
+		val CONF_ENTITY_TYPE = "entityType"
 	}
 
 	object GridType extends Enumeration{
@@ -112,6 +113,16 @@ object Constants {
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
 
+
+	object EntityTypeENUM extends Enumeration {
+		type EntityTypeENUM = Value
+		val SPATIAL_ENTITY: Constants.EntityTypeENUM.Value = Value("SPATIAL_ENTITY")
+		val SPATIOTEMPORAL_ENTITY: Constants.EntityTypeENUM.Value = Value("SPATIOTEMPORAL_ENTITY")
+		val FRAGMENTED_ENTITY: Constants.EntityTypeENUM.Value = Value("FRAGMENTED_ENTITY")
+		val INDEXED_FRAGMENTED_ENTITY: Constants.EntityTypeENUM.Value = Value("INDEXED_FRAGMENTED_ENTITY")
+
+		def exists(s: String): Boolean = values.exists(_.toString == s)
+	}
 
 	/**
 	 * Progressive Algorithms
@@ -142,7 +153,6 @@ object Constants {
 		}
 	}
 
-
 	def checkWS(ws: String): Boolean ={
 		ws.toLowerCase() match {
 			case "single" | "composite" | "hybrid" => true
@@ -151,11 +161,3 @@ object Constants {
 	}
 
 }
-
-
-
-
-
-
-
-
