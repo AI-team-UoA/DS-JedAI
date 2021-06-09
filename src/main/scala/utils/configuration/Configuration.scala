@@ -21,31 +21,37 @@ sealed trait ConfigurationT {
 
     def getRelation: Relation= Relation.withName(relation)
 
-    def getPartitions: Int = configurations.getOrElse(YamlConfiguration.CONF_PARTITIONS, "-1").toInt
+    def getPartitions: Int = configurations.getOrElse(InputConfigurations.CONF_PARTITIONS, "-1").toInt
 
-    def getTheta: ThetaOption = ThetaOption.withName(configurations.getOrElse(YamlConfiguration.CONF_THETA_GRANULARITY, "avg"))
+    def getTheta: ThetaOption = ThetaOption.withName(configurations.getOrElse(InputConfigurations.CONF_THETA_GRANULARITY, "avg"))
 
-    def getMainWF: WeightingFunction = WeightingFunction.withName(configurations.getOrElse(YamlConfiguration.CONF_MAIN_WF, "JS"))
+    def getMainWF: WeightingFunction = WeightingFunction.withName(configurations.getOrElse(InputConfigurations.CONF_MAIN_WF, "JS"))
 
-    def getSecondaryWF: Option[WeightingFunction] = configurations.get(YamlConfiguration.CONF_SECONDARY_WF) match {
+    def getSecondaryWF: Option[WeightingFunction] = configurations.get(InputConfigurations.CONF_SECONDARY_WF) match {
         case Some(wf) => Option(WeightingFunction.withName(wf))
         case None => None
     }
 
     def getWS: WeightingScheme = {
-        val ws = configurations.getOrElse(YamlConfiguration.CONF_WS, "SINGLE")
+        val ws = configurations.getOrElse(InputConfigurations.CONF_WS, "SIMPLE")
         Constants.WeightingSchemeFactory(ws)
     }
 
-    def getGridType: GridType = GridType.withName(configurations.getOrElse(YamlConfiguration.CONF_GRID_TYPE, "QUADTREE"))
+    def getGridType: GridType = GridType.withName(configurations.getOrElse(InputConfigurations.CONF_GRID_TYPE, "QUADTREE"))
 
-    def getBudget: Int = configurations.getOrElse(YamlConfiguration.CONF_BUDGET, "0").toInt
+    def getBudget: Int = configurations.getOrElse(InputConfigurations.CONF_BUDGET, "0").toInt
 
-    def getProgressiveAlgorithm: ProgressiveAlgorithm = ProgressiveAlgorithm.withName(configurations.getOrElse(YamlConfiguration.CONF_PROGRESSIVE_ALG, "PROGRESSIVE_GIANT"))
+    def getProgressiveAlgorithm: ProgressiveAlgorithm = ProgressiveAlgorithm.withName(configurations.getOrElse(InputConfigurations.CONF_PROGRESSIVE_ALG, "PROGRESSIVE_GIANT"))
 
-    def getOutputPath: Option[String] = configurations.get(YamlConfiguration.CONF_OUTPUT)
+    def getOutputPath: Option[String] = configurations.get(InputConfigurations.CONF_OUTPUT)
 
-    def getEntityType: EntityTypeENUM = EntityTypeENUM.withName(configurations.getOrElse(YamlConfiguration.CONF_ENTITY_TYPE, "SPATIAL_ENTITY"))
+    def getEntityType: EntityTypeENUM = EntityTypeENUM.withName(configurations.getOrElse(InputConfigurations.CONF_ENTITY_TYPE, "SPATIAL_ENTITY"))
+
+    def measureStatistic: Boolean = configurations.contains(InputConfigurations.CONF_STATISTICS)
+
+    def getTotalVerifications: Option[Int] = configurations.get(InputConfigurations.CONF_TOTAL_VERIFICATIONS).map(_.toInt)
+
+    def getTotalQualifyingPairs: Option[Int] = configurations.get(InputConfigurations.CONF_QUALIFYING_PAIRS).map(_.toInt)
 }
 
 

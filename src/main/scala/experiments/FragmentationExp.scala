@@ -16,6 +16,8 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
 import utils.Utils
 import utils.configuration.ConfigurationParser
+import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
+import utils.configuration.Constants.GridType
 import utils.readers.{GridPartitioner, Reader}
 
 object FragmentationExp {
@@ -34,25 +36,7 @@ object FragmentationExp {
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()
 
-        // Parsing input arguments
-        @scala.annotation.tailrec
-        def nextOption(map: OptionMap, list: List[String]): OptionMap = {
-            list match {
-                case Nil => map
-                case ("-c" | "-conf") :: value :: tail =>
-                    nextOption(map ++ Map("conf" -> value), tail)
-                case ("-p" | "-partitions") :: value :: tail =>
-                    nextOption(map ++ Map("partitions" -> value), tail)
-                case _ :: tail =>
-                    log.warn("DS-JEDAI: Unrecognized argument")
-                    nextOption(map, tail)
-            }
-        }
-
-        val argList = args.toList
-        type OptionMap = Map[String, String]
-        val options = nextOption(Map(), argList)
-
+        val options = ConfigurationParser.parseCommandLineArguments(args)
         if (!options.contains("conf")) {
             log.error("DS-JEDAI: No configuration file!")
             System.exit(1)
@@ -60,7 +44,10 @@ object FragmentationExp {
 
         val confPath = options("conf")
         val conf = ConfigurationParser.parse(confPath)
-        val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
+        conf.combine(options)
+
+        val partitions: Int = conf.getPartitions
+        val entityTypeType: EntityTypeENUM = conf.getEntityType
 
         val startTime = Calendar.getInstance().getTimeInMillis
 

@@ -5,7 +5,7 @@ import java.util.Calendar
 
 import interlinkers.GIAnt
 import model.TileGranularities
-import model.entities.Entity
+import model.entities._
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -15,9 +15,10 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
-import utils.Constants.{GridType, Relation}
 import utils.Utils
-import utils.configurationParser.ConfigurationParser
+import utils.configuration.ConfigurationParser
+import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
+import utils.configuration.Constants.{EntityTypeENUM, GridType, Relation}
 import utils.readers.{GridPartitioner, Reader}
 
 object GiantExp {
@@ -36,31 +37,7 @@ object GiantExp {
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()
 
-        // Parsing input arguments
-        @scala.annotation.tailrec
-        def nextOption(map: OptionMap, list: List[String]): OptionMap = {
-            list match {
-                case Nil => map
-                case ("-c" | "-conf") :: value :: tail =>
-                    nextOption(map ++ Map("conf" -> value), tail)
-                case ("-p" | "-partitions") :: value :: tail =>
-                    nextOption(map ++ Map("partitions" -> value), tail)
-                case "-gt" :: value :: tail =>
-                    nextOption(map ++ Map("gt" -> value), tail)
-                case "-s" :: tail =>
-                    nextOption(map ++ Map("stats" -> "true"), tail)
-                case "-o" :: value :: tail =>
-                    nextOption(map ++ Map("output" -> value), tail)
-                case _ :: tail =>
-                    log.warn("DS-JEDAI: Unrecognized argument")
-                    nextOption(map, tail)
-            }
-        }
-
-        val argList = args.toList
-        type OptionMap = Map[String, String]
-        val options = nextOption(Map(), argList)
-
+        val options = ConfigurationParser.parseCommandLineArguments(args)
         if (!options.contains("conf")) {
             log.error("DS-JEDAI: No configuration file!")
             System.exit(1)
@@ -68,12 +45,14 @@ object GiantExp {
 
         val confPath = options("conf")
         val conf = ConfigurationParser.parse(confPath)
-        val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
-        val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
-        val relation = conf.getRelation
-        val printCount = options.getOrElse("stats", "false").toBoolean
-        val output: Option[String] = if (options.contains("output")) options.get("output") else conf.getOutputPath
+        conf.combine(options)
 
+        val partitions: Int = conf.getPartitions
+        val gridType: GridType.GridType = conf.getGridType
+        val relation = conf.getRelation
+        val printCount = conf.measureStatistic
+        val output: Option[String] = conf.getOutputPath
+        val entityTypeType: EntityTypeENUM = conf.getEntityType
         val startTime = Calendar.getInstance().getTimeInMillis
 
         // load datasets
@@ -82,12 +61,31 @@ object GiantExp {
 
         // spatial partition
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
-        val sourceRDD: RDD[(Int, Entity)] = partitioner.transform(sourceSpatialRDD, conf.source)
-        val targetRDD: RDD[(Int, Entity)] = partitioner.transform(targetSpatialRDD, conf.target)
         val approximateSourceCount = partitioner.approximateCount
+        val theta = TileGranularities(sourceSpatialRDD.rawSpatialRDD.rdd.map(_.getEnvelopeInternal), approximateSourceCount, conf.getTheta)
+
+        val entityType = entityTypeType match {
+
+            case EntityTypeENUM.SPATIAL_ENTITY =>
+                SpatialEntityType()
+
+            case EntityTypeENUM.SPATIOTEMPORAL_ENTITY =>
+                // WARNING MIGHT RESULT EXCEPTION - provides only source entity type date pattern
+                SpatioTemporalEntityType(conf.source.datePattern.get)
+
+            case EntityTypeENUM.FRAGMENTED_ENTITY =>
+                val splitThreshold = theta*4
+                FragmentedEntityType(splitThreshold)
+
+            case EntityTypeENUM.INDEXED_FRAGMENTED_ENTITY =>
+                val splitThreshold = theta*4
+                IndexedFragmentedEntityType(splitThreshold)
+        }
+
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.transformAndDistribute(sourceSpatialRDD, entityType)
+        val targetRDD: RDD[(Int, Entity)] = partitioner.transformAndDistribute(targetSpatialRDD, entityType)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
-        val theta = TileGranularities(sourceRDD.map(_._2.env), approximateSourceCount, conf.getTheta)
         val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 

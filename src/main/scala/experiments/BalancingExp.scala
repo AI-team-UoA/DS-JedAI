@@ -14,8 +14,8 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.locationtech.jts.geom.Geometry
-import utils.configuration.Constants.{GridType, Relation}
 import utils.configuration.ConfigurationParser
+import utils.configuration.Constants.{GridType, Relation}
 import utils.readers.{GridPartitioner, Reader}
 
 
@@ -40,28 +40,7 @@ object BalancingExp {
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()
 
-        // Parsing the input arguments
-        @scala.annotation.tailrec
-        @scala.annotation.tailrec
-        def nextOption(map: OptionMap, list: List[String]): OptionMap = {
-            list match {
-                case Nil => map
-                case ("-c" | "-conf") :: value :: tail =>
-                    nextOption(map ++ Map("conf" -> value), tail)
-                case ("-p" | "-partitions") :: value :: tail =>
-                    nextOption(map ++ Map("partitions" -> value), tail)
-                case "-gt" :: value :: tail =>
-                    nextOption(map ++ Map("gt" -> value), tail)
-                case _ :: tail =>
-                    log.warn("DS-JEDAI: Unrecognized argument")
-                    nextOption(map, tail)
-            }
-        }
-
-        val argList = args.toList
-        type OptionMap = Map[String, String]
-        val options = nextOption(Map(), argList)
-
+        val options = ConfigurationParser.parseCommandLineArguments(args)
         if (!options.contains("conf")) {
             log.error("DS-JEDAI: No configuration file!")
             System.exit(1)
@@ -69,8 +48,10 @@ object BalancingExp {
 
         val confPath = options("conf")
         val conf = ConfigurationParser.parse(confPath)
-        val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
-        val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
+        conf.combine(options)
+
+        val partitions: Int = conf.getPartitions
+        val gridType: GridType.GridType = conf.getGridType
         val relation = conf.getRelation
         val startTime = Calendar.getInstance().getTimeInMillis
 

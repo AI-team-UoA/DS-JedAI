@@ -45,7 +45,7 @@ sealed trait WeightedPair extends Serializable with Comparable[WeightedPair] {
  */
 case class MainWP(counter: Int, entityId1: Int, entityId2: Int, mainWeight: Float, secondaryWeight: Float = 0f) extends WeightedPair {
 
-    val typeWP: WeightingScheme = SINGLE
+    val typeWP: WeightingScheme = SIMPLE
 
     override def compareTo(o: WeightedPair): Int = {
         val mwp = o.asInstanceOf[MainWP]
@@ -207,7 +207,7 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
 
     def createWeightedPair(counter: Int, s: Entity, sIndex: Int, t:Entity, tIndex: Int): WeightedPair = {
         weightingScheme match {
-            case SINGLE =>
+            case SIMPLE =>
                 val mw = getWeight(s, t, mainWF)
                 MainWP(counter, sIndex, tIndex, mw)
             case COMPOSITE =>

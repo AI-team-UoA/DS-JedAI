@@ -47,51 +47,27 @@ object EvaluationExp {
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()
 
-        // Parsing input arguments
-        @scala.annotation.tailrec
-        def nextOption(map: OptionMap, list: List[String]): OptionMap = {
-            list match {
-                case Nil => map
-                case ("-c" | "-conf") :: value :: tail =>
-                    nextOption(map ++ Map("conf" -> value), tail)
-                case ("-p" | "-partitions") :: value :: tail =>
-                    nextOption(map ++ Map("partitions" -> value), tail)
-                case ("-b" | "-budget") :: value :: tail =>
-                    nextOption(map ++ Map("budget" -> value), tail)
-                case "-gt" :: value :: tail =>
-                    nextOption(map ++ Map("gt" -> value), tail)
-                case "-tv" :: value :: tail =>
-                    nextOption(map ++ Map("tv" -> value), tail)
-                case "-qp" :: value :: tail =>
-                    nextOption(map ++ Map("qp" -> value), tail)
-                case "-pa" :: value :: tail =>
-                    nextOption(map ++ Map("pa" -> value), tail)
-                case _ :: tail =>
-                    log.warn("DS-JEDAI: Unrecognized argument")
-                    nextOption(map, tail)
-            }
-        }
 
-        val argList = args.toList
-        type OptionMap = Map[String, String]
-        val options = nextOption(Map(), argList)
-
+        val options = ConfigurationParser.parseCommandLineArguments(args)
         if (!options.contains("conf")) {
             log.error("DS-JEDAI: No configuration file!")
             System.exit(1)
         }
-
         val confPath = options("conf")
         val conf = ConfigurationParser.parse(confPath)
-        val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
-        val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
+        conf.combine(options)
 
-        val inputBudget = if (options.contains("budget")) options("budget").toInt else conf.getBudget
+        val partitions: Int = conf.getPartitions
+        val gridType: GridType.GridType = conf.getGridType
+        val inputBudget = conf.getBudget
         val budget = if (inputBudget > 0) inputBudget else defaultBudget
 
         val algorithms: Seq[ProgressiveAlgorithm] =
-            if (options.contains("pa"))
-                options("pa").split(",").filter(ProgressiveAlgorithm.exists).map(ProgressiveAlgorithm.withName).toSeq
+            if (options.contains(InputConfigurations.CONF_PROGRESSIVE_ALG))
+                options(InputConfigurations.CONF_PROGRESSIVE_ALG)
+                    .split(",")
+                    .filter(ProgressiveAlgorithm.exists)
+                    .map(ProgressiveAlgorithm.withName).toSeq
             else
                 selectedAlgorithms
 
@@ -113,11 +89,13 @@ object EvaluationExp {
         val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-        val (totalVerifications, totalRelatedPairs) = if (options.contains("tv") && options.contains("qp"))
-                (options("tv").toInt, options("qp").toInt)
-            else {
-                val g = GIAnt(sourceRDD, targetRDD, theta, partitionBorder, partitioner.hashPartitioner).countAllRelations
-                (g._10, g._11)
+        val (totalVerifications, totalRelatedPairs) =
+            (conf.getTotalVerifications, conf.getTotalQualifyingPairs) match {
+                case (Some(tv), Some(qp)) =>
+                    (tv, qp)
+                case _ =>
+                    val g = GIAnt(sourceRDD, targetRDD, theta, partitionBorder, partitioner.hashPartitioner).countAllRelations
+                    (g._10, g._11)
             }
 
         log.info("DS-JEDAI: Total Verifications: " + totalVerifications)
@@ -125,7 +103,7 @@ object EvaluationExp {
         log.info("\n")
 
         printResults(sourceRDD, targetRDD, theta, partitionBorder, approximateSourceCount, partitioner.hashPartitioner,
-            totalRelatedPairs, budget, ProgressiveAlgorithm.RANDOM,  (WeightingFunction.CF, None), Constants.SINGLE)
+            totalRelatedPairs, budget, ProgressiveAlgorithm.RANDOM,  (WeightingFunction.CF, None), Constants.SIMPLE)
 
         for (a <- algorithms ; ws <- weightingSchemes; wf <- weightingFunctions )
             printResults(sourceRDD, targetRDD, theta, partitionBorder, approximateSourceCount, partitioner.hashPartitioner,

@@ -16,8 +16,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
 import utils.configuration.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.configuration.Constants.WeightingFunction.WeightingFunction
-import utils.configuration.Constants.{GridType, ProgressiveAlgorithm, Relation, WeightingFunction}
-import utils.configuration
+import utils.configuration.Constants.{GridType, Relation}
 import utils.configuration.{ConfigurationParser, Constants}
 import utils.readers.{GridPartitioner, Reader}
 
@@ -37,55 +36,24 @@ object ProgressiveExp {
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()
 
-        // Parsing input arguments
-        @scala.annotation.tailrec
-        def nextOption(map: OptionMap, list: List[String]): OptionMap = {
-            list match {
-                case Nil => map
-                case ("-c" | "-conf") :: value :: tail =>
-                    nextOption(map ++ Map("conf" -> value), tail)
-                case ("-b" | "-budget") :: value :: tail =>
-                    nextOption(map ++ Map("budget" -> value), tail)
-                case "-mwf" :: value :: tail =>
-                    nextOption(map ++ Map("mwf" -> value), tail)
-                case "-swf" :: value :: tail =>
-                    nextOption(map ++ Map("swf" -> value), tail)
-                case "-pa" :: value :: tail =>
-                    nextOption(map ++ Map("pa" -> value), tail)
-                case "-gt" :: value :: tail =>
-                    nextOption(map ++ Map("gt" -> value), tail)
-                case ("-p" | "-partitions") :: value :: tail =>
-                    nextOption(map ++ Map("partitions" -> value), tail)
-                case "-ws" :: value :: tail =>
-                    nextOption(map ++ Map("ws" -> value), tail)
-                case "-time" :: tail =>
-                    nextOption(map ++ Map("time" -> "true"), tail)
-                case _ :: tail =>
-                    log.warn("DS-JEDAI: Unrecognized argument")
-                    nextOption(map, tail)
-            }
-        }
-
-        val argList = args.toList
-        type OptionMap = Map[String, String]
-        val options = nextOption(Map(), argList)
-
+        val options = ConfigurationParser.parseCommandLineArguments(args)
         if (!options.contains("conf")) {
             log.error("DS-JEDAI: No configuration file!")
             System.exit(1)
         }
 
-        // extract arguments
         val confPath = options("conf")
         val conf = ConfigurationParser.parse(confPath)
-        val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
-        val gridType: GridType.GridType = if (options.contains("gt")) GridType.withName(options("gt").toString) else conf.getGridType
-        val budget: Int = if (options.contains("budget")) options("budget").toInt else conf.getBudget
-        val mainWF: WeightingFunction = if (options.contains("mwf")) WeightingFunction.withName(options("mwf")) else conf.getMainWF
-        val secondaryWF: Option[WeightingFunction] = if (options.contains("swf")) Option(WeightingFunction.withName(options("swf"))) else conf.getSecondaryWF
-        val ws: Constants.WeightingScheme = if (options.contains("ws")) configuration.Constants.WeightingSchemeFactory(options("ws")) else conf.getWS
-        val pa: ProgressiveAlgorithm = if (options.contains("pa")) ProgressiveAlgorithm.withName(options("pa")) else conf.getProgressiveAlgorithm
-        val timeExp: Boolean = options.contains("time")
+        conf.combine(options)
+
+        val partitions: Int = conf.getPartitions
+        val gridType: GridType.GridType = conf.getGridType
+        val budget: Int = conf.getBudget
+        val mainWF: WeightingFunction = conf.getMainWF
+        val secondaryWF: Option[WeightingFunction] = conf.getSecondaryWF
+        val ws: Constants.WeightingScheme = conf.getWS
+        val pa: ProgressiveAlgorithm = conf.getProgressiveAlgorithm
+        val timeExp: Boolean = conf.measureStatistic
         val relation = conf.getRelation
 
         log.info(s"DS-JEDAI: Weighting Scheme: ${ws.value}")

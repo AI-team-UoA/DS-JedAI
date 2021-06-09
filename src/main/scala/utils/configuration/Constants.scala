@@ -89,9 +89,9 @@ object Constants {
 	}
 
 	/**
-	 * YAML Configurations arguments
+	 * YAML/command line Configurations arguments
 	 */
-	object YamlConfiguration extends Enumeration {
+	object InputConfigurations extends Enumeration {
 		type YamlConfiguration = String
 		val CONF_PARTITIONS = "partitions"
 		val CONF_THETA_GRANULARITY = "thetaGranularity"
@@ -103,6 +103,9 @@ object Constants {
 		val CONF_WS = "ws"
 		val CONF_OUTPUT = "outputPath"
 		val CONF_ENTITY_TYPE = "entityType"
+		val CONF_STATISTICS = "stats"
+		val CONF_TOTAL_VERIFICATIONS ="totalVerifications"
+		val CONF_QUALIFYING_PAIRS ="qualifyingPairs"
 	}
 
 	object GridType extends Enumeration{
@@ -140,16 +143,16 @@ object Constants {
 	}
 
 	sealed trait WeightingScheme extends Serializable {val value: String }
-	case object SINGLE extends WeightingScheme {val value = "SINGLE"}
+	case object SIMPLE extends WeightingScheme {val value = "SIMPLE"}
 	case object COMPOSITE extends WeightingScheme {val value = "COMPOSITE"}
 	case object HYBRID extends WeightingScheme {val value = "HYBRID"}
 
 	def WeightingSchemeFactory(ws: String): WeightingScheme ={
 		ws.toLowerCase() match {
-			case "single" => SINGLE
+			case "simple" => SIMPLE
 			case "composite" => COMPOSITE
 			case "hybrid" => HYBRID
-			case _ => SINGLE
+			case _ => SIMPLE
 		}
 	}
 
