@@ -62,8 +62,8 @@ object BalancingExp {
         // spatial partition
         val entityType = SpatialEntityType()
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
-        val sourceRDD: RDD[(Int, Entity)] = partitioner.transformAndDistribute(sourceSpatialRDD, entityType)
-        val targetRDD: RDD[(Int, Entity)] = partitioner.transformAndDistribute(targetSpatialRDD, entityType)
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(sourceSpatialRDD, entityType)
+        val targetRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(targetSpatialRDD, entityType)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
         val theta = TileGranularities(sourceRDD.map(_._2.env))

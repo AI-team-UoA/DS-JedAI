@@ -55,6 +55,10 @@ object GiantExp {
         val entityTypeType: EntityTypeENUM = conf.getEntityType
         val startTime = Calendar.getInstance().getTimeInMillis
 
+        log.info(s"GridType: $gridType")
+        log.info(s"Relation: $relation")
+        log.info(s"Entity Type: ${entityTypeType}")
+
         // load datasets
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
         val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
@@ -82,8 +86,8 @@ object GiantExp {
                 IndexedFragmentedEntityType(splitThreshold)
         }
 
-        val sourceRDD: RDD[(Int, Entity)] = partitioner.transformAndDistribute(sourceSpatialRDD, entityType)
-        val targetRDD: RDD[(Int, Entity)] = partitioner.transformAndDistribute(targetSpatialRDD, entityType)
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(sourceSpatialRDD, entityType)
+        val targetRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(targetSpatialRDD, entityType)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
         val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)

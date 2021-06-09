@@ -120,7 +120,7 @@ object Constants {
 	object EntityTypeENUM extends Enumeration {
 		type EntityTypeENUM = Value
 		val SPATIAL_ENTITY: Constants.EntityTypeENUM.Value = Value("SPATIAL_ENTITY")
-		val SPATIOTEMPORAL_ENTITY: Constants.EntityTypeENUM.Value = Value("SPATIOTEMPORAL_ENTITY")
+		val SPATIOTEMPORAL_ENTITY: Constants.EntityTypeENUM.Value = Value("SPATIO-TEMPORAL_ENTITY")
 		val FRAGMENTED_ENTITY: Constants.EntityTypeENUM.Value = Value("FRAGMENTED_ENTITY")
 		val INDEXED_FRAGMENTED_ENTITY: Constants.EntityTypeENUM.Value = Value("INDEXED_FRAGMENTED_ENTITY")
 
