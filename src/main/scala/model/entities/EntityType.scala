@@ -5,20 +5,22 @@ import org.joda.time.DateTime
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 import org.locationtech.jts.geom.Geometry
 import utils.configuration.Constants
+import utils.configuration.Constants.EntityTypeENUM
+import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
 import utils.geometryUtils.RecursiveFragmentation
 
 sealed trait EntityType {
-    val entityType: String
+    val entityType: EntityTypeENUM
     val transform: Geometry => Entity
 }
 
 case class SpatialEntityType() extends EntityType {
-    val entityType: String = "SpatialEntity"
+    val entityType: EntityTypeENUM = EntityTypeENUM.SPATIAL_ENTITY
     val transform: Geometry => Entity = (geom: Geometry) => SpatialEntity(geom.getUserData.asInstanceOf[String], geom)
 }
 
 case class SpatioTemporalEntityType(pattern: String) extends EntityType {
-    val entityType: String = "SpatioTemporalEntity"
+    val entityType: EntityTypeENUM = EntityTypeENUM.SPATIOTEMPORAL_ENTITY
 
     private val formatter: DateTimeFormatter = DateTimeFormat.forPattern(pattern)
 
@@ -35,13 +37,13 @@ case class SpatioTemporalEntityType(pattern: String) extends EntityType {
 
 
 case class FragmentedEntityType(tileGranularities: TileGranularities) extends EntityType {
-    val entityType: String = "FragmentedEntity"
+    val entityType: EntityTypeENUM = EntityTypeENUM.FRAGMENTED_ENTITY
     val fragmentationF: Geometry => Seq[Geometry] = RecursiveFragmentation.splitBigGeometries(tileGranularities)
     val transform: Geometry => Entity = (geom: Geometry) =>  FragmentedEntity(geom.getUserData.asInstanceOf[String], geom)(fragmentationF)
 }
 
 
 case class IndexedFragmentedEntityType(tileGranularities: TileGranularities) extends EntityType {
-    val entityType: String = "IndexedFragmentedEntity"
+    val entityType: EntityTypeENUM = EntityTypeENUM.INDEXED_FRAGMENTED_ENTITY
     val transform: Geometry => Entity = (geom: Geometry) => IndexedFragmentedEntity(geom.getUserData.asInstanceOf[String], geom, tileGranularities)
 }
