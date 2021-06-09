@@ -3,13 +3,16 @@ version := "0.1"
 scalaVersion := "2.11.12"
 val sparkVersion = "2.4.4"
 
-
 scalacOptions ++= Seq("-feature", "-language:reflectiveCalls")
+
+val currentDirectory = new java.io.File(".").getCanonicalPath
+libraryDependencies += "org.locationtech.jts" % "jts" % "1.18.2-SNAPSHOT" from s"file://$currentDirectory/jts/modules/core/target/jts-core-1.18.2-SNAPSHOT.jar"
+
+libraryDependencies += "ai.di.uoa.gr" % "interlinking" % "1.18.2-SNAPSHOT" from s"file://$currentDirectory/jts/interlinking/target/interlinking-1.18.2-SNAPSHOT.jar"
 
 libraryDependencies ++= Seq(
 	"org.apache.spark" %%  "spark-core" % sparkVersion % Provided,
 	"org.apache.spark" %%  "spark-sql" % sparkVersion  % Provided
-//	"org.apache.spark" %% "spark-graphx" % sparkVersion % Provided
 )
 
 // https://mvnrepository.com/artifact/org.apache.sedona/sedona-core-2.4
@@ -17,9 +20,6 @@ libraryDependencies += "org.apache.sedona" %% "sedona-core-2.4" % "1.0.0-incubat
 
 // https://mvnrepository.com/artifact/org.apache.sedona/sedona-sql-2.4
 libraryDependencies += "org.apache.sedona" %% "sedona-sql-2.4" % "1.0.0-incubating"
-
-// https://mvnrepository.com/artifact/org.locationtech.jts/jts-core
-libraryDependencies += "org.locationtech.jts" % "jts-core" % "1.18.0"
 
 // https://mvnrepository.com/artifact/org.datasyslab/geotools-wrapper
 libraryDependencies += "org.datasyslab" % "geotools-wrapper" % "geotools-24.0"
@@ -48,36 +48,3 @@ assemblyMergeStrategy in assembly := {
 	case x => MergeStrategy.first
 }
 
-
-
-// SANSA STACK
-//resolvers += "AKSW Maven Snapshots" at "https://maven.aksw.org/archiva/repository/snapshots"
-//resolvers += "jitpack" at "https://jitpack.io"
-//// https://mvnrepository.com/artifact/net.sansa-stack/sansa-rdf-spark
-//libraryDependencies += "net.sansa-stack" %% "sansa-rdf-spark" % "0.7.1" excludeAll(
-//	ExclusionRule("org.springframework"),
-//	ExclusionRule("org.apache.hadoop"),
-//	ExclusionRule("org.apache.spark"),
-//	ExclusionRule("org.scala-lang"),
-//	ExclusionRule("org.scalatest"),
-//	ExclusionRule("it.unimi.dsi"),
-//)
-//
-//// https://mvnrepository.com/artifact/net.sansa-stack/sansa-query-spark
-//libraryDependencies += "net.sansa-stack" %% "sansa-query-spark" % "0.7.1"  excludeAll(
-//	ExclusionRule("com.ibm.sparktc.sparkbench", "sparkbench"),
-//	ExclusionRule("net.sansa-stack"),//, "query-tests"),
-//	ExclusionRule("net.sansa-stack", "sansa-datalake-spark"),
-//	ExclusionRule("net.sansa-stack", "sansa-rdf-common"),
-//	ExclusionRule("org.springframework"),
-//	ExclusionRule("org.apache.hadoop"),
-//	ExclusionRule("org.apache.spark"),
-//	ExclusionRule("io.github.litmus-benchmark-suite"),
-//	ExclusionRule("org.scala-lang"),
-//	ExclusionRule("org.scalatest"),
-//	ExclusionRule("it.unibz.inf.ontop"),
-//	ExclusionRule("it.unimi.dsi"),
-//	ExclusionRule("org.aksw.jena-sparql-api"),
-//	ExclusionRule("it.unimi.dsi"),
-//	ExclusionRule("om.sun.xml.bind"),
-//)
