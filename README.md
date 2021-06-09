@@ -54,7 +54,7 @@ Currently, the supported weighting functions (*WF*) are:
 The algorithms also support different Weighting Schemes (*WS*) that enables the combination of multiple weighting functions. Currently, the supported Weighting Schemes are:
 
 
-- *SINGLE*: use a single Weighting Function to compute the weights (default)
+- *SIMPLE*: use a simple Weighting Function to compute the weights (default)
 - *COMPOSITE*: combine two  Weighting Functions in the sense that the second weighting function is for resolving the ties of the main one.
 - *HYBRID*: the weight is defined as the product of two Weighting Functions.
 
@@ -71,7 +71,7 @@ Some additional options are the following:
 - **-gt type**: specify the grid type for the spatial partitioning. Accepted values are KDBTREE and QUADTREE.
 - **-mwf WF**: specify the main weighting function - allowed values: *CF, JS, MBRO, PEARSON_X2, ISP*.
 - **-swf WF**: specify the secondary weighting function (optional)- allowed values: *CF, JS, MBRO, PEARSON_X2, ISP*, MBRO is preferred.
--  **-ws WS**: specify the weighting scheme (optional)- allowed values: *SINGLE, COMPOSITE, HYBRID*.
+-  **-ws WS**: specify the weighting scheme (optional)- allowed values: *SIMPLE, COMPOSITE, HYBRID*.
 - **-pa PA**:  specify progressive algorithm - allowed values: *PROGRESSIVE_GIANT, DYNAMIC_PROGRESSIVE_GIANT, TOPK, RECIPROCAL_TOPK, RANDOM*
 - **budget BU**: the input budget.
 

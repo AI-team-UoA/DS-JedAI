@@ -2,8 +2,8 @@ package model.entities
 
 import model.IM
 import org.locationtech.jts.geom.{Envelope, Geometry}
-import utils.Constants.Relation
-import utils.Constants.Relation.Relation
+import utils.configuration.Constants.Relation
+import utils.configuration.Constants.Relation.Relation
 import utils.geometryUtils.EnvelopeOp
 
 import scala.language.implicitConversions

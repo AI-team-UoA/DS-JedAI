@@ -5,10 +5,10 @@ import model.entities.Entity
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import org.locationtech.jts.geom.Envelope
-import utils.Constants
-import utils.Constants.ProgressiveAlgorithm
-import utils.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
-import utils.Constants.WeightingFunction.WeightingFunction
+import utils.configuration.Constants
+import utils.configuration.Constants.ProgressiveAlgorithm
+import utils.configuration.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
+import utils.configuration.Constants.WeightingFunction.WeightingFunction
 
 object ProgressiveAlgorithmsFactory {
 

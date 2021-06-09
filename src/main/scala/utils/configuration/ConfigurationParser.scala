@@ -1,10 +1,10 @@
-package utils.configurationParser
+package utils.configuration
 
 import net.jcazevedo.moultingyaml.{DefaultYamlProtocol, _}
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.SparkContext
-import utils.Constants
-import utils.Constants._
+import utils.configuration.Constants._
+import utils.configuration.Constants.{ProgressiveAlgorithm, ThetaOption, WeightingFunction, InputConfigurations}
 
 /**
  * Yaml parsers
@@ -22,6 +22,49 @@ object ConfigurationParser {
 
 	import ConfigurationYAML._
 	val log: Logger = LogManager.getRootLogger
+
+
+	def parseCommandLineArguments(args: Seq[String]): Map[String, String] ={
+		// Parsing input arguments
+		@scala.annotation.tailrec
+		def nextOption(map: Map[String, String], list: List[String]): Map[String, String] = {
+			list match {
+				case Nil => map
+				case ("-c" | "-conf") :: value :: tail =>
+					nextOption(map ++ Map("conf" -> value), tail)
+				case ("-p" | "-partitions") :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_PARTITIONS -> value), tail)
+				case "-gt" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_GRID_TYPE -> value), tail)
+				case "-s" :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_STATISTICS -> "true"), tail)
+				case "-o" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_OUTPUT -> value), tail)
+				case "-et" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_ENTITY_TYPE -> value), tail)
+				case ("-b" | "-budget") :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_BUDGET -> value), tail)
+				case "-pa" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_PROGRESSIVE_ALG -> value), tail)
+				case "-mwf" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_MAIN_WF -> value), tail)
+				case "-swf" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_SECONDARY_WF -> value), tail)
+				case "-ws" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_WS -> value), tail)
+				case "-tv" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_TOTAL_VERIFICATIONS -> value), tail)
+				case "-qp" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_QUALIFYING_PAIRS -> value), tail)
+				case _ :: tail =>
+					log.warn("DS-JEDAI: Unrecognized argument")
+					nextOption(map, tail)
+			}
+		}
+
+		val argList = args.toList
+		nextOption(Map(), argList)
+	}
 
 	/**
 	 * check if the input relation is valid
@@ -44,41 +87,47 @@ object ConfigurationParser {
 		configurations.keys.foreach { key =>
 			val value = configurations(key)
 			key match {
-				case YamlConfiguration.CONF_PARTITIONS =>
+				case InputConfigurations.CONF_PARTITIONS =>
 					if (! (value forall Character.isDigit)) {
 						log.error("DS-JEDAI: Partitions must be an Integer")
 						false
 					}
-				case YamlConfiguration.CONF_THETA_GRANULARITY =>
+				case InputConfigurations.CONF_THETA_GRANULARITY =>
 					if (!ThetaOption.exists(value)) {
 						log.error("DS-JEDAI: Not valid measure for theta")
 						false
 					}
-				case YamlConfiguration.CONF_BUDGET =>
+				case InputConfigurations.CONF_BUDGET =>
 					val allDigits = value forall Character.isDigit
 					if (!allDigits) {
 						log.error("DS-JEDAI: Not valid value for budget")
 						false
 					}
-				case YamlConfiguration.CONF_PROGRESSIVE_ALG =>
+				case InputConfigurations.CONF_PROGRESSIVE_ALG =>
 					if (!ProgressiveAlgorithm.exists(value)) {
 						log.error(s"DS-JEDAI: Prioritization Algorithm \'$value\' is not supported")
 						false
 					}
-				case YamlConfiguration.CONF_MAIN_WF | YamlConfiguration.CONF_SECONDARY_WF=>
+				case InputConfigurations.CONF_MAIN_WF | InputConfigurations.CONF_SECONDARY_WF=>
 					if (! WeightingFunction.exists(value)) {
 						log.error(s"DS-JEDAI: Weighting Function \'$value\' is not supported")
 						false
 					}
-				case YamlConfiguration.CONF_GRIDTYPE=>
+				case InputConfigurations.CONF_GRID_TYPE=>
 					if (! GridType.exists(value)){
 						log.error(s"DS-JEDAI: Grid Type \'$value\' is not supported")
 						false
 					}
 
-				case YamlConfiguration.CONF_WS=>
+				case InputConfigurations.CONF_WS=>
 					if (! Constants.checkWS(value)){
 						log.error(s"DS-JEDAI: Weighting Scheme \'$value\' is not supported")
+						false
+					}
+
+				case InputConfigurations.CONF_ENTITY_TYPE=>
+					if (! EntityTypeENUM.exists(value)){
+						log.error(s"DS-JEDAI: Entity Type \'$value\' is not supported")
 						false
 					}
 				case _ =>

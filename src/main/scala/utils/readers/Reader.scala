@@ -12,8 +12,8 @@ import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.{Geometry, GeometryFactory}
 import org.locationtech.jts.io.WKTReader
-import utils.Constants.FileTypes
-import utils.configurationParser.DatasetConfigurations
+import utils.configuration.Constants.FileTypes
+import utils.configuration.DatasetConfigurations
 
 object Reader {
 

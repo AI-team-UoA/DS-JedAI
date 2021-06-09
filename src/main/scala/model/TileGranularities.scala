@@ -2,8 +2,8 @@ package model
 
 import org.apache.spark.rdd.RDD
 import org.locationtech.jts.geom.Envelope
-import utils.Constants.ThetaOption
-import utils.Constants.ThetaOption.ThetaOption
+import utils.configuration.Constants.ThetaOption
+import utils.configuration.Constants.ThetaOption.ThetaOption
 
 case class TileGranularities(x: Double, y: Double){
     def *(n: Double) : TileGranularities = TileGranularities(x*n, y*n)

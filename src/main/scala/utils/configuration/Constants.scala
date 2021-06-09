@@ -1,4 +1,4 @@
-package utils
+package utils.configuration
 
 /**
  * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
@@ -89,9 +89,9 @@ object Constants {
 	}
 
 	/**
-	 * YAML Configurations arguments
+	 * YAML/command line Configurations arguments
 	 */
-	object YamlConfiguration extends Enumeration {
+	object InputConfigurations extends Enumeration {
 		type YamlConfiguration = String
 		val CONF_PARTITIONS = "partitions"
 		val CONF_THETA_GRANULARITY = "thetaGranularity"
@@ -99,9 +99,13 @@ object Constants {
 		val CONF_MAIN_WF = "mainWF"
 		val CONF_SECONDARY_WF = "secondaryWF"
 		val CONF_BUDGET = "budget"
-		val CONF_GRIDTYPE = "gridType"
+		val CONF_GRID_TYPE = "gridType"
 		val CONF_WS = "ws"
-		val OUTPUT = "outputPath"
+		val CONF_OUTPUT = "outputPath"
+		val CONF_ENTITY_TYPE = "entityType"
+		val CONF_STATISTICS = "stats"
+		val CONF_TOTAL_VERIFICATIONS ="totalVerifications"
+		val CONF_QUALIFYING_PAIRS ="qualifyingPairs"
 	}
 
 	object GridType extends Enumeration{
@@ -112,6 +116,16 @@ object Constants {
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
 
+
+	object EntityTypeENUM extends Enumeration {
+		type EntityTypeENUM = Value
+		val SPATIAL_ENTITY: Constants.EntityTypeENUM.Value = Value("SPATIAL_ENTITY")
+		val SPATIOTEMPORAL_ENTITY: Constants.EntityTypeENUM.Value = Value("SPATIO-TEMPORAL_ENTITY")
+		val FRAGMENTED_ENTITY: Constants.EntityTypeENUM.Value = Value("FRAGMENTED_ENTITY")
+		val INDEXED_FRAGMENTED_ENTITY: Constants.EntityTypeENUM.Value = Value("INDEXED_FRAGMENTED_ENTITY")
+
+		def exists(s: String): Boolean = values.exists(_.toString == s)
+	}
 
 	/**
 	 * Progressive Algorithms
@@ -129,19 +143,18 @@ object Constants {
 	}
 
 	sealed trait WeightingScheme extends Serializable {val value: String }
-	case object SINGLE extends WeightingScheme {val value = "SINGLE"}
+	case object SIMPLE extends WeightingScheme {val value = "SIMPLE"}
 	case object COMPOSITE extends WeightingScheme {val value = "COMPOSITE"}
 	case object HYBRID extends WeightingScheme {val value = "HYBRID"}
 
 	def WeightingSchemeFactory(ws: String): WeightingScheme ={
 		ws.toLowerCase() match {
-			case "single" => SINGLE
+			case "simple" => SIMPLE
 			case "composite" => COMPOSITE
 			case "hybrid" => HYBRID
-			case _ => SINGLE
+			case _ => SIMPLE
 		}
 	}
-
 
 	def checkWS(ws: String): Boolean ={
 		ws.toLowerCase() match {
@@ -151,11 +164,3 @@ object Constants {
 	}
 
 }
-
-
-
-
-
-
-
-

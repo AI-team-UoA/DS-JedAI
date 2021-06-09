@@ -2,8 +2,8 @@ package utils.geometryUtils
 
 import model.TileGranularities
 import org.locationtech.jts.geom.Envelope
-import utils.Constants.Relation
-import utils.Constants.Relation.Relation
+import utils.configuration.Constants.Relation
+import utils.configuration.Constants.Relation.Relation
 import utils.geometryUtils.EnvelopeOp.EnvelopeIntersectionTypes.EnvelopeIntersectionTypes
 
 object EnvelopeOp {

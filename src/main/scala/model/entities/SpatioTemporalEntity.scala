@@ -4,8 +4,8 @@ import org.joda.time.format.DateTimeFormat
 import org.joda.time.{DateTime, Days}
 import org.locationtech.jts.geom.Geometry
 import org.locationtech.jts.io.WKTReader
-import utils.Constants
-import utils.Constants.Relation.Relation
+import utils.configuration.Constants.Relation.Relation
+import utils.configuration.Constants
 
 case class SpatioTemporalEntity(originalID: String, geometry: Geometry, dateStr: String)  extends Entity {
 
