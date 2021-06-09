@@ -18,7 +18,7 @@ import org.locationtech.jts.geom.Geometry
 import utils.Utils
 import utils.configuration.ConfigurationParser
 import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
-import utils.configuration.Constants.{EntityTypeENUM, GridType, Relation}
+import utils.configuration.Constants.{GridType, Relation}
 import utils.readers.{GridPartitioner, Reader}
 
 object GiantExp {
@@ -68,30 +68,14 @@ object GiantExp {
         val approximateSourceCount = partitioner.approximateCount
         val theta = TileGranularities(sourceSpatialRDD.rawSpatialRDD.rdd.map(_.getEnvelopeInternal), approximateSourceCount, conf.getTheta)
 
-        val entityType = entityTypeType match {
-
-            case EntityTypeENUM.SPATIAL_ENTITY =>
-                SpatialEntityType()
-
-            case EntityTypeENUM.SPATIOTEMPORAL_ENTITY =>
-                // WARNING MIGHT RESULT EXCEPTION - provides only source entity type date pattern
-                SpatioTemporalEntityType(conf.source.datePattern.get)
-
-            case EntityTypeENUM.FRAGMENTED_ENTITY =>
-                val splitThreshold = theta*4
-                FragmentedEntityType(splitThreshold)
-
-            case EntityTypeENUM.INDEXED_FRAGMENTED_ENTITY =>
-                val splitThreshold = theta*4
-                IndexedFragmentedEntityType(splitThreshold)
-        }
-
-        val sourceRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(sourceSpatialRDD, entityType)
-        val targetRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(targetSpatialRDD, entityType)
+        val sourceEntityType: EntityType = EntityTypeFactory.get(entityTypeType, theta, conf.source.datePattern)
+        val sourceRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(sourceSpatialRDD, sourceEntityType)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
-
         val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
+
+        val targetEntityType: EntityType = EntityTypeFactory.get(entityTypeType, theta, conf.target.datePattern)
+        val targetRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(targetSpatialRDD, targetEntityType)
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
         val giant = GIAnt(sourceRDD, targetRDD, theta, partitionBorder, partitioner.hashPartitioner)

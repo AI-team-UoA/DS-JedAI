@@ -19,10 +19,11 @@ case class SpatialEntityType() extends EntityType {
     val transform: Geometry => Entity = (geom: Geometry) => SpatialEntity(geom.getUserData.asInstanceOf[String], geom)
 }
 
-case class SpatioTemporalEntityType(pattern: String) extends EntityType {
+case class SpatioTemporalEntityType(pattern: Option[String]) extends EntityType {
     val entityType: EntityTypeENUM = EntityTypeENUM.SPATIOTEMPORAL_ENTITY
 
-    private val formatter: DateTimeFormatter = DateTimeFormat.forPattern(pattern)
+    private val pattern_ = pattern.getOrElse(Constants.defaultDatePattern)
+    private val formatter: DateTimeFormatter = DateTimeFormat.forPattern(pattern_)
 
     val transform: Geometry => Entity = { geom: Geometry =>
         val userdata = geom.getUserData.asInstanceOf[String].split("\t")
@@ -30,8 +31,8 @@ case class SpatioTemporalEntityType(pattern: String) extends EntityType {
         val realID = userdata(0)
         val dateStr = userdata(1)
         val date: DateTime = formatter.parseDateTime(dateStr)
-        val dateStr_ = date.toString(Constants.defaultDatePattern)
-        SpatioTemporalEntity(realID, geom, dateStr_)
+        val dateInDefaultPattern = date.toString(Constants.defaultDatePattern)
+        SpatioTemporalEntity(realID, geom, dateInDefaultPattern)
     }
 }
 
@@ -46,4 +47,27 @@ case class FragmentedEntityType(tileGranularities: TileGranularities) extends En
 case class IndexedFragmentedEntityType(tileGranularities: TileGranularities) extends EntityType {
     val entityType: EntityTypeENUM = EntityTypeENUM.INDEXED_FRAGMENTED_ENTITY
     val transform: Geometry => Entity = (geom: Geometry) => IndexedFragmentedEntity(geom.getUserData.asInstanceOf[String], geom, tileGranularities)
+}
+
+object EntityTypeFactory {
+
+    def get(entityTypeType: EntityTypeENUM, theta: TileGranularities, datePattern: Option[String] = None): EntityType ={
+
+        entityTypeType match {
+
+            case EntityTypeENUM.SPATIAL_ENTITY =>
+                SpatialEntityType()
+
+            case EntityTypeENUM.SPATIOTEMPORAL_ENTITY =>
+                SpatioTemporalEntityType(datePattern)
+
+            case EntityTypeENUM.FRAGMENTED_ENTITY =>
+                val splitThreshold = theta*4
+                FragmentedEntityType(splitThreshold)
+
+            case EntityTypeENUM.INDEXED_FRAGMENTED_ENTITY =>
+                val splitThreshold = theta*4
+                IndexedFragmentedEntityType(splitThreshold)
+        }
+    }
 }
