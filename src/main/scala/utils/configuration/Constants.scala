@@ -123,6 +123,7 @@ object Constants {
 		val SPATIOTEMPORAL_ENTITY: Constants.EntityTypeENUM.Value = Value("SPATIO-TEMPORAL_ENTITY")
 		val FRAGMENTED_ENTITY: Constants.EntityTypeENUM.Value = Value("FRAGMENTED_ENTITY")
 		val INDEXED_FRAGMENTED_ENTITY: Constants.EntityTypeENUM.Value = Value("INDEXED_FRAGMENTED_ENTITY")
+		val ENHANCED_SPATIAL_ENTITY: Constants.EntityTypeENUM.Value = Value("ENHANCED_SPATIAL_ENTITY")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}

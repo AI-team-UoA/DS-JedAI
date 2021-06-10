@@ -41,24 +41,6 @@ trait ProgressiveInterlinkerT extends InterlinkerT {
 
 
     /**
-     *  Given a spatial index, retrieve all candidate geometries and filter based on
-     *  spatial criteria
-     *
-     * @param se target Spatial entity
-     * @param index spatial index
-     * @param partition current partition
-     * @param relation examining relation
-     * @return all candidate geometries of se
-     */
-    def getAllCandidatesWithIndex(se: Entity, index: SpatialIndex[Entity], partition: Envelope, relation: Relation): Seq[(Int, Entity)] ={
-        index.index(se)
-            .flatMap { block =>
-                val blockCandidates = index.getWithIndex(block)
-                blockCandidates.filter(candidate => filterVerifications(candidate._2, se, relation, block, partition))
-            }
-    }
-
-    /**
      * Compute the  9-IM of the entities of a PQ
      * @param pq a Priority Queue
      * @param source source entities

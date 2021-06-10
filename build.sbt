@@ -6,9 +6,9 @@ val sparkVersion = "2.4.4"
 scalacOptions ++= Seq("-feature", "-language:reflectiveCalls")
 
 val currentDirectory = new java.io.File(".").getCanonicalPath
-libraryDependencies += "org.locationtech.jts" % "jts" % "1.18.2-SNAPSHOT" from s"file://$currentDirectory/jts/modules/core/target/jts-core-1.18.2-SNAPSHOT.jar"
-
-libraryDependencies += "ai.di.uoa.gr" % "interlinking" % "1.18.2-SNAPSHOT" from s"file://$currentDirectory/jts/interlinking/target/interlinking-1.18.2-SNAPSHOT.jar"
+//libraryDependencies += "org.locationtech.jts" % "jts" % "1.18.2-SNAPSHOT" from s"file://$currentDirectory/jts/modules/core/target/jts-core-1.18.2-SNAPSHOT.jar"
+//
+//libraryDependencies += "ai.di.uoa.gr" % "interlinking" % "1.18.2-SNAPSHOT" from s"file://$currentDirectory/jts/interlinking/target/interlinking-1.18.2-SNAPSHOT.jar"
 
 libraryDependencies ++= Seq(
 	"org.apache.spark" %%  "spark-core" % sparkVersion % Provided,
@@ -21,11 +21,16 @@ libraryDependencies += "org.apache.sedona" %% "sedona-core-2.4" % "1.0.0-incubat
 // https://mvnrepository.com/artifact/org.apache.sedona/sedona-sql-2.4
 libraryDependencies += "org.apache.sedona" %% "sedona-sql-2.4" % "1.0.0-incubating"
 
+
+libraryDependencies += "ai.di.uoa.gr" % "interlinking" % "1.18.2-SNAPSHOT" from s"file://$currentDirectory/jts/interlinking/target/jts-interlinking-jar-with-dependencies.jar"
+libraryDependencies += "org.locationtech.jts" % "jts" % "1.18.2-SNAPSHOT" from s"file://$currentDirectory/jts/modules/core/target/jts-core-1.18.2-SNAPSHOT.jar"
+
+
 // https://mvnrepository.com/artifact/org.datasyslab/geotools-wrapper
 libraryDependencies += "org.datasyslab" % "geotools-wrapper" % "geotools-24.0"
 
 // https://mvnrepository.com/artifact/org.wololo/jts2geojson
-libraryDependencies += "org.wololo" % "jts2geojson" % "0.14.3"
+//libraryDependencies += "org.wololo" % "jts2geojson" % "0.14.3"
 
 dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7"
 
