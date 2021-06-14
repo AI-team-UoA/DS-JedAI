@@ -5,7 +5,7 @@ import org.locationtech.jts.geom._
 import org.locationtech.jts.io.WKTReader
 import org.scalatest.wordspec.AnyWordSpec
 import utils.configuration.Constants.ThetaOption
-import utils.geometryUtils.{EnvelopeOp, GeometryUtils, RecursiveDecomposer, decompose}
+import utils.geometryUtils.{EnvelopeOp, GeometryUtils, decompose}
 import TestingGeometries._
 import utils.geometryUtils.decompose.{GridDecomposer, RecursiveDecomposer}
 
@@ -48,7 +48,7 @@ class FragmentationTest extends AnyWordSpec {
            val decomposer = RecursiveDecomposer(theta)
            assert(
                 polygons.forall { p =>
-                    val fragments: Seq[Polygon] = decomposer.splitPolygon(p)
+                    val fragments: Seq[Geometry] = decomposer.splitPolygon(p)
                     val merged = fragments.foldLeft(emptyPolygon)(_ union _)
                     val diff = math.abs(merged.getArea - p.getArea)
                     diff < delta
@@ -60,7 +60,7 @@ class FragmentationTest extends AnyWordSpec {
             val decomposer = decompose.RecursiveDecomposer(theta)
             assert(
                 lineStrings.forall { l =>
-                    val lineSegments: Seq[LineString] = decomposer.splitLineString(l)
+                    val lineSegments: Seq[Geometry] = decomposer.splitLineString(l)
                     val linesLength: Double = lineSegments.map(_.getLength).sum
                     val diff = math.abs(linesLength - l.getLength)
                     diff < delta
@@ -72,7 +72,7 @@ class FragmentationTest extends AnyWordSpec {
             val decomposer = decompose.RecursiveDecomposer(theta)
             assert(
                 polygonsWithHoles.forall { p =>
-                    val fragments: Seq[Polygon] = decomposer.splitPolygon(p)
+                    val fragments: Seq[Geometry] = decomposer.splitPolygon(p)
                     val merged = fragments.foldLeft(emptyPolygon)(_ union _)
                     val diff = math.abs(merged.getArea - p.getArea)
                     diff < delta
