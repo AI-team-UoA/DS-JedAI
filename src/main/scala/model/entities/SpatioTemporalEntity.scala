@@ -3,9 +3,8 @@ package model.entities
 import org.joda.time.format.DateTimeFormat
 import org.joda.time.{DateTime, Days}
 import org.locationtech.jts.geom.Geometry
-import org.locationtech.jts.io.WKTReader
-import utils.configuration.Constants.Relation.Relation
 import utils.configuration.Constants
+import utils.configuration.Constants.Relation.Relation
 
 case class SpatioTemporalEntity(originalID: String, geometry: Geometry, dateStr: String)  extends Entity {
 
@@ -25,21 +24,6 @@ case class SpatioTemporalEntity(originalID: String, geometry: Geometry, dateStr:
             case entity: SpatioTemporalEntity => super.intersectingMBR(se, relation) && temporalFiltering(entity.dateTime)
             case _ =>  super.intersectingMBR(se, relation)
         }
-    }
-
-}
-
-
-/**
- * auxiliary constructors
- */
-object SpatioTemporalEntity {
-
-    def apply(originalID: String, wkt: String, dateStr: String): SpatioTemporalEntity ={
-        val wktReader = new WKTReader()
-        val geometry: Geometry = wktReader.read(wkt)
-
-        SpatioTemporalEntity(originalID, geometry, dateStr)
     }
 
 }

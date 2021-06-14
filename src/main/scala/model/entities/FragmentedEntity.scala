@@ -1,7 +1,6 @@
 package model.entities
 
 import org.locationtech.jts.geom.Geometry
-import org.locationtech.jts.io.WKTReader
 import utils.configuration.Constants.Relation
 import utils.configuration.Constants.Relation.Relation
 import utils.geometryUtils.EnvelopeOp
@@ -58,14 +57,6 @@ object FragmentedEntity {
     def apply(e: Entity)(f: Geometry => Seq[Geometry]): FragmentedEntity ={
         val geometryFragments = f(e.geometry)
         FragmentedEntity(e.originalID, e.geometry, geometryFragments)
-    }
-
-    def apply(originalID: String, wkt: String)(f: Geometry => Seq[Geometry]): FragmentedEntity ={
-        val wktReader = new WKTReader()
-        val geometry: Geometry = wktReader.read(wkt)
-        val fragments = f(geometry)
-
-        FragmentedEntity(originalID, geometry, fragments)
     }
 
     def apply(originalID: String, geom: Geometry)(f: Geometry => Seq[Geometry]): FragmentedEntity ={
