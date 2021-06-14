@@ -57,7 +57,7 @@ object GiantExp {
 
         log.info(s"GridType: $gridType")
         log.info(s"Relation: $relation")
-        log.info(s"Entity Type: ${entityTypeType}")
+        log.info(s"Entity Type: $entityTypeType")
 
         // load datasets
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
@@ -68,13 +68,13 @@ object GiantExp {
         val approximateSourceCount = partitioner.approximateCount
         val theta = TileGranularities(sourceSpatialRDD.rawSpatialRDD.rdd.map(_.getEnvelopeInternal), approximateSourceCount, conf.getTheta)
 
-        val sourceEntityType: EntityType = EntityTypeFactory.get(entityTypeType, theta, conf.source.datePattern)
+        val sourceEntityType: EntityType = EntityTypeFactory.get(entityTypeType, theta*5, conf.source.datePattern)
         val sourceRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(sourceSpatialRDD, sourceEntityType)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
         val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-        val targetEntityType: EntityType = EntityTypeFactory.get(entityTypeType, theta, conf.target.datePattern)
+        val targetEntityType: EntityType = EntityTypeFactory.get(entityTypeType, theta*5, conf.target.datePattern)
         val targetRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(targetSpatialRDD, targetEntityType)
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis

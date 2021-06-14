@@ -192,4 +192,21 @@ class FragmentationTest extends AnyWordSpec {
             )
         }
     }
+
+
+    "Envelope Fragmentation" should {
+        val geometries = lineStrings ++ polygons ++ geometryCollections
+        val theta = TileGranularities(geometries.map(p => p.getEnvelopeInternal), geometries.length, ThetaOption.AVG_x2)
+        "Produce smaller Envelopes" in {
+            assert(
+                geometries.forall { g =>
+                    val envelopes: Seq[Geometry] = EnvelopeOp.getFineGrainedEnvelope(g, theta).map(e => geomFactory.toGeometry(e))
+                    val env = geomFactory.toGeometry(g.getEnvelopeInternal)
+                    val envelopesArea = envelopes.map(e => e.getArea).sum
+                    envelopesArea <= env.getArea
+                }
+            )
+        }
+
+    }
 }

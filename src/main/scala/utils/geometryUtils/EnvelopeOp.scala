@@ -1,14 +1,16 @@
 package utils.geometryUtils
 
 import model.TileGranularities
-import org.locationtech.jts.geom.Envelope
+import org.locationtech.jts.geom.{Coordinate, Envelope, Geometry, GeometryFactory, LineString}
 import utils.configuration.Constants.Relation
 import utils.configuration.Constants.Relation.Relation
 import utils.geometryUtils.EnvelopeOp.EnvelopeIntersectionTypes.EnvelopeIntersectionTypes
 
+import scala.collection.mutable.ListBuffer
+
 object EnvelopeOp {
 
-
+    val epsilon: Double = 1e-8
 
     def checkIntersection(env1: Envelope, env2: Envelope, relation: Relation): Boolean = {
         relation match {
@@ -62,6 +64,69 @@ object EnvelopeOp {
         val minY = env.getMinY / tileGranularities.y
 
         new Envelope(minX, maxX, minY, maxY)
+    }
+
+
+    def getFineGrainedEnvelope(geom: Geometry, theta: TileGranularities): List[Envelope] ={
+
+        case class MBR(var minX: Double = Double.PositiveInfinity, var maxX: Double = Double.NegativeInfinity,
+                       var minY: Double = Double.PositiveInfinity, var maxY: Double = Double.NegativeInfinity){
+            var isEmpty = true
+            def update(x: Double, y: Double): Unit = {
+                isEmpty = false
+                if (minX > x) minX = x
+                if (maxX < x) maxX = x
+                if (minY > y) minY = y
+                if (maxY < y) maxY = y
+            }
+            def getEnvelope: Envelope = new Envelope(minX, maxX, minY, maxY)
+            def getGeometry: Geometry = new GeometryFactory().toGeometry(getEnvelope)
+        }
+
+        @scala.annotation.tailrec
+        def getCenterPoints(points: List[Double], threshold: Double, accumulatedPoints: ListBuffer[Double]): List[Double] ={
+            points match {
+                case start :: end :: tail if math.abs(end - start) > threshold =>
+                    val mid = (start + end) / 2
+                    getCenterPoints(start :: mid :: end :: tail, threshold, accumulatedPoints)
+                case start :: end :: tail =>
+                    accumulatedPoints.appendAll( start :: end :: Nil)
+                    getCenterPoints(tail, threshold, accumulatedPoints)
+                case last :: Nil =>
+                    accumulatedPoints.append(last)
+                    accumulatedPoints.toList
+                case Nil =>
+                    accumulatedPoints.toList
+            }
+        }
+
+        val env = geom.getEnvelopeInternal
+        val verticalPoints = getCenterPoints(List(env.getMinX, env.getMaxX), theta.x, new ListBuffer[Double])
+        val verticalBlades: List[LineString] = verticalPoints
+            .map(x => Array(new Coordinate(x, env.getMinY-epsilon), new Coordinate(x, env.getMaxY+epsilon)))
+            .map(coords => GeometryUtils.geomFactory.createLineString(coords))
+
+        val horizontalPoints = getCenterPoints(List(env.getMinY, env.getMaxY), theta.y, new ListBuffer[Double])
+        val horizontalBlades: List[LineString] = horizontalPoints
+            .map(y => Array(new Coordinate(env.getMinX-epsilon, y), new Coordinate(env.getMaxX+epsilon, y)))
+            .map(coords => GeometryUtils.geomFactory.createLineString(coords))
+
+        val intersectionPoints: List[Geometry] = (horizontalBlades ::: verticalBlades).map(blade => geom.intersection(blade))
+
+        val regionsConditions: Array[(Double, Double) => Boolean] = (
+            for (x <- verticalPoints.sliding(2);
+                 y <- horizontalPoints.sliding(2)) yield {
+                (x1: Double, y1: Double) => x1 >= x.head && x1 <= x.last && y1 >= y.head && y1 <= y.last
+            }).toArray
+
+        val envelopes: Array[MBR] = Array.fill(regionsConditions.length)(MBR())
+
+        for (c <- geom.getCoordinates ++ intersectionPoints.flatMap(g => g.getCoordinates)){
+            val regionIndices: Seq[Int] = regionsConditions.zipWithIndex.filter{case (cond, i) => cond(c.x, c.y)}.map(_._2)
+            regionIndices.foreach(i => envelopes(i).update(c.x, c.y))
+        }
+
+        envelopes.filter(! _.isEmpty).map(e => e.getEnvelope).toList
     }
 
 }
