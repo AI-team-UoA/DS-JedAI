@@ -1,9 +1,14 @@
 package utils.geometryUtils
 
+
 import org.apache.sedona.core.spatialRDD.SpatialRDD
 import org.locationtech.jts.geom._
+import org.locationtech.jts.io.WKTReader
 
 object GeometryUtils {
+
+    val wktReader = new WKTReader()
+    val geomFactory = new GeometryFactory()
 
     def flattenCollection(collection: Geometry): Seq[Geometry] =
         for (i <- 0 until collection.getNumGeometries) yield {
@@ -17,8 +22,5 @@ object GeometryUtils {
         srdd.rawSpatialRDD = srdd.rawSpatialRDD.rdd.flatMap(g => if (g.getNumGeometries > 1) flattenCollection(g) else Seq(g))
         srdd
     }
-
-
-
 
 }

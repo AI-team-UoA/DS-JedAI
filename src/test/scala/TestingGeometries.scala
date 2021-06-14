@@ -1,5 +1,5 @@
-import org.locationtech.jts.geom.{Geometry, GeometryFactory, LineString, Polygon}
-import org.locationtech.jts.io.WKTReader
+import org.locationtech.jts.geom.{Geometry, LineString, Polygon}
+import utils.geometryUtils.GeometryUtils
 
 object TestingGeometries {
 
@@ -111,16 +111,15 @@ object TestingGeometries {
     )
 
 
-    val wktReader = new WKTReader()
-    val geomFactory = new GeometryFactory()
 
-    val collections: Seq[Geometry] = geometryCollectionsWKT.map(g => wktReader.read(g))
-    val polygons: Seq[Polygon] = polygonsWKT.map(g => wktReader.read(g).asInstanceOf[Polygon])
-    val polygonsWithHoles: Seq[Polygon] = ringPolygonsWKT.map(g => wktReader.read(g).asInstanceOf[Polygon])
-    val lineStrings: Seq[LineString] = lineStringsWKT.map(g => wktReader.read(g).asInstanceOf[LineString])
-    val geometryCollections: Seq[Geometry] = geometryCollectionsWKT.map(g => wktReader.read(g))
-    val emptyPolygon: Geometry = geomFactory.createEmpty(2)
 
-    lazy val source: Seq[Geometry] = testSourceWKT.map(wkt => wktReader.read(wkt))
-    lazy val target: Seq[Geometry] = testTargetWKT.map(wkt => wktReader.read(wkt))
+    lazy val collections: Seq[Geometry] = geometryCollectionsWKT.map(g => GeometryUtils.wktReader.read(g))
+    lazy val polygons: Seq[Polygon] = polygonsWKT.map(g => GeometryUtils.wktReader.read(g).asInstanceOf[Polygon])
+    lazy val polygonsWithHoles: Seq[Polygon] = ringPolygonsWKT.map(g => GeometryUtils.wktReader.read(g).asInstanceOf[Polygon])
+    lazy val lineStrings: Seq[LineString] = lineStringsWKT.map(g => GeometryUtils.wktReader.read(g).asInstanceOf[LineString])
+    lazy val geometryCollections: Seq[Geometry] = geometryCollectionsWKT.map(g => GeometryUtils.wktReader.read(g))
+    lazy val emptyPolygon: Geometry = GeometryUtils.geomFactory.createEmpty(2)
+
+    lazy val source: Seq[Geometry] = testSourceWKT.map(wkt => GeometryUtils.wktReader.read(wkt))
+    lazy val target: Seq[Geometry] = testTargetWKT.map(wkt => GeometryUtils.wktReader.read(wkt))
 }

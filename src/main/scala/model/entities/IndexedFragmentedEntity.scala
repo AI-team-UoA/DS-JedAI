@@ -2,15 +2,13 @@ package model.entities
 
 import model.{IM, SpatialIndex, TileGranularities}
 import org.locationtech.jts.geom.{Geometry, IntersectionMatrix}
-import org.locationtech.jts.operation.union.UnaryUnionOp
 import utils.configuration.Constants.Relation.Relation
 import utils.geometryUtils.EnvelopeOp.EnvelopeIntersectionTypes
 import utils.geometryUtils.EnvelopeOp.EnvelopeIntersectionTypes.EnvelopeIntersectionTypes
-import utils.geometryUtils.{EnvelopeOp, GridFragmentation}
+import utils.geometryUtils.{EnvelopeOp, decompose}
+import utils.geometryUtils.decompose.GridDecomposer
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
-import collection.JavaConverters._
 
 case class IndexedFragmentedEntity(originalID: String, geometry: Geometry, fragments: Array[Geometry], index: SpatialIndex[Geometry]) extends Entity {
 
@@ -113,15 +111,16 @@ case class IndexedFragmentedEntity(originalID: String, geometry: Geometry, fragm
 
 
 object IndexedFragmentedEntity{
-
     def apply(e: Entity, theta: TileGranularities): IndexedFragmentedEntity ={
-        val geometryFragments = GridFragmentation.splitBigGeometries(theta)(e.geometry).toArray
+        val decomposer = GridDecomposer(theta)
+        val geometryFragments = decomposer.splitBigGeometries(e.geometry).toArray
         val index = SpatialIndex(geometryFragments, theta)
         IndexedFragmentedEntity(e.originalID, e.geometry, geometryFragments, index)
     }
 
     def apply(id: String, geometry: Geometry, theta: TileGranularities): IndexedFragmentedEntity = {
-        val geometryFragments = GridFragmentation.splitBigGeometries(theta)(geometry).toArray
+        val decomposer = decompose.GridDecomposer(theta)
+        val geometryFragments = decomposer.splitBigGeometries(geometry).toArray
         val index = SpatialIndex(geometryFragments, theta)
         IndexedFragmentedEntity(id, geometry, geometryFragments, index)
     }

@@ -1,4 +1,4 @@
-package utils.geometryUtils
+package utils.geometryUtils.decompose
 
 import model.TileGranularities
 import org.locationtech.jts.geom._
@@ -6,13 +6,10 @@ import org.locationtech.jts.operation.polygonize.Polygonizer
 import org.locationtech.jts.operation.union.UnaryUnionOp
 import org.locationtech.jts.precision.GeometryPrecisionReducer
 import utils.geometryUtils.GeometryUtils.flattenCollection
+import collection.JavaConverters._
 
-import scala.collection.JavaConverters._
 
-object GridFragmentation {
-    val geometryFactory = new GeometryFactory()
-    val epsilon: Double = 1e-8
-    val xYEpsilon: (Double, Double) =  (epsilon, 0d)
+case class GridDecomposer(theta: TileGranularities) extends DecomposerT {
 
     val geometryPrecision = 1e+11
     val precisionModel = new PrecisionModel(geometryPrecision)
@@ -21,11 +18,11 @@ object GridFragmentation {
     precisionReducer.setChangePrecisionModel(true)
 
 
-    def splitBigGeometries(theta: TileGranularities)(geometry: Geometry) : Seq[Geometry] = {
+    def splitBigGeometries(geometry: Geometry) : Seq[Geometry] = {
         geometry match {
-            case polygon: Polygon => splitPolygon(polygon, theta)
-            case line: LineString => splitLineString(line, theta)
-            case gc: GeometryCollection => flattenCollection(gc).flatMap(g => splitBigGeometries(theta)(g))
+            case polygon: Polygon => splitPolygon(polygon)
+            case line: LineString => splitLineString(line)
+            case gc: GeometryCollection => flattenCollection(gc).flatMap(g => splitBigGeometries(g))
             case _ => Seq(geometry)
         }
     }
@@ -120,7 +117,7 @@ object GridFragmentation {
     }
 
 
-    def splitPolygon(polygon: Polygon, theta: TileGranularities): Seq[Geometry] = {
+    def splitPolygon(polygon: Polygon): Seq[Geometry] = {
 
         def split(polygon: Polygon): Seq[Geometry] = {
             val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
@@ -151,7 +148,7 @@ object GridFragmentation {
     }
 
 
-    def splitLineString(line: LineString, theta: TileGranularities): Seq[Geometry] = {
+    def splitLineString(line: LineString): Seq[Geometry] = {
 
         def split(line: LineString): Seq[Geometry] = {
             val horizontalBlades = getHorizontalBlades(line, theta.y)

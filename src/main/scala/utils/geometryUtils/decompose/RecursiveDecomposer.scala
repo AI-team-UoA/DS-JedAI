@@ -1,4 +1,4 @@
-package utils.geometryUtils
+package utils.geometryUtils.decompose
 
 import model.TileGranularities
 import org.locationtech.jts.geom._
@@ -7,20 +7,15 @@ import org.locationtech.jts.operation.union.UnaryUnionOp
 import utils.geometryUtils.GeometryUtils.flattenCollection
 
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
+import collection.JavaConverters._
 
-object RecursiveFragmentation {
+case class RecursiveDecomposer(theta: TileGranularities) extends DecomposerT {
 
-    val geometryFactory = new GeometryFactory()
-    val epsilon: Double = 1e-8
-    val xYEpsilon: (Double, Double) =  (epsilon, 0d)
-
-
-    def splitBigGeometries(theta: TileGranularities)(geometry: Geometry): Seq[Geometry] = {
+    def splitBigGeometries(geometry: Geometry): Seq[Geometry] = {
         geometry match {
-            case polygon: Polygon => splitPolygon(polygon, theta)
-            case line: LineString => splitLineString(line, theta)
-            case gc: GeometryCollection => flattenCollection(gc).flatMap(g => splitBigGeometries(theta)(g))
+            case polygon: Polygon => splitPolygon(polygon)
+            case line: LineString => splitLineString(line)
+            case gc: GeometryCollection => flattenCollection(gc).flatMap(g => splitBigGeometries(g))
             case _ => Seq(geometry)
         }
     }
@@ -127,10 +122,9 @@ object RecursiveFragmentation {
      * The width and the height of the produced polygons will not exceed the threshold
      *
      * @param polygon       input polygon
-     * @param theta         tile granularities
      * @return              a seq of smaller polygons
      */
-    def splitPolygon(polygon: Polygon, theta: TileGranularities): Seq[Polygon] = {
+    def splitPolygon(polygon: Polygon): Seq[Geometry] = {
 
         /**
          * Recursively, split the polygons into sub-polygons. The procedure is repeated
@@ -201,10 +195,9 @@ object RecursiveFragmentation {
      * The width and the height of the produced linestrings will not exceed the threshold
      *
      * @param line           input linestring
-     * @param theta         tile granularities
      * @return              a seq of smaller linestring
      */
-    def splitLineString(line: LineString, theta: TileGranularities): Seq[LineString] = {
+    def splitLineString(line: LineString): Seq[Geometry] = {
 
         /**
          * Recursively, split the linestring into sub-lines. The procedure is repeated

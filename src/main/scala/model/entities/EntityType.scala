@@ -7,7 +7,7 @@ import org.locationtech.jts.geom.Geometry
 import utils.configuration.Constants
 import utils.configuration.Constants.EntityTypeENUM
 import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
-import utils.geometryUtils.RecursiveFragmentation
+import utils.geometryUtils.decompose
 
 sealed trait EntityType {
     val entityType: EntityTypeENUM
@@ -39,7 +39,8 @@ case class SpatioTemporalEntityType(pattern: Option[String]) extends EntityType 
 
 case class FragmentedEntityType(tileGranularities: TileGranularities) extends EntityType {
     val entityType: EntityTypeENUM = EntityTypeENUM.FRAGMENTED_ENTITY
-    val fragmentationF: Geometry => Seq[Geometry] = RecursiveFragmentation.splitBigGeometries(tileGranularities)
+    val decomposer = decompose.RecursiveDecomposer(tileGranularities)
+    val fragmentationF: Geometry => Seq[Geometry] = decomposer.splitBigGeometries
     val transform: Geometry => Entity = (geom: Geometry) =>  FragmentedEntity(geom.getUserData.asInstanceOf[String], geom)(fragmentationF)
 }
 
