@@ -40,15 +40,15 @@ object BalancingExp {
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()
 
-        val options = ConfigurationParser.parseCommandLineArguments(args)
-        if (!options.contains("conf")) {
-            log.error("DS-JEDAI: No configuration file!")
-            System.exit(1)
+        val parser = new ConfigurationParser()
+        val configurationOpt = parser.parse(args) match {
+            case Left(errors) =>
+                errors.foreach(e => log.error(e.getMessage))
+                System.exit(1)
+                None
+            case Right(configuration) => Some(configuration)
         }
-
-        val confPath = options("conf")
-        val conf = ConfigurationParser.parse(confPath)
-        conf.combine(options)
+        val conf = configurationOpt.get
 
         val partitions: Int = conf.getPartitions
         val gridType: GridType.GridType = conf.getGridType

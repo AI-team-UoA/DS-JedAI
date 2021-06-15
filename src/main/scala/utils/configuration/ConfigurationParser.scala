@@ -1,37 +1,91 @@
 package utils.configuration
 
 import net.jcazevedo.moultingyaml.{DefaultYamlProtocol, _}
-import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.SparkContext
-import utils.configuration.Constants._
-import utils.configuration.Constants.{ProgressiveAlgorithm, ThetaOption, WeightingFunction, InputConfigurations}
+import utils.configuration.Constants.{InputConfigurations, ProgressiveAlgorithm, ThetaOption, WeightingFunction, _}
 
 /**
  * Yaml parsers
  */
-object ConfigurationYAML extends DefaultYamlProtocol {
-	implicit val DatasetFormat = yamlFormat5(DatasetConfigurations)
-	implicit val ConfigurationFormat = yamlFormat4(Configuration)
-	implicit val DirtyConfigurationFormat = yamlFormat3(DirtyConfiguration)
-}
+
 
 /**
  * Yaml Configuration Parser
  */
-object ConfigurationParser {
+class ConfigurationParser {
+
+	object ConfigurationYAML extends DefaultYamlProtocol {
+		implicit val DatasetFormat = yamlFormat5(DatasetConfigurations)
+		implicit val ConfigurationFormat = yamlFormat4(Configuration)
+		implicit val DirtyConfigurationFormat = yamlFormat3(DirtyConfiguration)
+	}
 
 	import ConfigurationYAML._
-	val log: Logger = LogManager.getRootLogger
+
+	/**
+	 * Parsing input arguments (command line + yaml) into Configuration
+	 *
+	 * @param args command line arguments
+	 * @return either a list of Errors or a Configuration
+	 */
+	def parse(args: Seq[String]): Either[List[ConfigurationErrorMessage], Configuration] =
+		parseCommandLineArguments(args) match {
+			case Left(errors) 		=> Left(errors)
+			case Right(options) 	=>
+				val confPath = options(InputConfigurations.CONF_CONFIGURATIONS)
+				parseConfigurationFile(confPath) match {
+					case Left(errors) 		  => Left(errors)
+					case Right(configuration) =>
+						configuration.combine(options)
+						Right(configuration)
+				}
+		}
 
 
-	def parseCommandLineArguments(args: Seq[String]): Map[String, String] ={
+
+	/**
+	 * Parse Yaml configuration file
+	 * @param confPath path to yaml configuration file
+	 * @return either a list of errors or parsed Configuration
+	 */
+	def parseConfigurationFile(confPath:String): Either[List[ConfigurationErrorMessage], Configuration] ={
+		val yamlStr = SparkContext.getOrCreate().textFile(confPath).collect().mkString("\n")
+		val conf = yamlStr.parseYaml.convertTo[Configuration]
+		checkConfiguration(conf) match {
+			case None 			=> Right(conf)
+			case Some(errors) 	=> Left(errors)
+		}
+	}
+
+
+	/**
+	 * Parse Yaml configuration file fitting for dirty execution
+	 * @param confPath path to yaml configuration file
+	 * @return either a list of errors or parsed Configuration
+	 */
+	def parseDirty(confPath:String): Either[List[ConfigurationErrorMessage], DirtyConfiguration] ={
+		val yamlStr = SparkContext.getOrCreate().textFile(confPath).collect().mkString("\n")
+		val conf = yamlStr.parseYaml.convertTo[DirtyConfiguration]
+		checkConfiguration(conf) match {
+			case None 			=> Right(conf)
+			case Some(errors) 	=> Left(errors)
+		}
+	}
+
+
+	/**
+	 * Parse command line arguments
+	 * @param args command line arguments
+	 * @return either a list of errors or parsed Configuration
+	 */
+	def parseCommandLineArguments(args: Seq[String]): Either[List[ConfigurationErrorMessage], Map[String, String]] ={
 		// Parsing input arguments
 		@scala.annotation.tailrec
 		def nextOption(map: Map[String, String], list: List[String]): Map[String, String] = {
 			list match {
 				case Nil => map
 				case ("-c" | "-conf") :: value :: tail =>
-					nextOption(map ++ Map("conf" -> value), tail)
+					nextOption(map ++ Map(InputConfigurations.CONF_CONFIGURATIONS -> value), tail)
 				case ("-p" | "-partitions") :: value :: tail =>
 					nextOption(map ++ Map(InputConfigurations.CONF_PARTITIONS -> value), tail)
 				case "-gt" :: value :: tail =>
@@ -56,124 +110,94 @@ object ConfigurationParser {
 					nextOption(map ++ Map(InputConfigurations.CONF_TOTAL_VERIFICATIONS -> value), tail)
 				case "-qp" :: value :: tail =>
 					nextOption(map ++ Map(InputConfigurations.CONF_QUALIFYING_PAIRS -> value), tail)
-				case _ :: tail =>
-					log.warn("DS-JEDAI: Unrecognized argument")
-					nextOption(map, tail)
+				case "-dcmpT" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_DECOMPOSITION_THRESHOLD -> value), tail)
+				case key :: tail =>
+					nextOption(Map(InputConfigurations.CONF_UNRECOGNIZED -> key), tail)
 			}
 		}
 
 		val argList = args.toList
-		nextOption(Map(), argList)
+		val conf = nextOption(Map(), argList)
+
+		val errorsOpt: List[Option[ConfigurationErrorMessage]] =  checkConfigurationPath(conf) :: checkConfigurationMap(conf)
+		// ETW: extract errors, transform/clean, wrap them as option
+		val errors: Option[List[ConfigurationErrorMessage]] = Option(errorsOpt.flatten).filter(_.nonEmpty)
+		errors match {
+			case None 			=> Right(conf)
+			case Some(errors) 	=> Left(errors)
+		}
 	}
 
 	/**
-	 * check if the input relation is valid
+	 * Check the input configurations
+	 * @param conf configurations
+	 * @return an Option list of ErrorMessages
+	 */
+	def checkConfiguration(conf: ConfigurationT): Option[List[ConfigurationErrorMessage]] ={
+		val errors: List[Option[ConfigurationErrorMessage]] = conf match {
+			case DirtyConfiguration(source, relation, configurations) =>
+				checkRelation(relation) :: (source.check ::: checkConfigurationMap(configurations))
+			case Configuration(source, target, relation, configurations) =>
+				checkRelation(relation) :: (source.check ::: target.check ::: checkConfigurationMap(configurations))
+		}
+		// ETW: extract errors, transform/clean, wrap them as option
+		Option(errors.flatten).filter(_.nonEmpty)
+	}
+
+	/**
+	 * Check if conf contains the path to the Yaml Configuration file
+	 * @param conf a Map of arguments
+	 * @return an Option ErrorMessage if yaml path is not in the Map of arguments
+	 */
+	def checkConfigurationPath(conf: Map[String, String]): Option[ConfigurationErrorMessage] =
+		conf.get(InputConfigurations.CONF_CONFIGURATIONS) match {
+			case Some(_) => None
+			case None => Some(ConfigurationErrorMessage(s"Path to configuration file is not provided"))
+		}
+
+
+	/**
+	 * Check if the input relation is valid
 	 * @param relation input relation
-	 * @return true if relation is valid
+	 * @return an Option ErrorMessage if the relation is not valid
 	 */
-	def checkRelation(relation: String): Boolean ={
-		val valid = Relation.exists(relation)
-		if (! valid) log.error("DS-JEDAI: Not Supported Relation")
-		valid
-	}
+	def checkRelation(relation: String): Option[ConfigurationErrorMessage] =
+		if (Relation.exists(relation)) None
+		else Some(ConfigurationErrorMessage(s"Relation '$relation' is not supported'"))
 
 
 	/**
-	 * check if the configurations are valid
+	 * Check if the loaded configurations are valid
 	 * @param configurations input configuration
-	 * @return true if configurations are valid
+	 * @return a list of optional errors
 	 */
-	def checkConfigurationMap(configurations: Map[String, String]): Boolean = {
-		configurations.keys.foreach { key =>
+	def checkConfigurationMap(configurations: Map[String, String]): List[Option[ConfigurationErrorMessage]] = {
+		configurations.keys.map { key =>
 			val value = configurations(key)
 			key match {
-				case InputConfigurations.CONF_PARTITIONS =>
-					if (! (value forall Character.isDigit)) {
-						log.error("DS-JEDAI: Partitions must be an Integer")
-						false
-					}
-				case InputConfigurations.CONF_THETA_GRANULARITY =>
-					if (!ThetaOption.exists(value)) {
-						log.error("DS-JEDAI: Not valid measure for theta")
-						false
-					}
-				case InputConfigurations.CONF_BUDGET =>
-					val allDigits = value forall Character.isDigit
-					if (!allDigits) {
-						log.error("DS-JEDAI: Not valid value for budget")
-						false
-					}
-				case InputConfigurations.CONF_PROGRESSIVE_ALG =>
-					if (!ProgressiveAlgorithm.exists(value)) {
-						log.error(s"DS-JEDAI: Prioritization Algorithm \'$value\' is not supported")
-						false
-					}
-				case InputConfigurations.CONF_MAIN_WF | InputConfigurations.CONF_SECONDARY_WF=>
-					if (! WeightingFunction.exists(value)) {
-						log.error(s"DS-JEDAI: Weighting Function \'$value\' is not supported")
-						false
-					}
-				case InputConfigurations.CONF_GRID_TYPE=>
-					if (! GridType.exists(value)){
-						log.error(s"DS-JEDAI: Grid Type \'$value\' is not supported")
-						false
-					}
-
-				case InputConfigurations.CONF_WS=>
-					if (! Constants.checkWS(value)){
-						log.error(s"DS-JEDAI: Weighting Scheme \'$value\' is not supported")
-						false
-					}
-
-				case InputConfigurations.CONF_ENTITY_TYPE=>
-					if (! EntityTypeENUM.exists(value)){
-						log.error(s"DS-JEDAI: Entity Type \'$value\' is not supported")
-						false
-					}
-				case _ =>
+				case InputConfigurations.CONF_PARTITIONS if !(value forall Character.isDigit) =>
+					Some(ConfigurationErrorMessage("Partitions must be an Integer"))
+				case InputConfigurations.CONF_THETA_GRANULARITY if !ThetaOption.exists(value) =>
+					Some(ConfigurationErrorMessage("Not valid measure for theta"))
+				case InputConfigurations.CONF_BUDGET if !(value forall Character.isDigit) =>
+					Some(ConfigurationErrorMessage("Not valid value for budget"))
+				case InputConfigurations.CONF_PROGRESSIVE_ALG if !ProgressiveAlgorithm.exists(value) =>
+					Some(ConfigurationErrorMessage(s"Prioritization Algorithm '$value' is not supported"))
+				case InputConfigurations.CONF_MAIN_WF | InputConfigurations.CONF_SECONDARY_WF if !WeightingFunction.exists(value) =>
+					Some(ConfigurationErrorMessage(s"Weighting Function '$value' is not supported"))
+				case InputConfigurations.CONF_GRID_TYPE if !GridType.exists(value) =>
+					Some(ConfigurationErrorMessage(s"Grid Type '$value' is not supported"))
+				case InputConfigurations.CONF_WS if !Constants.checkWS(value) =>
+					Some(ConfigurationErrorMessage(s"Weighting Scheme '$value' is not supported"))
+				case InputConfigurations.CONF_ENTITY_TYPE if !EntityTypeENUM.exists(value) =>
+					Some(ConfigurationErrorMessage(s"Entity Type '$value' is not supported"))
+				case InputConfigurations.CONF_DECOMPOSITION_THRESHOLD if !(value forall Character.isDigit) =>
+					Some(ConfigurationErrorMessage("Not valid value for threshold"))
+				case InputConfigurations.CONF_UNRECOGNIZED =>
+					Some(ConfigurationErrorMessage(s"Unrecognized argument '$value'"))
+				case _ => None
 			}
-		}
-		true
+		}.toList
 	}
-
-
-	/**
-	 * terminates the process if finds Errors in configuration
-	 * @param conf parsed yaml configuration
-	 */
-	def checkConfigurationsOrTerminate(conf: ConfigurationT): Unit ={
-		val isValid = conf match {
-			case DirtyConfiguration(source, relation, configurations) =>
-				source.check && checkRelation(relation) && checkConfigurationMap(configurations)
-			case Configuration(source, target, relation, configurations) =>
-				source.check && target.check && checkRelation(relation) && checkConfigurationMap(configurations)
-		}
-		if (!isValid) System.exit(1)
-	}
-
-	/**
-	 * parses Yaml file
-	 * @param confPath path to yaml configuration file
-	 * @return parsed Configuration
-	 */
-	def parse(confPath:String): Configuration ={
-		val yamlStr = SparkContext.getOrCreate().textFile(confPath).collect().mkString("\n")
-		val conf = yamlStr.parseYaml.convertTo[Configuration]
-		checkConfigurationsOrTerminate(conf)
-		conf
-	}
-
-
-	/**
-	 * parses Yaml file
-	 * @param confPath path to yaml configuration file
-	 * @return parsed Configuration
-	 */
-	def parseDirty(confPath:String): DirtyConfiguration ={
-		val yamlStr = SparkContext.getOrCreate().textFile(confPath).collect().mkString("\n")
-		val conf = yamlStr.parseYaml.convertTo[DirtyConfiguration]
-		checkConfigurationsOrTerminate(conf)
-		conf
-	}
-
 }

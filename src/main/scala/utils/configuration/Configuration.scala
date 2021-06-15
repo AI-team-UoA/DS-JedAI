@@ -1,6 +1,5 @@
 package utils.configuration
 
-import org.apache.log4j.{LogManager, Logger}
 import org.joda.time.format.DateTimeFormat
 import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
 import utils.configuration.Constants.FileTypes.FileTypes
@@ -14,6 +13,11 @@ import utils.configuration.Constants._
 /**
  * Configuration Interface
  */
+
+case class ConfigurationErrorMessage(message: String){
+    def getMessage: String = s"DS-JEDAI: ERROR - $message"
+}
+
 sealed trait ConfigurationT {
 
     val relation: String
@@ -52,6 +56,8 @@ sealed trait ConfigurationT {
     def getTotalVerifications: Option[Int] = configurations.get(InputConfigurations.CONF_TOTAL_VERIFICATIONS).map(_.toInt)
 
     def getTotalQualifyingPairs: Option[Int] = configurations.get(InputConfigurations.CONF_QUALIFYING_PAIRS).map(_.toInt)
+
+    def getDecompositionThreshold: Int = configurations.getOrElse(InputConfigurations.CONF_DECOMPOSITION_THRESHOLD, "4").toInt
 }
 
 
@@ -139,18 +145,12 @@ case class DatasetConfigurations(path: String, geometryField: String, realIdFiel
      * check if dataset configuration is set correctly
      * @return true f dataset configuration is set correctly
      */
-    def check:Boolean ={
-        val pathCheck = path.nonEmpty
-        val dateCheck = checkDateField
-        val idCheck = checkIdField
-        val geometryCheck = checkGeometryField
+    def check: List[Option[ConfigurationErrorMessage]] ={
+        val pathCheck = if (path.nonEmpty) None else Some(ConfigurationErrorMessage(s"Input path  '$path' is not defined"))
+        val dateCheck = if (checkDateField) None else Some(ConfigurationErrorMessage(s"Date field is not set correctly"))
+        val idCheck = if (checkIdField) None else Some(ConfigurationErrorMessage(s"Id field is not set correctly"))
+        val geometryCheck = if (checkGeometryField) None else Some(ConfigurationErrorMessage("Geometry field is not set correctly"))
 
-        val log: Logger = LogManager.getRootLogger
-        if (!pathCheck) log.error(s"DS-JEDAI: Input path is not defined")
-        if (!dateCheck) log.error(s"DS-JEDAI: Date field is not set correctly")
-        if (!idCheck) log.error(s"DS-JEDAI: ID field is not set correctly")
-        if (!geometryCheck) log.error(s"DS-JEDAI: Geometry field is not set correctly")
-
-        pathCheck && dateCheck && idCheck && geometryCheck
+        pathCheck :: dateCheck :: idCheck :: geometryCheck :: Nil
     }
 }

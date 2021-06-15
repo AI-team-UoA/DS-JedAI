@@ -37,15 +37,15 @@ object GiantExp {
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()
 
-        val options = ConfigurationParser.parseCommandLineArguments(args)
-        if (!options.contains("conf")) {
-            log.error("DS-JEDAI: No configuration file!")
-            System.exit(1)
+        val parser = new ConfigurationParser()
+        val configurationOpt = parser.parse(args) match {
+            case Left(errors) =>
+                errors.foreach(e => log.error(e.getMessage))
+                System.exit(1)
+                None
+            case Right(configuration) => Some(configuration)
         }
-
-        val confPath = options("conf")
-        val conf = ConfigurationParser.parse(confPath)
-        conf.combine(options)
+        val conf = configurationOpt.get
 
         val partitions: Int = conf.getPartitions
         val gridType: GridType.GridType = conf.getGridType
@@ -53,6 +53,7 @@ object GiantExp {
         val printCount = conf.measureStatistic
         val output: Option[String] = conf.getOutputPath
         val entityTypeType: EntityTypeENUM = conf.getEntityType
+        val decompositionT: Int = conf.getDecompositionThreshold
         val startTime = Calendar.getInstance().getTimeInMillis
 
         log.info(s"GridType: $gridType")
@@ -68,13 +69,13 @@ object GiantExp {
         val approximateSourceCount = partitioner.approximateCount
         val theta = TileGranularities(sourceSpatialRDD.rawSpatialRDD.rdd.map(_.getEnvelopeInternal), approximateSourceCount, conf.getTheta)
 
-        val sourceEntityType: EntityType = EntityTypeFactory.get(entityTypeType, theta*5, conf.source.datePattern)
+        val sourceEntityType: EntityType = EntityTypeFactory.get(entityTypeType, theta*decompositionT, conf.source.datePattern)
         val sourceRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(sourceSpatialRDD, sourceEntityType)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
         val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-        val targetEntityType: EntityType = EntityTypeFactory.get(entityTypeType, theta*5, conf.target.datePattern)
+        val targetEntityType: EntityType = EntityTypeFactory.get(entityTypeType, theta*decompositionT, conf.target.datePattern)
         val targetRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(targetSpatialRDD, targetEntityType)
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis

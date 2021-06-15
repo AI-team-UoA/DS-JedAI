@@ -93,6 +93,7 @@ object Constants {
 	 */
 	object InputConfigurations extends Enumeration {
 		type YamlConfiguration = String
+		val CONF_CONFIGURATIONS = "configurations"
 		val CONF_PARTITIONS = "partitions"
 		val CONF_THETA_GRANULARITY = "thetaGranularity"
 		val CONF_PROGRESSIVE_ALG = "progressiveAlgorithm"
@@ -104,8 +105,10 @@ object Constants {
 		val CONF_OUTPUT = "outputPath"
 		val CONF_ENTITY_TYPE = "entityType"
 		val CONF_STATISTICS = "stats"
-		val CONF_TOTAL_VERIFICATIONS ="totalVerifications"
-		val CONF_QUALIFYING_PAIRS ="qualifyingPairs"
+		val CONF_TOTAL_VERIFICATIONS = "totalVerifications"
+		val CONF_QUALIFYING_PAIRS = "qualifyingPairs"
+		val CONF_DECOMPOSITION_THRESHOLD = "decompositionThreshold"
+		val CONF_UNRECOGNIZED = "unrecognized"
 	}
 
 	object GridType extends Enumeration{

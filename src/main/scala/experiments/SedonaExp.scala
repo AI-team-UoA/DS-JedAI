@@ -31,29 +31,18 @@ object SedonaExp {
        SedonaSQLRegistrator.registerAll(spark)
 
         // Parsing input arguments
-        @scala.annotation.tailrec
-        def nextOption(map: OptionMap, list: List[String]): OptionMap = {
-            list match {
-                case Nil => map
-                case ("-c" | "-conf") :: value :: tail =>
-                    nextOption(map ++ Map("conf" -> value), tail)
-                case ("-p" | "-partitions") :: value :: tail =>
-                    nextOption(map ++ Map("partitions" -> value), tail)
-                case _ :: tail =>
-                    log.warn("DS-JEDAI: Unrecognized argument")
-                    nextOption(map, tail)
-            }
+        val parser = new ConfigurationParser()
+        val configurationOpt = parser.parse(args) match {
+            case Left(errors) =>
+                errors.foreach(e => log.error(e.getMessage))
+                System.exit(1)
+                None
+            case Right(configuration) => Some(configuration)
         }
-        val startTime = Calendar.getInstance().getTimeInMillis
-
-        val arglist = args.toList
-        type OptionMap = Map[String, String]
-        val options = nextOption(Map(), arglist)
-
-        val conf_path = options("conf")
-        val conf = ConfigurationParser.parse(conf_path)
-        val partitions: Int = if (options.contains("partitions")) options("partitions").toInt else conf.getPartitions
+        val conf = configurationOpt.get
+        val partitions: Int = conf.getPartitions
         val relation = conf.getRelation
+        val startTime = Calendar.getInstance().getTimeInMillis
 
         val delimiter = conf.source.getExtension match {
             case FileTypes.CSV => ","
