@@ -20,7 +20,9 @@ case class FineGrainedEntity(originalID: String, geometry: Geometry, fineGrained
         se match {
             case fge: FineGrainedEntity =>
                 EnvelopeOp.checkIntersection(env, fge.env, Relation.INTERSECTS) &&
-                    (EnvelopeOp.checkIntersection(env, fge.env, Relation.CONTAINS) || envelopeIntersection(fge.fineGrainedEnvelopes))
+                    (EnvelopeOp.checkIntersection(env, fge.env, Relation.CONTAINS) ||
+                        EnvelopeOp.checkIntersection(env, fge.env, Relation.WITHIN) ||
+                        envelopeIntersection(fge.fineGrainedEnvelopes))
 
             case e: Entity =>
                 EnvelopeOp.checkIntersection(env, e.env, Relation.INTERSECTS) &&
