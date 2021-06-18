@@ -10,9 +10,9 @@ case class FineGrainedEntity(originalID: String, geometry: Geometry, fineGrained
 
 
     def envelopeIntersection(envelopes: Seq[Envelope]): Boolean ={
-        val intersections: Iterator[Boolean] = for (e1 <- fineGrainedEnvelopes.iterator; e2 <- envelopes.iterator)
-            yield{ EnvelopeOp.checkIntersection(e1, e2, Relation.INTERSECTS)}
-        intersections.contains(true)
+        for (e1 <- fineGrainedEnvelopes; e2 <- envelopes; if EnvelopeOp.checkIntersection(e1, e2, Relation.INTERSECTS))
+              return true
+        false
     }
 
 

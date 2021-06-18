@@ -1,13 +1,15 @@
 package utils.geometryUtils
 
 import model.TileGranularities
-import org.locationtech.jts.geom.{Coordinate, Envelope, Geometry, GeometryFactory, LineString, Point, Polygon}
+import org.locationtech.jts.geom.{Coordinate, Envelope, Geometry, GeometryFactory, LineString, Point}
 import utils.configuration.Constants.Relation
 import utils.configuration.Constants.Relation.Relation
 import utils.geometryUtils.EnvelopeOp.EnvelopeIntersectionTypes.EnvelopeIntersectionTypes
 
 import scala.collection.immutable
 import scala.collection.mutable.ListBuffer
+import math._
+
 
 object EnvelopeOp {
 
@@ -77,10 +79,26 @@ object EnvelopeOp {
 
     def getFineGrainedEnvelope(geom: Geometry, theta: TileGranularities): List[Envelope] ={
 
+        def getSplitGranularity(env: Envelope): TileGranularities = {
+            val log: (Int, Int) => Double = (x, b) => math.log10(x)/math.log10(b)
+
+            val xTimes = ceil(env.getWidth / theta.x).toInt
+            val xTimesAdjusted = math.ceil((1/log(200, xTimes+1)) * xTimes)
+            val xRatio = xTimesAdjusted/xTimes
+
+
+            val yTimes = ceil(env.getHeight / theta.y).toInt
+            val yTimesAdjusted = math.ceil((1/log(200, yTimes+1)) * yTimes)
+            val yRatio = yTimesAdjusted/yTimes
+
+            theta * (xRatio, yRatio)
+        }
+
         val env = geom.getEnvelopeInternal
         if (env.getWidth > theta.x || env.getHeight > theta.y) {
+            val splitTheta = getSplitGranularity(env)
 
-            val fineGrainedEnvelopes = envelopeSplit(Left(geom), theta*0.5)
+            val fineGrainedEnvelopes = envelopeSplit(Left(geom), splitTheta)
 
 //            geom match {
 //                case _: Polygon =>
