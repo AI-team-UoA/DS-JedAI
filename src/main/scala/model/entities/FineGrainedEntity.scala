@@ -20,17 +20,12 @@ case class FineGrainedEntity(originalID: String, geometry: Geometry, fineGrained
         se match {
             case fge: FineGrainedEntity =>
                 EnvelopeOp.checkIntersection(env, fge.env, Relation.INTERSECTS) &&
-                    (EnvelopeOp.checkIntersection(env, fge.env, Relation.CONTAINS) ||
-                        EnvelopeOp.checkIntersection(env, fge.env, Relation.WITHIN) ||
-                        envelopeIntersection(fge.fineGrainedEnvelopes))
+                        envelopeIntersection(fge.fineGrainedEnvelopes)
 
             case e: Entity =>
                 EnvelopeOp.checkIntersection(env, e.env, Relation.INTERSECTS) &&
-                    (EnvelopeOp.checkIntersection(env, e.env, Relation.CONTAINS) ||
-                        EnvelopeOp.checkIntersection(env, e.env, Relation.WITHIN) ||
-                        envelopeIntersection(Seq(e.env)))
+                        envelopeIntersection(Seq(e.env))
         }
-
 }
 
 object FineGrainedEntity{

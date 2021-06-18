@@ -7,7 +7,10 @@ import org.scalatest.wordspec.AnyWordSpec
 import utils.configuration.Constants.ThetaOption
 import utils.geometryUtils.{EnvelopeOp, GeometryUtils, decompose}
 import TestingGeometries._
+import org.locationtech.jts.operation.union.UnaryUnionOp
 import utils.geometryUtils.decompose.{GridDecomposer, RecursiveDecomposer}
+import collection.JavaConverters._
+
 
 class FragmentationTest extends AnyWordSpec {
 
@@ -195,18 +198,18 @@ class FragmentationTest extends AnyWordSpec {
 
 
     "Envelope Fragmentation" should {
-        val geometries = lineStrings ++ polygons ++ geometryCollections
+        val geometries = polygons ++ geometryCollections
         val theta = TileGranularities(geometries.map(p => p.getEnvelopeInternal), geometries.length, ThetaOption.AVG_x2)
         "Produce smaller Envelopes" in {
             assert(
                 geometries.forall { g =>
                     val envelopes: Seq[Geometry] = EnvelopeOp.getFineGrainedEnvelope(g, theta).map(e => geomFactory.toGeometry(e))
                     val env = geomFactory.toGeometry(g.getEnvelopeInternal)
-                    val envelopesArea = envelopes.map(e => e.getArea).sum
+                    val unionedEnv = UnaryUnionOp.union(envelopes.asJava)
+                    val envelopesArea = unionedEnv.getArea
                     envelopesArea <= env.getArea
                 }
             )
         }
-
     }
 }
