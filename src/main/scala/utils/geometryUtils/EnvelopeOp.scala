@@ -15,7 +15,7 @@ object EnvelopeOp {
 
     val epsilon: Double = 1e-8
     val geometryFactory = new GeometryFactory()
-    val SPLIT_CONST: Int = 200
+    val SPLIT_LOG_BASE: Int = 50
 
     def checkIntersection(env1: Envelope, env2: Envelope, relation: Relation): Boolean = {
         relation match {
@@ -84,13 +84,13 @@ object EnvelopeOp {
             val log: (Int, Int) => Double = (x, b) => math.log10(x)/math.log10(b)
 
             val xTimes = ceil(env.getWidth / theta.x).toInt
-            val xTimesAdjusted = math.ceil((1/log(xTimes+1, SPLIT_CONST)) * xTimes)
-            val xRatio = xTimesAdjusted/xTimes
+            val xTimesAdjusted = math.ceil((1/log(xTimes+1, SPLIT_LOG_BASE)) * xTimes)
+            val xRatio = xTimes/xTimesAdjusted
 
 
             val yTimes = ceil(env.getHeight / theta.y).toInt
-            val yTimesAdjusted = math.ceil((1/log(yTimes+1, SPLIT_CONST)) * yTimes)
-            val yRatio = yTimesAdjusted/yTimes
+            val yTimesAdjusted = math.ceil((1/log(yTimes+1, SPLIT_LOG_BASE)) * yTimes)
+            val yRatio = yTimes/yTimesAdjusted
 
             theta * (xRatio, yRatio)
         }
