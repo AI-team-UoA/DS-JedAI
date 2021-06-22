@@ -15,7 +15,7 @@ object EnvelopeOp {
 
     val epsilon: Double = 1e-8
     val geometryFactory = new GeometryFactory()
-    val SPLIT_LOG_BASE: Int = 50
+    val SPLIT_LOG_BASE: Int = 10
 
     def checkIntersection(env1: Envelope, env2: Envelope, relation: Relation): Boolean = {
         relation match {
