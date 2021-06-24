@@ -18,7 +18,7 @@ import org.locationtech.jts.geom.Geometry
 import utils.Utils
 import utils.configuration.ConfigurationParser
 import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
-import utils.configuration.Constants.{GridType, Relation}
+import utils.configuration.Constants.{EntityTypeENUM, GridType, Relation}
 import utils.readers.{GridPartitioner, Reader}
 
 object GiantExp {
@@ -59,6 +59,8 @@ object GiantExp {
         log.info(s"GridType: $gridType")
         log.info(s"Relation: $relation")
         log.info(s"Entity Type: $entityTypeType")
+        if(entityTypeType == EntityTypeENUM.FINEGRAINED_ENTITY) log.info(s"Decomposition Thrαυτeshold: $decompositionT ")
+
 
         // load datasets
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)

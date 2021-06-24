@@ -1,13 +1,12 @@
 package utils.geometryUtils
 
 import model.TileGranularities
-import org.locationtech.jts.geom.{Coordinate, Envelope, Geometry, GeometryFactory, LineString, Point}
+import org.locationtech.jts.geom.{Coordinate, Envelope, Geometry, GeometryFactory, Point}
 import utils.configuration.Constants.Relation
 import utils.configuration.Constants.Relation.Relation
 import utils.geometryUtils.EnvelopeOp.EnvelopeIntersectionTypes.EnvelopeIntersectionTypes
 
-import scala.collection.immutable
-import scala.collection.mutable.ListBuffer
+import scala.collection.SortedSet
 import math._
 
 
@@ -15,7 +14,7 @@ object EnvelopeOp {
 
     val epsilon: Double = 1e-8
     val geometryFactory = new GeometryFactory()
-    val SPLIT_LOG_BASE: Int = 10
+    val SPLIT_LOG_BASE: Int = 50
 
     def checkIntersection(env1: Envelope, env2: Envelope, relation: Relation): Boolean = {
         relation match {
@@ -99,7 +98,7 @@ object EnvelopeOp {
         if (env.getWidth > theta.x || env.getHeight > theta.y) {
             val splitTheta = getSplitGranularity(env)
 
-            val fineGrainedEnvelopes = envelopeSplit(Left(geom), splitTheta)
+            val fineGrainedEnvelopes = envelopeSplit(geom, splitTheta)
 
 //            geom match {
 //                case _: Polygon =>
@@ -127,8 +126,7 @@ object EnvelopeOp {
     }
 
 
-    def envelopeSplit(geom: Either[Geometry, Envelope], theta: TileGranularities): List[Envelope] ={
-
+    def envelopeSplit(geom: Geometry, theta: TileGranularities): List[Envelope] ={
         case class MBR(var minX: Double = Double.PositiveInfinity, var maxX: Double = Double.NegativeInfinity,
                        var minY: Double = Double.PositiveInfinity, var maxY: Double = Double.NegativeInfinity){
 
@@ -141,68 +139,41 @@ object EnvelopeOp {
             def getEnvelope: Envelope = new Envelope(minX, maxX, minY, maxY)
             def getGeometry: Geometry = geometryFactory.toGeometry(getEnvelope)
             def isEmpty: Boolean = minX == Double.PositiveInfinity || maxX == Double.NegativeInfinity ||
-                                    minY == Double.PositiveInfinity || maxY == Double.NegativeInfinity
+                minY == Double.PositiveInfinity || maxY == Double.NegativeInfinity
         }
 
-        @scala.annotation.tailrec
-        def getCenterPoints(points: List[Double], threshold: Double, accumulatedPoints: ListBuffer[Double]): List[Double] ={
-            points match {
-                case start :: end :: tail if math.abs(end - start) > threshold =>
-                    val mid = (start + end) / 2
-                    getCenterPoints(start :: mid :: end :: tail, threshold, accumulatedPoints)
-                case start :: end :: tail =>
-                    accumulatedPoints.appendAll( start :: end :: Nil)
-                    getCenterPoints(tail, threshold, accumulatedPoints)
-                case last :: Nil =>
-                    accumulatedPoints.append(last)
-                    accumulatedPoints.toList
-                case Nil =>
-                    accumulatedPoints.toList
-            }
-        }
+        val env: Envelope = geom.getEnvelopeInternal
 
-        val env: Envelope = geom match {
-            case Right(e) => e
-            case Left(g) => g.getEnvelopeInternal
-        }
+        val verticalPointsSeq: Seq[Double] = GeometryUtils.getCenterPoints(List(env.getMinX, env.getMaxX), theta.x)
+        val verticalPoints: SortedSet[Double] = collection.SortedSet(verticalPointsSeq: _*)
+        val horizontalPointsSeq: Seq[Double] = GeometryUtils.getCenterPoints(List(env.getMinY, env.getMaxY), theta.y)
+        val horizontalPoints: SortedSet[Double] = collection.SortedSet(horizontalPointsSeq: _*)
 
-        val verticalPoints: Seq[Double] = getCenterPoints(List(env.getMinX, env.getMaxX), theta.x, new ListBuffer[Double])
-        val horizontalPoints: immutable.Seq[Double] = getCenterPoints(List(env.getMinY, env.getMaxY), theta.y, new ListBuffer[Double])
-
-        val coordinates: Seq[Coordinate] = geom match {
-            case Left(g) =>
-                val verticalBlades: Seq[LineString] = verticalPoints
-                    .map(x => Array(new Coordinate(x, env.getMinY-epsilon), new Coordinate(x, env.getMaxY+epsilon)))
-                    .map(coords => GeometryUtils.geomFactory.createLineString(coords))
-                val horizontalBlades: Seq[LineString] = horizontalPoints
-                    .map(y => Array(new Coordinate(env.getMinX-epsilon, y), new Coordinate(env.getMaxX+epsilon, y)))
-                    .map(coords => GeometryUtils.geomFactory.createLineString(coords))
-
-                val intersectionPoints = (horizontalBlades ++ verticalBlades).flatMap(blade => g.intersection(blade).getCoordinates)
-                g.getCoordinates ++ intersectionPoints
-
-            case Right(e) =>
-                val verticalIntersectionPoints = verticalPoints.flatMap(x => Seq(new Coordinate(x, e.getMinY), new Coordinate(x, e.getMaxY)))
-                val horizontalIntersectionPoints = horizontalPoints.flatMap(y => Seq(new Coordinate(e.getMinX, y), new Coordinate(e.getMaxX, y)))
-                val envCoordinates = Seq(
-                    new Coordinate(e.getMinX, e.getMinY), new Coordinate(e.getMinX, e.getMaxY),
-                    new Coordinate(e.getMaxX, e.getMaxY), new Coordinate(e.getMaxX, e.getMinY)
-                )
-                verticalIntersectionPoints ++ horizontalIntersectionPoints ++ envCoordinates
-        }
-
-        val regionsConditions: Array[(Double, Double) => Boolean] = (
+        val regionsConditions: Array[((Double, Double) => Boolean, Int)] = (
             for (x <- verticalPoints.sliding(2);
                  y <- horizontalPoints.sliding(2)) yield {
                 (x1: Double, y1: Double) => x1 >= x.head && x1 <= x.last && y1 >= y.head && y1 <= y.last
-            }).toArray
+            }).zipWithIndex.toArray
 
         val envelopes: Array[MBR] = Array.fill(regionsConditions.length)(MBR())
-        for (c <- coordinates){
-            val regionIndices: Seq[Int] = regionsConditions.zipWithIndex.filter{case (cond, i) => cond(c.x, c.y)}.map(_._2)
-            regionIndices.foreach(i => envelopes(i).update(c.x, c.y))
-        }
+        for (c <- geom.getCoordinates.sliding(2)){
+            val c1 = c.head
+            val c2 = c.last
 
+            val (maxX, minX) = if (c1.x > c2.x) (c1.x, c2.x) else (c2.x, c1.x)
+            val vp = verticalPoints.from(minX).to(maxX)
+            val intersectingVerticalPoints = GeometryUtils.getVerticalIntersectingPoints(c1, c2, vp).toList
+
+            val (maxY, minY) = if (c1.y > c2.y) (c1.y, c2.y) else (c2.y, c1.y)
+            val hp = horizontalPoints.from(minY).to(maxY)
+            val intersectingHorizontalPoints = GeometryUtils.getHorizontalIntersectingPoints(c1, c2, hp).toList
+
+            val allPoints = c1 +: (intersectingHorizontalPoints ::: intersectingVerticalPoints) :+ c2
+            for (p <- allPoints){
+                regionsConditions.filter{case (cond, _) => cond(p.x, p.y)}
+                    .foreach{ case (_, i) => envelopes(i).update(p.x, p.y)}
+            }
+        }
         envelopes.filter(! _.isEmpty).map(e => e.getEnvelope).toList
     }
 }
