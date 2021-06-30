@@ -2,10 +2,11 @@
 
 import model.entities.{IndexedFragmentedEntity, SpatialEntity}
 import model.{IM, SpatialIndex, TileGranularities}
-import org.locationtech.jts.geom.GeometryFactory
+import org.locationtech.jts.geom.{Geometry, GeometryFactory}
 import org.locationtech.jts.io.WKTReader
 import org.scalatest.wordspec.AnyWordSpec
 import utils.configuration.Constants.ThetaOption
+import utils.geometryUtils.decompose.GridDecomposer
 
 class IntersectionMatrixTest extends AnyWordSpec  {
 
@@ -16,9 +17,10 @@ class IntersectionMatrixTest extends AnyWordSpec  {
     val target: Seq[SpatialEntity] = TestingGeometries.target.zipWithIndex.map{ case (g, i) => SpatialEntity(i.toString, g)}
 
     val theta: TileGranularities = TileGranularities(source.map(_.env), source.length, ThetaOption.AVG_x2)
-    val theta_ : TileGranularities = theta * (1/2)
-    val fSource: Seq[IndexedFragmentedEntity] = source.map(e => IndexedFragmentedEntity(e, theta))
-    val fTarget: Seq[IndexedFragmentedEntity] = target.map(e => IndexedFragmentedEntity(e, theta))
+    val decomposer: GridDecomposer = GridDecomposer(theta)
+    val fragmentationF: Geometry => Seq[Geometry] = decomposer.decomposeGeometry
+    val fSource: Seq[IndexedFragmentedEntity] = source.map(e => IndexedFragmentedEntity(e, theta, fragmentationF))
+    val fTarget: Seq[IndexedFragmentedEntity] = target.map(e => IndexedFragmentedEntity(e, theta, fragmentationF))
 
     val index: SpatialIndex[IndexedFragmentedEntity] = SpatialIndex[IndexedFragmentedEntity](fSource.toArray, theta)
 

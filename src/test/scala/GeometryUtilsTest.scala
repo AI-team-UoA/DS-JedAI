@@ -22,17 +22,17 @@ class GeometryUtilsTest extends AnyWordSpec {
     "getHorizontalIntersectingPoints" should {
         "return (3,3) and (5,5) when being intersected with y=3 and y=5" in {
             val targetResults = List(new Coordinate(3, 3), new Coordinate(5, 5))
-            val points = GeometryUtils.getHorizontalIntersectingPoints(new Coordinate(2, 2), new Coordinate(6, 6), List(3, 5))
+            val points = GeometryUtils.getIntersectionWithHorizontalLine(new Coordinate(2, 2), new Coordinate(6, 6), List(3, 5))
             assert(points == targetResults)
         }
         "return (x,y) if input segments are perpendicular" in {
             val targetResults = List(new Coordinate(2,3), new Coordinate(2,5))
-            val points = GeometryUtils.getHorizontalIntersectingPoints(new Coordinate(2,2), new Coordinate(2, 6), List(3, 5))
+            val points = GeometryUtils.getIntersectionWithHorizontalLine(new Coordinate(2,2), new Coordinate(2, 6), List(3, 5))
             assert(points == targetResults)
         }
         "return Nil if input segments are also horizontal" in {
             val targetResults = Nil
-            val points = GeometryUtils.getHorizontalIntersectingPoints(new Coordinate(2,2), new Coordinate(6,2), List(3, 5))
+            val points = GeometryUtils.getIntersectionWithHorizontalLine(new Coordinate(2,2), new Coordinate(6,2), List(3, 5))
             assert(points == targetResults)
         }
     }
@@ -40,17 +40,17 @@ class GeometryUtilsTest extends AnyWordSpec {
     "getVerticalIntersectingPoints" should {
         "return (3,3) and (5,5) when being intersected with x=3 and x=5" in {
             val targetResults = List(new Coordinate(3,3), new Coordinate(5, 5))
-            val points = GeometryUtils.getVerticalIntersectingPoints(new Coordinate(2,2), new Coordinate(6,6), List(3, 5))
+            val points = GeometryUtils.getIntersectionWithVerticalLine(new Coordinate(2,2), new Coordinate(6,6), List(3, 5))
             assert(points == targetResults)
         }
         "return (x,y) if input segments are perpendicular" in {
             val targetResults = List(new Coordinate(3,2), new Coordinate(5,2))
-            val points = GeometryUtils.getVerticalIntersectingPoints(new Coordinate(2,2), new Coordinate(6,2), List(3, 5))
+            val points = GeometryUtils.getIntersectionWithVerticalLine(new Coordinate(2,2), new Coordinate(6,2), List(3, 5))
             assert(points == targetResults)
         }
         "return Nil if input segments are also vertical" in {
             val targetResults = Nil
-            val points = GeometryUtils.getVerticalIntersectingPoints(new Coordinate(2,2), new Coordinate(2,6), List(3, 5))
+            val points = GeometryUtils.getIntersectionWithVerticalLine(new Coordinate(2,2), new Coordinate(2,6), List(3, 5))
             assert(points == targetResults)
         }
     }

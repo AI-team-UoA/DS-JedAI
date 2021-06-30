@@ -1,0 +1,93 @@
+package utils.geometryUtils.decompose
+
+import org.locationtech.jts.geom.{Coordinate, Envelope, Geometry, LineString, Polygon}
+import utils.geometryUtils.GeometryUtils.geomFactory
+
+trait GridDecomposerT[T] extends DecomposerT[T] {
+
+    def getVerticalBlades(env: Envelope, thetaX: Double): Seq[LineString] = {
+        val minX = env.getMinX
+        val maxX = env.getMaxX
+        val n = math.floor(minX / thetaX) + 1
+        val bladeStart: BigDecimal = BigDecimal(thetaX*n)
+
+        for (x <- bladeStart until maxX by thetaX)
+            yield {
+                val X = x.toDouble
+                geomFactory.createLineString(Array(
+                    new Coordinate(X, env.getMinY - epsilon),
+                    new Coordinate(X, env.getMaxY + epsilon)
+                ))
+            }
+    }
+
+    def getHorizontalBlades(env: Envelope, thetaY: Double): Seq[LineString] = {
+        val minY = env.getMinY
+        val maxY = env.getMaxY
+        val n = math.floor(minY/thetaY) + 1
+        val bladeStart: BigDecimal = BigDecimal(thetaY*n)
+
+        for (y <- bladeStart until maxY by thetaY)
+            yield {
+                val Y = y.toDouble
+                geomFactory.createLineString(Array(
+                    new Coordinate(env.getMinX - epsilon, Y),
+                    new Coordinate(env.getMaxX + epsilon, Y)
+                ))
+            }
+    }
+
+
+    def combineBladeWithInteriorRings(polygon: Polygon, blade: LineString, innerRings: Seq[Geometry], isHorizontal: Boolean): Seq[LineString] = {
+
+        // epsilon is a small value to add in the segments so to slightly intersect thus not result to dangling lines
+        val (xEpsilon, yEpsilon) = if (isHorizontal) xYEpsilon else xYEpsilon.swap
+
+        // the blade is a linestring formed by two points
+        val start = blade.getCoordinateN(0)
+        val end = blade.getCoordinateN(1)
+
+        // define the cross condition based on line's orientation
+        val crossCondition: Envelope => Boolean = if (isHorizontal) env => start.y >= env.getMinY && start.y <= env.getMaxY
+        else env => start.x >= env.getMinX && start.x <= env.getMaxX
+
+        // ordering of the coordinates, to define max and min
+        implicit val ordering: Ordering[Coordinate] = Ordering.by[Coordinate, Double](c => if (isHorizontal) c.x else c.y)
+
+        // sort inner rings envelope by y
+        // find the ones that intersect with the line
+        // for each intersecting inner ring find the intersection coordinates,
+        //   - sort them and get the first and the last,
+        //   - create line segments that do not overlap the inner ring
+        val checkpoint = start
+
+        val segments: Seq[LineString] = innerRings
+            .map(ir => (ir, ir.getEnvelopeInternal))
+            .filter{ case (_, env) => crossCondition(env)}
+            .sortBy{ case (_, env) => if (isHorizontal) env.getMinX else env.getMinY }
+            .flatMap { case (ir, _) =>
+
+                val intersectingCollection = ir.intersection(blade)
+                val intersectionPoints: Seq[Coordinate] = (0 until intersectingCollection.getNumGeometries)
+                    .map(i => intersectingCollection.getGeometryN(i))
+                    .flatMap(g => g.getCoordinates)
+                    .sorted(ordering)
+
+                val segmentsPoints = start +: intersectionPoints :+ end
+                for (point <- segmentsPoints.sliding(2, 2)) yield {
+                    val start = point.head
+                    start.setX(start.x + xEpsilon)
+                    start.setY(start.y + yEpsilon)
+
+                    val end = point.last
+                    end.setX(end.x - xEpsilon)
+                    end.setY(end.y - yEpsilon)
+                    geometryFactory.createLineString(Array(start, end))
+                }
+            }
+
+        // create the last line segment
+        val segment = geometryFactory.createLineString(Array(checkpoint, end))
+        segments :+ segment
+    }
+}

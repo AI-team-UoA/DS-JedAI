@@ -9,13 +9,13 @@ import utils.geometryUtils.GeometryUtils.flattenCollection
 import scala.annotation.tailrec
 import collection.JavaConverters._
 
-case class RecursiveDecomposer(theta: TileGranularities) extends DecomposerT {
+case class RecursiveDecomposer(theta: TileGranularities) extends DecomposerT[Geometry] {
 
-    def splitBigGeometries(geometry: Geometry): Seq[Geometry] = {
+    def decomposeGeometry(geometry: Geometry): Seq[Geometry] = {
         geometry match {
-            case polygon: Polygon => splitPolygon(polygon)
-            case line: LineString => splitLineString(line)
-            case gc: GeometryCollection => flattenCollection(gc).flatMap(g => splitBigGeometries(g))
+            case polygon: Polygon => decomposePolygon(polygon)
+            case line: LineString => decomposeLineString(line)
+            case gc: GeometryCollection => flattenCollection(gc).flatMap(g => decomposeGeometry(g))
             case _ => Seq(geometry)
         }
     }
@@ -124,7 +124,7 @@ case class RecursiveDecomposer(theta: TileGranularities) extends DecomposerT {
      * @param polygon       input polygon
      * @return              a seq of smaller polygons
      */
-    def splitPolygon(polygon: Polygon): Seq[Geometry] = {
+    def decomposePolygon(polygon: Polygon): Seq[Geometry] = {
 
         /**
          * Recursively, split the polygons into sub-polygons. The procedure is repeated
@@ -197,7 +197,7 @@ case class RecursiveDecomposer(theta: TileGranularities) extends DecomposerT {
      * @param line           input linestring
      * @return              a seq of smaller linestring
      */
-    def splitLineString(line: LineString): Seq[Geometry] = {
+    def decomposeLineString(line: LineString): Seq[Geometry] = {
 
         /**
          * Recursively, split the linestring into sub-lines. The procedure is repeated

@@ -12,6 +12,7 @@ object GeometryUtils {
 
     val wktReader = new WKTReader()
     val geomFactory = new GeometryFactory()
+    val epsilon: Double = 1e-8
 
     def flattenCollection(collection: Geometry): Seq[Geometry] =
         for (i <- 0 until collection.getNumGeometries) yield {
@@ -48,7 +49,7 @@ object GeometryUtils {
         getCenterPoints(points, threshold, new ListBuffer[Double]())
     }
 
-    def getHorizontalIntersectingPoints(c1: Coordinate, c2: Coordinate, yes: Iterable[Double]): Iterable[Coordinate] ={
+    def getIntersectionWithHorizontalLine(c1: Coordinate, c2: Coordinate, yes: Iterable[Double]): Iterable[Coordinate] ={
         val (maxY, minY) = if (c1.y > c2.y) (c1.y, c2.y) else (c2.y, c1.y)
         val slopeOpt = Try((c2.y - c1.y) / (c2.x - c1.x)).toOption
         slopeOpt match {
@@ -63,7 +64,8 @@ object GeometryUtils {
             }
     }
 
-    def getVerticalIntersectingPoints(c1: Coordinate, c2: Coordinate, xes: Iterable[Double]): Iterable[Coordinate] ={
+    // y = slope*x + b
+    def getIntersectionWithVerticalLine(c1: Coordinate, c2: Coordinate, xes: Iterable[Double]): Iterable[Coordinate] ={
         val (maxX, minX) = if (c1.x > c2.x) (c1.x, c2.x) else (c2.x, c1.x)
         val slopeOpt = Try((c2.y - c1.y) / (c2.x - c1.x)).toOption
         slopeOpt match {

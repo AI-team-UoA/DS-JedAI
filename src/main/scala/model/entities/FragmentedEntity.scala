@@ -54,15 +54,13 @@ case class FragmentedEntity(originalID: String = "", geometry: Geometry, fragmen
 
 object FragmentedEntity {
 
-    def apply(e: Entity)(f: Geometry => Seq[Geometry]): FragmentedEntity ={
-        val geometryFragments = f(e.geometry)
-        FragmentedEntity(e.originalID, e.geometry, geometryFragments)
+    def apply(e: Entity, decompose: Geometry => Seq[Geometry]): FragmentedEntity ={
+        val fragments = decompose(e.geometry)
+        FragmentedEntity(e.originalID, e.geometry, fragments)
     }
 
-    def apply(originalID: String, geom: Geometry)(f: Geometry => Seq[Geometry]): FragmentedEntity ={
-        val geometry: Geometry = geom
-        val fragments = f(geometry)
-
-        FragmentedEntity(originalID, geometry, fragments)
+    def apply(originalID: String, geom: Geometry, decompose: Geometry => Seq[Geometry]): FragmentedEntity ={
+        val fragments = decompose(geom)
+        FragmentedEntity(originalID, geom, fragments)
     }
 }

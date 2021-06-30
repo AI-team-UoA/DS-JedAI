@@ -5,6 +5,7 @@ import org.locationtech.jts.geom.{Envelope, Geometry}
 import utils.configuration.Constants.Relation
 import utils.configuration.Constants.Relation.Relation
 import utils.geometryUtils.EnvelopeOp
+import utils.geometryUtils.decompose.EnvelopeRefiner
 
 case class FineGrainedEntity(originalID: String, geometry: Geometry, fineGrainedEnvelopes: Seq[Envelope]) extends Entity{
 
@@ -29,7 +30,7 @@ case class FineGrainedEntity(originalID: String, geometry: Geometry, fineGrained
 }
 
 object FineGrainedEntity{
-    def apply(originalID: String, geom: Geometry, theta: TileGranularities): FineGrainedEntity ={
-        FineGrainedEntity(originalID, geom, EnvelopeOp.getFineGrainedEnvelope(geom, theta))
+    def apply(originalID: String, geom: Geometry, theta: TileGranularities, envelopeRefiner: Geometry => Seq[Envelope]): FineGrainedEntity ={
+        FineGrainedEntity(originalID, geom, envelopeRefiner(geom))
     }
 }

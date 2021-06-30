@@ -8,7 +8,8 @@ import utils.configuration.Constants.ThetaOption
 import utils.geometryUtils.{EnvelopeOp, GeometryUtils, decompose}
 import TestingGeometries._
 import org.locationtech.jts.operation.union.UnaryUnionOp
-import utils.geometryUtils.decompose.{GridDecomposer, RecursiveDecomposer}
+import utils.geometryUtils.decompose.{EnvelopeRefiner, GridDecomposer, RecursiveDecomposer}
+
 import collection.JavaConverters._
 
 
@@ -51,7 +52,7 @@ class FragmentationTest extends AnyWordSpec {
            val decomposer = RecursiveDecomposer(theta)
            assert(
                 polygons.forall { p =>
-                    val fragments: Seq[Geometry] = decomposer.splitPolygon(p)
+                    val fragments: Seq[Geometry] = decomposer.decomposePolygon(p)
                     val merged = fragments.foldLeft(emptyPolygon)(_ union _)
                     val diff = math.abs(merged.getArea - p.getArea)
                     diff < delta
@@ -63,7 +64,7 @@ class FragmentationTest extends AnyWordSpec {
             val decomposer = decompose.RecursiveDecomposer(theta)
             assert(
                 lineStrings.forall { l =>
-                    val lineSegments: Seq[Geometry] = decomposer.splitLineString(l)
+                    val lineSegments: Seq[Geometry] = decomposer.decomposeLineString(l)
                     val linesLength: Double = lineSegments.map(_.getLength).sum
                     val diff = math.abs(linesLength - l.getLength)
                     diff < delta
@@ -75,7 +76,7 @@ class FragmentationTest extends AnyWordSpec {
             val decomposer = decompose.RecursiveDecomposer(theta)
             assert(
                 polygonsWithHoles.forall { p =>
-                    val fragments: Seq[Geometry] = decomposer.splitPolygon(p)
+                    val fragments: Seq[Geometry] = decomposer.decomposePolygon(p)
                     val merged = fragments.foldLeft(emptyPolygon)(_ union _)
                     val diff = math.abs(merged.getArea - p.getArea)
                     diff < delta
@@ -92,7 +93,7 @@ class FragmentationTest extends AnyWordSpec {
 
             assert(
                 polygons.forall { p =>
-                    val fragments: Seq[Geometry] = decomposer.splitPolygon(p)
+                    val fragments: Seq[Geometry] = decomposer.decomposePolygon(p)
                     val merged = fragments.foldLeft(emptyPolygon)(_ union _)
                     val diff = math.abs(merged.getArea - p.getArea)
                     diff < delta
@@ -105,7 +106,7 @@ class FragmentationTest extends AnyWordSpec {
 
             assert(
                 lineStrings.forall { l =>
-                    val lineSegments: Seq[Geometry] = decomposer.splitLineString(l)
+                    val lineSegments: Seq[Geometry] = decomposer.decomposeLineString(l)
                     val linesLength: Double = lineSegments.map(_.getLength).sum
                     val diff = math.abs(linesLength - l.getLength)
                     diff < delta
@@ -120,7 +121,7 @@ class FragmentationTest extends AnyWordSpec {
 
             assert(
                 geometries.forall { p =>
-                    val fragments: Seq[Geometry] = decomposer.splitBigGeometries(p)
+                    val fragments: Seq[Geometry] = decomposer.decomposeGeometry(p)
                     val merged = fragments.foldLeft(emptyPolygon)(_ union _)
                     val diff = math.abs(merged.getArea - p.getArea)
                     diff < delta
@@ -138,7 +139,7 @@ class FragmentationTest extends AnyWordSpec {
                 geometries
                     .filter(p => p.getEnvelopeInternal.getWidth > theta.x || p.getEnvelopeInternal.getHeight > theta.y)
                     .forall { g =>
-                        val fragments: Seq[Geometry] = decomposer.splitBigGeometries(g)
+                        val fragments: Seq[Geometry] = decomposer.decomposeGeometry(g)
                         val tiles = fragments.map(f => index.index(f))
                         val tilesG = tiles.map(ts => ts.map(t => tileToPolygon(t, theta)))
                         val res = tiles.forall(_.length == 1)
@@ -155,8 +156,8 @@ class FragmentationTest extends AnyWordSpec {
             val theta = TileGranularities(geometries.map(p => p.getEnvelopeInternal), geometries.length, ThetaOption.AVG_x2)
             val decomposer = decompose.GridDecomposer(theta)
 
-            val fragments1: Seq[Geometry] = decomposer.splitBigGeometries(p1)
-            val fragments2: Seq[Geometry] = decomposer.splitBigGeometries(p2)
+            val fragments1: Seq[Geometry] = decomposer.decomposeGeometry(p1)
+            val fragments2: Seq[Geometry] = decomposer.decomposeGeometry(p2)
 
             val index1 = new SpatialIndex[Geometry](fragments1.toArray, theta)
             val index2 = new SpatialIndex[Geometry](fragments2.toArray, theta)
@@ -175,7 +176,7 @@ class FragmentationTest extends AnyWordSpec {
         "RecursiveFragmentation - support all geometry types" in {
             assert(
                 geometries.forall { g =>
-                    val res: Seq[Geometry] = decomposer.splitBigGeometries(g)
+                    val res: Seq[Geometry] = decomposer.decomposeGeometry(g)
                     val gArea: Double = res.map(_.getArea).sum
                     val diffArea = math.abs(gArea - g.getArea)
                     diffArea < delta
@@ -187,7 +188,7 @@ class FragmentationTest extends AnyWordSpec {
 
             assert(
                 geometries.forall { g =>
-                    val res: Seq[Geometry] = decomposer.splitBigGeometries(g)
+                    val res: Seq[Geometry] = decomposer.decomposeGeometry(g)
                     val gArea: Double = res.map(_.getArea).sum
                     val diffArea = math.abs(gArea - g.getArea)
                     diffArea < delta
@@ -201,9 +202,10 @@ class FragmentationTest extends AnyWordSpec {
         val geometries = polygons ++ geometryCollections
         val theta = TileGranularities(geometries.map(p => p.getEnvelopeInternal), geometries.length, ThetaOption.AVG_x2)
         "Produce smaller Envelopes" in {
+            val refiner = EnvelopeRefiner(theta)
             assert(
                 geometries.forall { g =>
-                    val envelopes: Seq[Geometry] = EnvelopeOp.getFineGrainedEnvelope(g, theta).map(e => geomFactory.toGeometry(e))
+                    val envelopes: Seq[Geometry] = refiner.getFineGrainedEnvelope(g).map(e => geomFactory.toGeometry(e))
                     val env = geomFactory.toGeometry(g.getEnvelopeInternal)
                     val unionedEnv = UnaryUnionOp.union(envelopes.asJava)
                     val envelopesArea = unionedEnv.getArea

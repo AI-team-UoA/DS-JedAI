@@ -9,7 +9,7 @@ import utils.geometryUtils.GeometryUtils.flattenCollection
 import collection.JavaConverters._
 
 
-case class GridDecomposer(theta: TileGranularities) extends DecomposerT {
+case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geometry] {
 
     val geometryPrecision = 1e+11
     val precisionModel = new PrecisionModel(geometryPrecision)
@@ -18,113 +18,24 @@ case class GridDecomposer(theta: TileGranularities) extends DecomposerT {
     precisionReducer.setChangePrecisionModel(true)
 
 
-    def splitBigGeometries(geometry: Geometry) : Seq[Geometry] = {
+    def decomposeGeometry(geometry: Geometry) : Seq[Geometry] = {
         geometry match {
-            case polygon: Polygon => splitPolygon(polygon)
-            case line: LineString => splitLineString(line)
-            case gc: GeometryCollection => flattenCollection(gc).flatMap(g => splitBigGeometries(g))
+            case polygon: Polygon => decomposePolygon(polygon)
+            case line: LineString => decomposeLineString(line)
+            case gc: GeometryCollection => flattenCollection(gc).flatMap(g => decomposeGeometry(g))
             case _ => Seq(geometry)
         }
     }
 
 
-    def getVerticalBlades(geom: Geometry, thetaX: Double): Seq[LineString] = {
-        val env = geom.getEnvelopeInternal
-        val minX = env.getMinX
-        val maxX = env.getMaxX
-        val n = math.floor(minX / thetaX) + 1
-        val bladeStart: BigDecimal = BigDecimal(thetaX*n)
-
-        for (x <- bladeStart until maxX by thetaX)
-            yield {
-                val X = x.toDouble
-                geometryFactory.createLineString(Array(
-                    new Coordinate(X, env.getMinY - epsilon),
-                    new Coordinate(X, env.getMaxY + epsilon)
-                ))
-            }
-    }
-
-    def getHorizontalBlades(geom: Geometry, thetaY: Double): Seq[LineString] = {
-        val env = geom.getEnvelopeInternal
-        val minY = env.getMinY
-        val maxY = env.getMaxY
-        val n = math.floor(minY/thetaY) + 1
-        val bladeStart: BigDecimal = BigDecimal(thetaY*n)
-
-        for (y <- bladeStart until maxY by thetaY)
-            yield {
-                val Y = y.toDouble
-                geometryFactory.createLineString(Array(
-                    new Coordinate(env.getMinX - epsilon, Y),
-                    new Coordinate(env.getMaxX + epsilon, Y)
-                ))
-            }
-    }
-
-
-    def combineBladeWithInteriorRings(polygon: Polygon, blade: LineString, innerRings: Seq[Geometry], isHorizontal: Boolean): Seq[LineString] = {
-
-        // epsilon is a small value to add in the segments so to slightly intersect thus not result to dangling lines
-        val (xEpsilon, yEpsilon) = if (isHorizontal) xYEpsilon else xYEpsilon.swap
-
-        // the blade is a linestring formed by two points
-        val start = blade.getCoordinateN(0)
-        val end = blade.getCoordinateN(1)
-
-        // define the cross condition based on line's orientation
-        val crossCondition: Envelope => Boolean = if (isHorizontal) env => start.y >= env.getMinY && start.y <= env.getMaxY
-                                                     else env => start.x >= env.getMinX && start.x <= env.getMaxX
-
-        // ordering of the coordinates, to define max and min
-        implicit val ordering: Ordering[Coordinate] = Ordering.by[Coordinate, Double](c => if (isHorizontal) c.x else c.y)
-
-        // sort inner rings envelope by y
-        // find the ones that intersect with the line
-        // for each intersecting inner ring find the intersection coordinates,
-        //   - sort them and get the first and the last,
-        //   - create line segments that do not overlap the inner ring
-        var checkpoint = start
-
-        val segments: Seq[LineString] = innerRings
-            .map(ir => (ir, ir.getEnvelopeInternal))
-            .filter{ case (_, env) => crossCondition(env)}
-            .sortBy{ case (_, env) => if (isHorizontal) env.getMinX else env.getMinY }
-            .flatMap { case (ir, _) =>
-
-                val intersectingCollection = ir.intersection(blade)
-                val intersectionPoints: Seq[Coordinate] = (0 until intersectingCollection.getNumGeometries)
-                    .map(i => intersectingCollection.getGeometryN(i))
-                    .flatMap(g => g.getCoordinates)
-                    .sorted(ordering)
-
-                val segmentsPoints = start +: intersectionPoints :+ end
-                for (point <- segmentsPoints.sliding(2, 2)) yield {
-                    val start = point.head
-                    start.setX(start.x + xEpsilon)
-                    start.setY(start.y + yEpsilon)
-
-                    val end = point.last
-                    end.setX(end.x - xEpsilon)
-                    end.setY(end.y - yEpsilon)
-                    geometryFactory.createLineString(Array(start, end))
-                }
-            }
-
-        // create the last line segment
-        val segment = geometryFactory.createLineString(Array(checkpoint, end))
-        segments :+ segment
-    }
-
-
-    def splitPolygon(polygon: Polygon): Seq[Geometry] = {
+    def decomposePolygon(polygon: Polygon): Seq[Geometry] = {
 
         def split(polygon: Polygon): Seq[Geometry] = {
             val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
 
-            val horizontalBlades = getHorizontalBlades(polygon, theta.y)
+            val horizontalBlades = getHorizontalBlades(polygon.getEnvelopeInternal, theta.y)
                 .flatMap(b => combineBladeWithInteriorRings(polygon, b, innerRings, isHorizontal = true))
-            val verticalBlades = getVerticalBlades(polygon, theta.x)
+            val verticalBlades = getVerticalBlades(polygon.getEnvelopeInternal, theta.x)
                 .flatMap(b => combineBladeWithInteriorRings(polygon, b, innerRings, isHorizontal = false))
 
             val blades: Seq[Geometry] = verticalBlades ++ horizontalBlades ++ innerRings
@@ -148,11 +59,11 @@ case class GridDecomposer(theta: TileGranularities) extends DecomposerT {
     }
 
 
-    def splitLineString(line: LineString): Seq[Geometry] = {
+    def decomposeLineString(line: LineString): Seq[Geometry] = {
 
         def split(line: LineString): Seq[Geometry] = {
-            val horizontalBlades = getHorizontalBlades(line, theta.y)
-            val verticalBlades = getVerticalBlades(line, theta.x)
+            val horizontalBlades = getHorizontalBlades(line.getEnvelopeInternal, theta.y)
+            val verticalBlades = getVerticalBlades(line.getEnvelopeInternal, theta.x)
             val blades = geometryFactory.createMultiLineString((verticalBlades ++ horizontalBlades).toArray)
             val lineSegments = line.difference(blades).asInstanceOf[MultiLineString]
             (0 until lineSegments.getNumGeometries).map(i => lineSegments.getGeometryN(i))
