@@ -11,6 +11,7 @@ import org.locationtech.jts.operation.union.UnaryUnionOp
 import utils.geometryUtils.decompose.{EnvelopeRefiner, GridDecomposer, RecursiveDecomposer}
 
 import collection.JavaConverters._
+import scala.io.Source
 
 
 class FragmentationTest extends AnyWordSpec {
@@ -204,9 +205,9 @@ class FragmentationTest extends AnyWordSpec {
         "Produce smaller Envelopes" in {
             val refiner = EnvelopeRefiner(theta)
             assert(
-                geometries.forall { g =>
-                    val envelopes: Seq[Geometry] = refiner.getFineGrainedEnvelope(g).map(e => geomFactory.toGeometry(e))
-                    val env = geomFactory.toGeometry(g.getEnvelopeInternal)
+                geometries.forall { geom =>
+                    val envelopes: Seq[Geometry] = refiner.getFineGrainedEnvelope(geom).map(e => geomFactory.toGeometry(e))
+                    val env = geomFactory.toGeometry(geom.getEnvelopeInternal)
                     val unionedEnv = UnaryUnionOp.union(envelopes.asJava)
                     val envelopesArea = unionedEnv.getArea
                     envelopesArea <= env.getArea

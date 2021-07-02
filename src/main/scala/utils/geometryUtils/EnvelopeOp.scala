@@ -1,7 +1,7 @@
 package utils.geometryUtils
 
 import model.TileGranularities
-import org.locationtech.jts.geom.{Coordinate, Envelope, Geometry, GeometryFactory, LineString, Point, Polygon}
+import org.locationtech.jts.geom.{Coordinate, Envelope, GeometryFactory, Point}
 import utils.configuration.Constants.Relation
 import utils.configuration.Constants.Relation.Relation
 import utils.geometryUtils.EnvelopeOp.EnvelopeIntersectionTypes.EnvelopeIntersectionTypes

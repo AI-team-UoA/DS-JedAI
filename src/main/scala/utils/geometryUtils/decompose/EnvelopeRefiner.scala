@@ -1,7 +1,7 @@
 package utils.geometryUtils.decompose
 
 import model.TileGranularities
-import org.locationtech.jts.geom.{Envelope, Geometry, LineString, Polygon}
+import org.locationtech.jts.geom.{Coordinate, Envelope, Geometry, LineString, LinearRing, Polygon}
 import utils.geometryUtils.GeometryUtils
 
 import scala.collection.SortedSet
@@ -25,13 +25,20 @@ case class EnvelopeRefiner(theta: TileGranularities) extends GridDecomposerT[Env
             val log: (Int, Int) => Double = (x, b) => math.log10(x)/math.log10(b)
 
             val xTimes = ceil(env.getWidth / theta.x).toInt
-            val xTimesAdjusted = math.ceil((1/log(xTimes+1, SPLIT_LOG_BASE)) * xTimes)
-            val xRatio = xTimes/xTimesAdjusted
-
+            val xRatio =
+                if (xTimes != 0){
+                    val xTimesAdjusted = math.ceil((1/log(xTimes+1, SPLIT_LOG_BASE)) * xTimes)
+                    xTimes/xTimesAdjusted
+                }
+                else 1
 
             val yTimes = ceil(env.getHeight / theta.y).toInt
-            val yTimesAdjusted = math.ceil((1/log(yTimes+1, SPLIT_LOG_BASE)) * yTimes)
-            val yRatio = yTimes/yTimesAdjusted
+            val yRatio =
+                if (yTimes != 0){
+                    val yTimesAdjusted = math.ceil((1/log(yTimes+1, SPLIT_LOG_BASE)) * yTimes)
+                    yTimes/yTimesAdjusted
+                }
+                else 1
 
             theta * (xRatio, yRatio)
         }
@@ -39,28 +46,7 @@ case class EnvelopeRefiner(theta: TileGranularities) extends GridDecomposerT[Env
         val env = geom.getEnvelopeInternal
         if (env.getWidth > theta.x || env.getHeight > theta.y) {
             val splitTheta = getSplitGranularity(env)
-
-            val fineGrainedEnvelopes = refineEnvelope(geom, splitTheta)
-            // TODO Clean
-            //            geom match {
-            //                case _: Polygon =>
-            //                    var innerMaxX = fineGrainedEnvelopes.head.getMinX
-            //                    var innerMinX = fineGrainedEnvelopes.head.getMaxX
-            //                    var innerMaxY = fineGrainedEnvelopes.head.getMinY
-            //                    var innerMinY = fineGrainedEnvelopes.head.getMaxY
-            //
-            //                    fineGrainedEnvelopes.tail.foreach { e =>
-            //                        if (e.getMinX > innerMaxX) innerMaxX = e.getMinX
-            //                        if (e.getMaxX < innerMinX) innerMinX = e.getMaxX
-            //                        if (e.getMinY > innerMaxY) innerMaxY = e.getMinY
-            //                        if (e.getMaxY < innerMinY) innerMinY = e.getMaxY
-            //                    }
-            //                    val innerEnv = new Envelope(innerMinX, innerMaxX, innerMinY, innerMaxY)
-            //                    innerEnv :: fineGrainedEnvelopes
-            //                case _ =>
-            //                    fineGrainedEnvelopes
-            //            }
-            fineGrainedEnvelopes
+            refineEnvelope(geom, splitTheta)
         }
         else
             List(env)
@@ -83,20 +69,25 @@ case class EnvelopeRefiner(theta: TileGranularities) extends GridDecomposerT[Env
         }
 
         val env: Envelope = geom.getEnvelopeInternal
-
-        val verticalPointsSeq: Seq[Double] = GeometryUtils.getCenterPoints(List(env.getMinX, env.getMaxX), theta.x)
+        val (verticalPointsSeq,horizontalPointsSeq) =
+        geom match {
+            case _: LineString =>
+                val vertical = env.getMinX +:getVerticalPoints(env, theta.x) :+ env.getMaxX
+                val horizontal= env.getMinY +: getHorizontalPoints(env, theta.y) :+ env.getMaxY
+                (vertical, horizontal)
+            case _ if env.getWidth > env.getHeight =>
+                // cut vertically
+                val vertical = env.getMinX +:getVerticalPoints(env, theta.x) :+ env.getMaxX
+                val horizontal = env.getMinY :: env.getMaxY :: Nil
+                (vertical, horizontal)
+            case _ =>
+                // cut horizontally
+                val vertical = env.getMinX :: env.getMaxX :: Nil
+                val horizontal = env.getMinY +: getHorizontalPoints(env, theta.y) :+ env.getMaxY
+                (vertical, horizontal)
+        }
         val verticalPoints: SortedSet[Double] = collection.SortedSet(verticalPointsSeq: _*)
-        val horizontalPointsSeq: Seq[Double] = GeometryUtils.getCenterPoints(List(env.getMinY, env.getMaxY), theta.y)
         val horizontalPoints: SortedSet[Double] = collection.SortedSet(horizontalPointsSeq: _*)
-
-        // TODO Clean
-        //        val verticalBlades: Seq[LineString] = verticalPointsSeq
-        //            .map(x => Array(new Coordinate(x, env.getMinY-epsilon), new Coordinate(x, env.getMaxY+epsilon)))
-        //            .map(coords => GeometryUtils.geomFactory.createLineString(coords))
-        //        val horizontalBlades: Seq[LineString] = horizontalPointsSeq
-        //            .map(y => Array(new Coordinate(env.getMinX-epsilon, y), new Coordinate(env.getMaxX+epsilon, y)))
-        //            .map(coords => GeometryUtils.geomFactory.createLineString(coords))
-        //        val midPoints = new ListBuffer[String]()
 
         val regionsConditions: Array[((Double, Double) => Boolean, Int)] = (
             for (x <- verticalPoints.sliding(2);
@@ -105,30 +96,46 @@ case class EnvelopeRefiner(theta: TileGranularities) extends GridDecomposerT[Env
             }).zipWithIndex.toArray
 
         val envelopes: Array[MBR] = Array.fill(regionsConditions.length)(MBR())
-        for (c <- geom.getCoordinates.sliding(2)){
-            val c1 = c.head
-            val c2 = c.last
-
-            val (maxX, minX) = if (c1.x > c2.x) (c1.x, c2.x) else (c2.x, c1.x)
-            val vp = verticalPoints.from(minX).to(maxX)
-            val intersectingVerticalPoints = GeometryUtils.getIntersectionWithVerticalLine(c1, c2, vp).toList
-
-            val (maxY, minY) = if (c1.y > c2.y) (c1.y, c2.y) else (c2.y, c1.y)
-            val hp = horizontalPoints.from(minY).to(maxY)
-            val intersectingHorizontalPoints = GeometryUtils.getIntersectionWithHorizontalLine(c1, c2, hp).toList
-
-            // TODO Clean
-            //            midPoints.appendAll(intersectingHorizontalPoints.map(c => s"POINT (${c.x} ${c.y} )"))
-            //            midPoints.appendAll(intersectingVerticalPoints.map(c => s"POINT (${c.x} ${c.y} )"))
-
-
-            val allPoints = c1 +: (intersectingHorizontalPoints ::: intersectingVerticalPoints) :+ c2
-            for (p <- allPoints){
-                regionsConditions.filter{case (cond, _) => cond(p.x, p.y)}
-                    .foreach{ case (_, i) => envelopes(i).update(p.x, p.y)}
-            }
+        geom match {
+            case polygon: Polygon =>
+                val exteriorRing: LinearRing = polygon.getExteriorRing
+                val interiorRings: Seq[LinearRing] = for (i <- 0 until polygon.getNumInteriorRing) yield polygon.getInteriorRingN(i)
+                for (ring <- exteriorRing +: interiorRings) {
+                    for (c <- ring.getCoordinates.sliding(2)) {
+                        val c1 = c.head
+                        val c2 = c.last
+                        val intermediatePoints = findIntermediatePoints(c1, c2, verticalPoints, horizontalPoints)
+                        for (p <- c1 +: intermediatePoints :+ c2) {
+                            regionsConditions.filter { case (cond, _) => cond(p.x, p.y) }
+                                .foreach { case (_, i) => envelopes(i).update(p.x, p.y) }
+                        }
+                    }
+                }
+            case _ =>
+                for (c <- geom.getCoordinates.sliding(2)){
+                    val c1 = c.head
+                    val c2 = c.last
+                    val intermediatePoints = findIntermediatePoints(c1, c2, verticalPoints, horizontalPoints)
+                    for (p <- c1 +: intermediatePoints :+ c2){
+                        regionsConditions.filter{case (cond, _) => cond(p.x, p.y)}
+                            .foreach{ case (_, i) => envelopes(i).update(p.x, p.y)}
+                    }
+                }
         }
+
         envelopes.filter(! _.isEmpty).map(e => e.getEnvelope).toList
+    }
+
+
+    def findIntermediatePoints(c1: Coordinate, c2: Coordinate, verticalPoints: SortedSet[Double], horizontalPoints: SortedSet[Double]): List[Coordinate] ={
+        val (maxX, minX) = if (c1.x > c2.x) (c1.x, c2.x) else (c2.x, c1.x)
+        val vp = verticalPoints.from(minX).to(maxX)
+        val intersectingVerticalPoints = GeometryUtils.getIntersectionWithVerticalLine(c1, c2, vp).toList
+
+        val (maxY, minY) = if (c1.y > c2.y) (c1.y, c2.y) else (c2.y, c1.y)
+        val hp = horizontalPoints.from(minY).to(maxY)
+        val intersectingHorizontalPoints = GeometryUtils.getIntersectionWithHorizontalLine(c1, c2, hp).toList
+        intersectingHorizontalPoints ::: intersectingVerticalPoints
     }
 
 }

@@ -55,12 +55,13 @@ object GeometryUtils {
         slopeOpt match {
             case None | Some(0) =>
                 Nil
-            case Some(Double.PositiveInfinity) =>
+            case Some(Double.PositiveInfinity) | Some(Double.NegativeInfinity) =>
                 yes.map(y => new Coordinate(c1.x, y))
             case Some(slope) =>
                 val b = c1.y - c1.x*slope
                 yes.filter(y => y >= minY && y <= maxY)
-                    .map(y => new Coordinate( (y-b)/slope, y))
+                    .map(y =>
+                        new Coordinate( (y-b)/slope, y))
             }
     }
 
@@ -71,7 +72,7 @@ object GeometryUtils {
         slopeOpt match {
             case None | Some(0) =>
                 xes.map(x => new Coordinate(x, c1.y))
-            case Some(Double.PositiveInfinity) =>
+            case Some(Double.PositiveInfinity) | Some(Double.NegativeInfinity) =>
                 Nil
             case Some(slope) =>
                 val b = c1.y - c1.x*slope

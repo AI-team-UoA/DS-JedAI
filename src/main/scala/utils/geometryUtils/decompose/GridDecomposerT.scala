@@ -5,36 +5,40 @@ import utils.geometryUtils.GeometryUtils.geomFactory
 
 trait GridDecomposerT[T] extends DecomposerT[T] {
 
-    def getVerticalBlades(env: Envelope, thetaX: Double): Seq[LineString] = {
+    def getVerticalPoints(env: Envelope, thetaX: Double): Seq[Double] ={
         val minX = env.getMinX
         val maxX = env.getMaxX
         val n = math.floor(minX / thetaX) + 1
         val bladeStart: BigDecimal = BigDecimal(thetaX*n)
 
-        for (x <- bladeStart until maxX by thetaX)
-            yield {
-                val X = x.toDouble
-                geomFactory.createLineString(Array(
-                    new Coordinate(X, env.getMinY - epsilon),
-                    new Coordinate(X, env.getMaxY + epsilon)
-                ))
-            }
+        for (x <- bladeStart until maxX by thetaX)  yield  x.toDouble
     }
 
-    def getHorizontalBlades(env: Envelope, thetaY: Double): Seq[LineString] = {
+    def getHorizontalPoints(env: Envelope, thetaY: Double): Seq[Double] ={
         val minY = env.getMinY
         val maxY = env.getMaxY
         val n = math.floor(minY/thetaY) + 1
         val bladeStart: BigDecimal = BigDecimal(thetaY*n)
 
-        for (y <- bladeStart until maxY by thetaY)
-            yield {
-                val Y = y.toDouble
-                geomFactory.createLineString(Array(
-                    new Coordinate(env.getMinX - epsilon, Y),
-                    new Coordinate(env.getMaxX + epsilon, Y)
+        for (y <- bladeStart until maxY by thetaY) yield y.toDouble
+    }
+
+    def getVerticalBlades(env: Envelope, thetaX: Double): Seq[LineString] = {
+        getVerticalPoints(env, thetaX).map{x =>
+            geomFactory.createLineString(Array(
+                    new Coordinate(x, env.getMinY - epsilon),
+                    new Coordinate(x, env.getMaxY + epsilon)
                 ))
-            }
+        }
+    }
+
+    def getHorizontalBlades(env: Envelope, thetaY: Double): Seq[LineString] = {
+        getHorizontalPoints(env, thetaY).map{ y =>
+                geomFactory.createLineString(Array(
+                    new Coordinate(env.getMinX - epsilon, y),
+                    new Coordinate(env.getMaxX + epsilon, y)
+                ))
+        }
     }
 
 
