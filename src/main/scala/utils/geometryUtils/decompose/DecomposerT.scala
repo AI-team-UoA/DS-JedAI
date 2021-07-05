@@ -3,6 +3,10 @@ package utils.geometryUtils.decompose
 import model.TileGranularities
 import org.locationtech.jts.geom.{Geometry, GeometryFactory, LineString, Polygon}
 
+/**
+ * Initial decomposer trait
+ * @tparam T type either Envelope or Geometry
+ */
 trait DecomposerT[T] {
 
     val theta: TileGranularities

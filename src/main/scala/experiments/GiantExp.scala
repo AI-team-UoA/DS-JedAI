@@ -59,8 +59,7 @@ object GiantExp {
         log.info(s"GridType: $gridType")
         log.info(s"Relation: $relation")
         log.info(s"Entity Type: $entityTypeType")
-        if(entityTypeType == EntityTypeENUM.FINEGRAINED_ENTITY) log.info(s"Decomposition Thrαυτeshold: $decompositionT ")
-
+        if(entityTypeType == EntityTypeENUM.FINEGRAINED_ENTITY) log.info(s"Decomposition Threshold: $decompositionT ")
 
         // load datasets
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)

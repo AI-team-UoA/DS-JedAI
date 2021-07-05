@@ -27,7 +27,15 @@ object GeometryUtils {
         srdd
     }
 
-    def getCenterPoints(points: List[Double], threshold: Double): List[Double] = {
+    /**
+     * Get the central points by splitting the segments defined by the two points recursively
+     * until the extend of the segment does not exceed the threshold
+     * @param c1 first point
+     * @param c2 last point
+     * @param threshold threshold
+     * @return a list of interior points
+     */
+    def getCenterPoints(c1: Double, c2: Double, threshold: Double): List[Double] = {
 
         @scala.annotation.tailrec
         def getCenterPoints(points: List[Double], threshold: Double, accumulatedPoints: ListBuffer[Double]): List[Double] = {
@@ -46,9 +54,20 @@ object GeometryUtils {
             }
         }
 
-        getCenterPoints(points, threshold, new ListBuffer[Double]())
+        getCenterPoints(List(c1, c2), threshold, new ListBuffer[Double]())
     }
 
+    /**
+     * compute the interior points of the edge/LineSegment [c1, c2] that crosses one of the horizontal blades.
+     * To compute the interior points, we find the line of the edge
+     *      y = a*x + b
+     * and then we solve toward x given y (horizontal blade).
+     * The final points are computed as ( (y-b)/a, y)
+     * @param c1 first point of edge
+     * @param c2 last point of edge
+     * @param yes a list of y defining the horizontal blades
+     * @return a list of intermediate points
+     */
     def getIntersectionWithHorizontalLine(c1: Coordinate, c2: Coordinate, yes: Iterable[Double]): Iterable[Coordinate] ={
         val (maxY, minY) = if (c1.y > c2.y) (c1.y, c2.y) else (c2.y, c1.y)
         val slopeOpt = Try((c2.y - c1.y) / (c2.x - c1.x)).toOption
@@ -65,7 +84,17 @@ object GeometryUtils {
             }
     }
 
-    // y = slope*x + b
+    /**
+     * compute the interior points of the edge/LineSegment [c1, c2] that crosses one of the vertical blades.
+     * To compute the interior points, we find the line of the edge
+     *      y = a*x + b
+     * and then we solve toward y given x (vertical blade).
+     * The final points are computed as (x, x*a+b)
+     * @param c1 first point of edge
+     * @param c2 last point of edge
+     * @param xes a list of x defining the vertical blades
+     * @return a list of intermediate points
+     */
     def getIntersectionWithVerticalLine(c1: Coordinate, c2: Coordinate, xes: Iterable[Double]): Iterable[Coordinate] ={
         val (maxX, minX) = if (c1.x > c2.x) (c1.x, c2.x) else (c2.x, c1.x)
         val slopeOpt = Try((c2.y - c1.y) / (c2.x - c1.x)).toOption

@@ -3,8 +3,19 @@ package utils.geometryUtils.decompose
 import org.locationtech.jts.geom.{Coordinate, Envelope, Geometry, LineString, Polygon}
 import utils.geometryUtils.GeometryUtils.geomFactory
 
+/**
+ * GridDecomposer Trait
+ * Decompose based on a grid defined by tile granularities
+ * @tparam T type either Envelope or Geometry
+ */
 trait GridDecomposerT[T] extends DecomposerT[T] {
 
+    /**
+     * Find points that define vertical blades based on ThetaX
+     * @param env envelope
+     * @param thetaX granularity on X axes
+     * @return a list of points
+     */
     def getVerticalPoints(env: Envelope, thetaX: Double): Seq[Double] ={
         val minX = env.getMinX
         val maxX = env.getMaxX
@@ -14,6 +25,12 @@ trait GridDecomposerT[T] extends DecomposerT[T] {
         for (x <- bladeStart until maxX by thetaX)  yield  x.toDouble
     }
 
+    /**
+     * Find points that define horizontal blades based on ThetaY
+     * @param env envelope
+     * @param thetaY granularity on Y axes
+     * @return a list of points
+     */
     def getHorizontalPoints(env: Envelope, thetaY: Double): Seq[Double] ={
         val minY = env.getMinY
         val maxY = env.getMaxY
@@ -23,6 +40,12 @@ trait GridDecomposerT[T] extends DecomposerT[T] {
         for (y <- bladeStart until maxY by thetaY) yield y.toDouble
     }
 
+    /**
+     * Find vertical blades based on ThetaX
+     * @param env envelope
+     * @param thetaX granularity on X axes
+     * @return a list of lineStrings
+     */
     def getVerticalBlades(env: Envelope, thetaX: Double): Seq[LineString] = {
         getVerticalPoints(env, thetaX).map{x =>
             geomFactory.createLineString(Array(
@@ -32,6 +55,12 @@ trait GridDecomposerT[T] extends DecomposerT[T] {
         }
     }
 
+    /**
+     * Find horizontal blades based on ThetaY
+     * @param env envelope
+     * @param thetaY granularity on Y axes
+     * @return a list of lineStrings
+     */
     def getHorizontalBlades(env: Envelope, thetaY: Double): Seq[LineString] = {
         getHorizontalPoints(env, thetaY).map{ y =>
                 geomFactory.createLineString(Array(
@@ -42,6 +71,14 @@ trait GridDecomposerT[T] extends DecomposerT[T] {
     }
 
 
+    /**
+     * Combine the vertical/horizontal blades with the interior rings of a polygon
+     * @param polygon       polygon
+     * @param blade         blades
+     * @param innerRings    interior rings of polygon
+     * @param isHorizontal  blades are horizontal otherwise vertical
+     * @return            a list of lineStrings adjusted to inner rings
+     */
     def combineBladeWithInteriorRings(polygon: Polygon, blade: LineString, innerRings: Seq[Geometry], isHorizontal: Boolean): Seq[LineString] = {
 
         // epsilon is a small value to add in the segments so to slightly intersect thus not result to dangling lines
