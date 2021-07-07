@@ -6,6 +6,8 @@ import utils.configuration.Constants.Relation
 import utils.configuration.Constants.Relation.Relation
 import utils.geometryUtils.EnvelopeOp.EnvelopeIntersectionTypes.EnvelopeIntersectionTypes
 
+import scala.math.{max, min}
+
 
 object EnvelopeOp {
 
@@ -73,4 +75,24 @@ object EnvelopeOp {
         new Envelope(minX, maxX, minY, maxY)
     }
 
-}
+    def getReferencePoint(env1: Envelope, env2: Envelope, theta: TileGranularities): (Double, Double) ={
+
+        val minX1 = env1.getMinX /theta.x
+        val minX2 = env2.getMinX /theta.x
+        val maxY1 = env1.getMaxY /theta.y
+        val maxY2 = env2.getMaxY /theta.y
+
+        val rfX: Double = max(minX1, minX2)+epsilon
+        val rfY: Double = min(maxY1, maxY2)+epsilon
+        (rfX, rfY)
+    }
+
+
+    def getReferencePoint(env1: Envelope, env2: Envelope): (Double, Double) = {
+        val rfX: Double = max(env1.getMinX, env2.getMinX) + epsilon
+        val rfY: Double = min(env1.getMaxY, env2.getMaxY) + epsilon
+        (rfX, rfY)
+    }
+
+
+    }

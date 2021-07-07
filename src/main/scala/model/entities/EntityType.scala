@@ -59,24 +59,24 @@ case class FineGrainedEntityType(tileGranularities: TileGranularities) extends E
 
 object EntityTypeFactory {
 
-    def get(entityTypeType: EntityTypeENUM, theta: TileGranularities, datePattern: Option[String] = None): EntityType ={
+    def get(entityTypeType: EntityTypeENUM, thetaOpt: Option[TileGranularities], datePattern: Option[String] = None): Option[EntityType] ={
 
         entityTypeType match {
 
             case EntityTypeENUM.SPATIAL_ENTITY =>
-                SpatialEntityType()
+                Some(SpatialEntityType())
 
             case EntityTypeENUM.SPATIOTEMPORAL_ENTITY =>
-                SpatioTemporalEntityType(datePattern)
+                Some(SpatioTemporalEntityType(datePattern))
 
             case EntityTypeENUM.FRAGMENTED_ENTITY =>
-                FragmentedEntityType(theta)
+                thetaOpt.map(theta => FragmentedEntityType(theta))
 
             case EntityTypeENUM.INDEXED_FRAGMENTED_ENTITY =>
-                IndexedFragmentedEntityType(theta)
+                thetaOpt.map(theta => IndexedFragmentedEntityType(theta))
 
             case EntityTypeENUM.FINEGRAINED_ENTITY =>
-                FineGrainedEntityType(theta)
+                thetaOpt.map(theta => FineGrainedEntityType(theta))
         }
     }
 }

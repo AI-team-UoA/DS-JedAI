@@ -78,7 +78,7 @@ object ProgressiveExp {
         val sourceCount = sourceRDD.count()
 
         val theta = TileGranularities(sourceRDD.map(_._2.env), approximateSourceCount, conf.getTheta)
-        val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
+        val partitionBorder = partitioner.getPartitionsBorders(Some(theta))
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis

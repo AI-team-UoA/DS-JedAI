@@ -9,6 +9,7 @@ import utils.configuration.Constants.Relation.Relation
 
 import scala.math.{max, min}
 import cats.implicits._
+import utils.geometryUtils.EnvelopeOp
 
 trait InterlinkerT {
 
@@ -29,24 +30,23 @@ trait InterlinkerT {
      * @return true if the reference point is in the block and in partition
      */
     def referencePointFiltering(s: Entity, t: Entity, b:(Int, Int), partition: Envelope): Boolean ={
-
         val env1 = s.env
         val env2 = t.env
-        val epsilon = 1e-8
-
-        val minX1 = env1.getMinX /tileGranularities.x
-        val minX2 = env2.getMinX /tileGranularities.x
-        val maxY1 = env1.getMaxY /tileGranularities.y
-        val maxY2 = env2.getMaxY /tileGranularities.y
-
-        val rfX: Double = max(minX1, minX2)+epsilon
-        val rfY: Double = min(maxY1, maxY2)+epsilon
+        val (rfX, rfY) = EnvelopeOp.getReferencePoint(env1, env2, tileGranularities)
 
         val blockContainsRF: Boolean =  b._1 <= rfX && b._1+1 >= rfX && b._2 <= rfY && b._2+1 >= rfY
         val partitionContainsRF: Boolean = partition.getMinX <= rfX && partition.getMaxX >= rfX && partition.getMinY <= rfY && partition.getMaxY >= rfY
         blockContainsRF && partitionContainsRF
     }
 
+    def referencePointFiltering(s: Entity, t: Entity, partition: Envelope): Boolean ={
+        val env1 = s.env
+        val env2 = t.env
+        val (rfX, rfY) = EnvelopeOp.getReferencePoint(env1, env2, tileGranularities)
+
+        val partitionContainsRF: Boolean = partition.getMinX <= rfX && partition.getMaxX >= rfX && partition.getMinY <= rfY && partition.getMaxY >= rfY
+        partitionContainsRF
+    }
 
     /**
      * filter redundant verifications based on spatial criteria

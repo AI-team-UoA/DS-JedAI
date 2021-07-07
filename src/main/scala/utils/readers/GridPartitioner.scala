@@ -36,14 +36,17 @@ case class GridPartitioner(source: SpatialRDD[Geometry], partitions: Int, gt: Co
     lazy val partitionBorders: Seq[Envelope] = spatialPartitioner.getGrids.asScala
 
 
-    def getAdjustedPartitionsBorders(tilesGranularities: TileGranularities): Array[Envelope] ={
-        val adjustedEnvs = partitionBorders.map(env => EnvelopeOp.adjust(env, tilesGranularities))
+    def getPartitionsBorders(thetaOpt: Option[TileGranularities]): Array[Envelope] ={
+        val partitionEnvelopes = thetaOpt match {
+            case Some(theta) => partitionBorders.map(env => EnvelopeOp.adjust(env, theta))
+            case None        => partitionBorders
+        }
 
         // get overall borders
-        val globalMinX: Double = adjustedEnvs.map(p => p.getMinX).min
-        val globalMaxX: Double = adjustedEnvs.map(p => p.getMaxX).max
-        val globalMinY: Double = adjustedEnvs.map(p => p.getMinY).min
-        val globalMaxY: Double = adjustedEnvs.map(p => p.getMaxY).max
+        val globalMinX: Double = partitionEnvelopes.map(p => p.getMinX).min
+        val globalMaxX: Double = partitionEnvelopes.map(p => p.getMaxX).max
+        val globalMinY: Double = partitionEnvelopes.map(p => p.getMinY).min
+        val globalMaxY: Double = partitionEnvelopes.map(p => p.getMaxY).max
 
         // make them integers - filtering is discrete
         val spaceMinX = math.floor(globalMinX).toInt - 1
@@ -51,7 +54,7 @@ case class GridPartitioner(source: SpatialRDD[Geometry], partitions: Int, gt: Co
         val spaceMinY = math.floor(globalMinY).toInt - 1
         val spaceMaxY = math.ceil(globalMaxY).toInt + 1
 
-        adjustedEnvs.map { env =>
+        partitionEnvelopes.map { env =>
             val minX = if (env.getMinX == globalMinX) spaceMinX else env.getMinX
             val maxX = if (env.getMaxX == globalMaxX) spaceMaxX else env.getMaxX
             val minY = if (env.getMinY == globalMinY) spaceMinY else env.getMinY
@@ -59,7 +62,6 @@ case class GridPartitioner(source: SpatialRDD[Geometry], partitions: Int, gt: Co
             new Envelope(minX, maxX, minY, maxY)
         }.toArray
     }
-
 
     /**
      *  Transform a Spatial RDD into an RDD of entities and spatial partition based

@@ -67,7 +67,7 @@ object BalancingExp {
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
         val theta = TileGranularities(sourceRDD.map(_._2.env))
-        val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
+        val partitionBorder = partitioner.getPartitionsBorders(Some(theta))
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val sourcePartitions: RDD[(Int, Iterator[Entity])] = sourceRDD.mapPartitions(si => Iterator((TaskContext.getPartitionId(), si.map(_._2))))

@@ -66,7 +66,7 @@ object DirtyExp {
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val theta = TileGranularities(sourceRDD.map(_._2.env), approximateSourceCount, conf.getTheta)
-        val partitionBorder = partitioner.getAdjustedPartitionsBorders(theta)
+        val partitionBorder = partitioner.getPartitionsBorders(Some(theta))
         val giant = DirtyGIAnt(sourceRDD.map(_._2), partitionBorder, theta)
         val imRDD = giant.getDE9IM
 

@@ -8,13 +8,13 @@ class GeometryUtilsTest extends AnyWordSpec {
     "getCenterPoints" should {
         "return (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)" in {
             val targetResults = List(1, 5.5, 10)
-            val points = GeometryUtils.getCenterPoints(List(1, 10), threshold = 5)
+            val points = GeometryUtils.getCenterPoints(1, 10, threshold = 5)
             assert(targetResults == points)
         }
 
         "return (1, 3, 5, 7, 9, 10)" in {
             val targetResults = List(1, 3.25, 5.5, 7.75, 10)
-            val points = GeometryUtils.getCenterPoints(List(1, 10), threshold = 4)
+            val points = GeometryUtils.getCenterPoints(1, 10, threshold = 4)
             assert(targetResults == points)
         }
     }
