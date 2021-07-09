@@ -109,7 +109,7 @@ object Reader {
         val query = "SELECT ST_GeomFromWKT(GEOMETRIES.WKT) AS WKT,  GEOMETRIES.Subject AS Subject FROM GEOMETRIES".stripMargin
 
         val spatialDF = spark.sql(query)
-        Adapter.toSpatialRdd(spatialDF, "0", Seq("WKT", "Subject"))
+        Adapter.toSpatialRdd(spatialDF, "WKT", Seq("WKT", "Subject"))
     }
 
 
