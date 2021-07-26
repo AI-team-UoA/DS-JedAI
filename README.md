@@ -58,7 +58,7 @@ The algorithms also support different Weighting Schemes (*WS*) that enables the 
 - *COMPOSITE*: combine two  Weighting Functions in the sense that the second weighting function is for resolving the ties of the main one.
 - *HYBRID*: the weight is defined as the product of two Weighting Functions.
 
-In the Progressive Algorithms, the Weighting Function (*WF*), Scheme (*WS*) and the budget *BU* can be specified in the configuration file or as command-line arguments. Advise the configuration template in `config/configurationTemplate.yaml` to see how you can specify them. To execute, run:
+In the Progressive Algorithms, the Weighting Function (*WF*), Scheme (*WS*), and the budget *BU* can be specified in the configuration file or as command-line arguments. Advise the configuration template in `config/configurationTemplate.yaml` to see how you can specify them. To execute, run:
 
 ```bash
    $ spark-submit --master <master>  --class experiments.PorgressiveExp  target/scala-2.11/DS-JedAI-assembly-0.1.jar <options> -conf </path/to/configuration.yaml>

@@ -208,8 +208,8 @@ class FragmentationTest extends AnyWordSpec {
                 geometries.forall { geom =>
                     val envelopes: Seq[Geometry] = refiner.decomposeGeometry(geom).map(e => geomFactory.toGeometry(e))
                     val env = geomFactory.toGeometry(geom.getEnvelopeInternal)
-                    val unionedEnv = UnaryUnionOp.union(envelopes.asJava)
-                    val envelopesArea = unionedEnv.getArea
+                    val unionEnv = UnaryUnionOp.union(envelopes.asJava)
+                    val envelopesArea = unionEnv.getArea
                     envelopesArea <= env.getArea
                 }
             )

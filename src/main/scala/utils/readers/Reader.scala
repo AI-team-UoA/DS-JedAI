@@ -96,7 +96,7 @@ object Reader {
             .rdd.map(s => s.split(" ", 3))
             .filter(s => s(1) == geometryPredicate)
             .map(s => (s(0), cleanWKT(s(2))))
-            .filter(s => s._1 != null && s._2 != null && !s._2.isEmpty)
+            .filter(s => s._1 != null && s._2 != null && s._2.nonEmpty)
             .filter(s => !s._2.contains("EMPTY"))
             .map(s => Row(s._1, s._2))
 

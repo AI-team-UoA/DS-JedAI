@@ -1,5 +1,6 @@
 package model
 
+import model.entities.FineGrainedEntity
 import org.locationtech.jts.geom.Envelope
 
 import scala.collection.mutable
@@ -19,7 +20,16 @@ case class SpatialIndex[T <: {def getEnvelopeInternal(): Envelope}](entities: Ar
     lazy val indices: Set[(Int, Int)] = getIndices.toSet
 
     def index(t: T): Seq[(Int, Int)] = {
-        val env = t.getEnvelopeInternal()
+        t match {
+            case fge: FineGrainedEntity =>
+                fge.fineGrainedEnvelopes.flatMap(env =>indexEnvelope(env) )
+            case _ =>
+                val env = t.getEnvelopeInternal()
+                indexEnvelope(env)
+        }
+    }
+
+    def indexEnvelope(env: Envelope): Seq[(Int, Int)] ={
         val minX = env.getMinX
         val maxX = env.getMaxX
         val minY = env.getMinY

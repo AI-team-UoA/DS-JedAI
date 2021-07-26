@@ -117,7 +117,7 @@ object IndexedFragmentedEntity{
         IndexedFragmentedEntity(e.originalID, e.geometry, geometryFragments, index)
     }
 
-    def apply(id: String, geometry: Geometry, theta: TileGranularities, decompose: (Geometry => Seq[Geometry])): IndexedFragmentedEntity = {
+    def apply(id: String, geometry: Geometry, theta: TileGranularities, decompose: Geometry => Seq[Geometry]): IndexedFragmentedEntity = {
         val geometryFragments = decompose(geometry).toArray
         val index = SpatialIndex(geometryFragments, theta)
         IndexedFragmentedEntity(id, geometry, geometryFragments, index)

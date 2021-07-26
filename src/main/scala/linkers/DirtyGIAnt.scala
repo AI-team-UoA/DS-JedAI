@@ -1,4 +1,4 @@
-package interlinkers
+package linkers
 
 import model.entities.Entity
 import model.{IM, SpatialIndex, TileGranularities}

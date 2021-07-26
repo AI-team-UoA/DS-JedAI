@@ -1,8 +1,7 @@
 package experiments
 
 import java.util.Calendar
-
-import interlinkers.progressive.ProgressiveAlgorithmsFactory
+import linkers.progressive.DistributedProgressiveInterlinking
 import model.TileGranularities
 import model.entities.{Entity, SpatialEntityType}
 import org.apache.log4j.{Level, LogManager, Logger}
@@ -78,18 +77,17 @@ object ProgressiveExp {
         val sourceCount = sourceRDD.count()
 
         val theta = TileGranularities(sourceRDD.map(_._2.env), approximateSourceCount, conf.getTheta)
-        val partitionBorder = partitioner.getPartitionsBorders(Some(theta))
+        val partitionBorders = partitioner.getPartitionsBorders(Some(theta))
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
-        val method = ProgressiveAlgorithmsFactory.get(pa, sourceRDD, targetRDD, theta, partitionBorder,
-            partitioner.hashPartitioner, sourceCount, budget, mainWF, secondaryWF, ws)
-
+        val linkers = DistributedProgressiveInterlinking.initializeProgressiveLinkers(sourceRDD, targetRDD,
+                            partitionBorders, theta, pa, partitioner, sourceCount, budget, mainWF, secondaryWF, ws)
         if(timeExp){
             //invoke load of target
             targetRDD.count()
 
-            val times = method.time
+            val times = DistributedProgressiveInterlinking.time(linkers)
             val schedulingTime = times._1
             val verificationTime = times._2
             val matchingTime = times._3
@@ -101,7 +99,7 @@ object ProgressiveExp {
 
         else if (relation.equals(Relation.DE9IM)) {
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-            totalOverlaps, totalTouches, totalWithin, verifications, qp) = method.countAllRelations
+            totalOverlaps, totalTouches, totalWithin, verifications, qp) = DistributedProgressiveInterlinking.countAllRelations(linkers)
 
             val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
                 totalIntersects + totalOverlaps + totalTouches + totalWithin
@@ -121,7 +119,7 @@ object ProgressiveExp {
         }
 
         else{
-            val totalMatches = method.countRelation(relation)
+            val totalMatches = DistributedProgressiveInterlinking.relate(linkers, relation)
             log.info("DS-JEDAI: " + relation.toString +": " + totalMatches)
         }
 

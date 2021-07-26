@@ -1,11 +1,8 @@
 package experiments
 
-
-import java.util.Calendar
-
-import interlinkers.GIAnt
+import linkers.DistributedInterlinking
 import model.TileGranularities
-import model.entities._
+import model.entities.{Entity, EntityType, EntityTypeFactory, SpatialEntityType}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -20,6 +17,8 @@ import utils.configuration.ConfigurationParser
 import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
 import utils.configuration.Constants.{EntityTypeENUM, GridType, Relation}
 import utils.readers.{GridPartitioner, Reader}
+
+import java.util.Calendar
 
 object GiantExp {
 
@@ -74,14 +73,14 @@ object GiantExp {
         val sourceEntityType: EntityType = EntityTypeFactory.get(entityTypeType, decompositionTheta, conf.source.datePattern).getOrElse(SpatialEntityType())
         val sourceRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(sourceSpatialRDD, sourceEntityType)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
-        val partitionBorder = partitioner.getPartitionsBorders(Some(theta))
+        val partitionBorders = partitioner.getPartitionsBorders(Some(theta))
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val targetEntityType: EntityType = EntityTypeFactory.get(entityTypeType, decompositionTheta, conf.target.datePattern).getOrElse(SpatialEntityType())
         val targetRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(targetSpatialRDD, targetEntityType)
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
-        val giant = GIAnt(sourceRDD, targetRDD, theta, partitionBorder, partitioner.hashPartitioner)
+        val linkers = DistributedInterlinking.initializeLinkers(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
 
         // print statistics about the datasets
         if (printCount){
@@ -90,10 +89,10 @@ object GiantExp {
             log.info(s"DS-JEDAI: Source geometries: $sourceCount")
             log.info(s"DS-JEDAI: Target geometries: $targetCount")
             log.info(s"DS-JEDAI: Cartesian: ${sourceCount*targetCount}")
-            log.info(s"DS-JEDAI: Verifications: ${giant.countVerification}")
+            log.info(s"DS-JEDAI: Verifications: ${DistributedInterlinking.countVerifications(linkers)}")
         }
         else if (relation.equals(Relation.DE9IM)) {
-            val imRDD = giant.getDE9IM
+            val imRDD = DistributedInterlinking.computeIM(linkers)
 
             // export results as RDF
             if (output.isDefined) {
@@ -103,7 +102,7 @@ object GiantExp {
 
             // log results
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-            totalOverlaps, totalTouches, totalWithin, verifications, qp) = Utils.countAllRelations(imRDD)
+            totalOverlaps, totalTouches, totalWithin, verifications, qp) = DistributedInterlinking.accumulateIM(imRDD)
 
             val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
                 totalIntersects + totalOverlaps + totalTouches + totalWithin
@@ -122,7 +121,7 @@ object GiantExp {
             log.info("DS-JEDAI: Total Discovered Relations: " + totalRelations)
         }
         else{
-            val totalMatches = giant.countRelation(relation)
+            val totalMatches = DistributedInterlinking.relate(linkers, relation)
             log.info("DS-JEDAI: " + relation.toString +": " + totalMatches)
         }
         val matchingEndTime = Calendar.getInstance().getTimeInMillis

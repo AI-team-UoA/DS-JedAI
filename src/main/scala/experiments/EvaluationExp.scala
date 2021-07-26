@@ -1,8 +1,8 @@
 package experiments
 
 
-import interlinkers.GIAnt
-import interlinkers.progressive.ProgressiveAlgorithmsFactory
+import linkers.DistributedInterlinking
+import linkers.progressive.DistributedProgressiveInterlinking
 import model.TileGranularities
 import model.entities.{Entity, SpatialEntityType}
 import org.apache.log4j.{Level, LogManager, Logger}
@@ -88,7 +88,10 @@ object EvaluationExp {
                 case (Some(tv), Some(qp)) =>
                     (tv, qp)
                 case _ =>
-                    val g = GIAnt(sourceRDD, targetRDD, theta, partitionBorder, partitioner.hashPartitioner).countAllRelations
+                    val g =
+                        DistributedInterlinking.countAllRelations(
+                            DistributedInterlinking.initializeLinkers(sourceRDD, targetRDD, partitionBorder, theta, partitioner)
+                        )
                     (g._10, g._11)
             }
 
@@ -96,11 +99,11 @@ object EvaluationExp {
         log.info("DS-JEDAI: Total Qualifying Pairs: " + totalRelatedPairs)
         log.info("\n")
 
-        printResults(sourceRDD, targetRDD, theta, partitionBorder, approximateSourceCount, partitioner.hashPartitioner,
+        printResults(sourceRDD, targetRDD, theta, partitionBorder, approximateSourceCount, partitioner,
             totalRelatedPairs, budget, ProgressiveAlgorithm.RANDOM,  (WeightingFunction.CF, None), Constants.SIMPLE)
 
         for (a <- algorithms ; ws <- weightingSchemes; wf <- weightingFunctions )
-            printResults(sourceRDD, targetRDD, theta, partitionBorder, approximateSourceCount, partitioner.hashPartitioner,
+            printResults(sourceRDD, targetRDD, theta, partitionBorder, approximateSourceCount, partitioner,
                 totalRelatedPairs, budget, a, wf, ws)
     }
 
@@ -118,11 +121,12 @@ object EvaluationExp {
      */
     def printResults(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)],
                      theta: TileGranularities, partitionBorders: Array[Envelope], sourceCount: Long,
-                     partitioner: Partitioner, totalRelations: Int, budget: Int,
+                     partitioner: GridPartitioner, totalRelations: Int, budget: Int,
                      pa: ProgressiveAlgorithm, wf: (WeightingFunction, Option[WeightingFunction]), ws: Constants.WeightingScheme, n: Int = 10): Unit = {
 
-        val pma = ProgressiveAlgorithmsFactory.get(pa, source, target, theta, partitionBorders, partitioner, sourceCount, budget, wf._1, wf._2, ws)
-        val results = pma.evaluate(relation, n, totalRelations, takeBudget)
+        val linkers = DistributedProgressiveInterlinking.initializeProgressiveLinkers(source, target,
+            partitionBorders, theta, pa, partitioner, sourceCount, budget, wf._1, wf._2, ws)
+        val results = DistributedProgressiveInterlinking.evaluate(linkers, relation, n, totalRelations, takeBudget)
 
         results.zip(takeBudget).foreach { case ((pgr, qp, verifications, (verificationSteps, qualifiedPairsSteps)), b) =>
             val qualifiedPairsWithinBudget = if (totalRelations < verifications) totalRelations else verifications

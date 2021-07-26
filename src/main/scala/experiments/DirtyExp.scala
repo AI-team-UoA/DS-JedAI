@@ -1,8 +1,7 @@
 package experiments
 
 import java.util.Calendar
-
-import interlinkers.DirtyGIAnt
+import linkers.{DirtyGIAnt, DistributedInterlinking}
 import model.TileGranularities
 import model.entities.{Entity, SpatialEntityType}
 import org.apache.log4j.{Level, LogManager, Logger}
@@ -73,7 +72,7 @@ object DirtyExp {
         if (print) {
             imRDD.persist(StorageLevel.MEMORY_AND_DISK)
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-            totalOverlaps, totalTouches, totalWithin, verifications, qp) = Utils.countAllRelations(imRDD)
+            totalOverlaps, totalTouches, totalWithin, verifications, qp) = DistributedInterlinking.accumulateIM(imRDD)
 
             val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
                 totalIntersects + totalOverlaps + totalTouches + totalWithin

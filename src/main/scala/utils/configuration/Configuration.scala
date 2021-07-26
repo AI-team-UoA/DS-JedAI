@@ -104,7 +104,7 @@ case class DirtyConfiguration(source: DatasetConfigurations, relation: String, v
  */
 case class DatasetConfigurations(path: String, geometryField: String, realIdField: Option[String] = None, dateField: Option[String] = None, datePattern: Option[String] = None){
 
-    def getExtension: FileTypes = FileTypes.withName(path.toString.split("\\.").last)
+    def getExtension: FileTypes = FileTypes.withName(path.split("\\.").last)
 
     /**
      * check if the date field and pattern are specified, and if the pattern is valid

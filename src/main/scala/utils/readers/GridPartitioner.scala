@@ -13,7 +13,7 @@ import utils.geometryUtils.EnvelopeOp
 
 import scala.collection.JavaConverters._
 
-case class GridPartitioner(source: SpatialRDD[Geometry], partitions: Int, gt: Constants.GridType.GridType = Constants.GridType.QUADTREE) {
+case class GridPartitioner(baseRDD: SpatialRDD[Geometry], partitions: Int, gt: Constants.GridType.GridType = Constants.GridType.QUADTREE) {
 
     lazy val gridType: org.apache.sedona.core.enums.GridType = gt match {
         case Constants.GridType.KDBTREE => GridType.KDBTREE
@@ -21,15 +21,15 @@ case class GridPartitioner(source: SpatialRDD[Geometry], partitions: Int, gt: Co
     }
 
     val spatialPartitioner: SpatialPartitioner = {
-        source.analyze()
+        baseRDD.analyze()
         if (partitions > 0)
-            source.spatialPartitioning(gridType, partitions)
+            baseRDD.spatialPartitioning(gridType, partitions)
         else
-            source.spatialPartitioning(gridType)
-        source.getPartitioner
+            baseRDD.spatialPartitioning(gridType)
+        baseRDD.getPartitioner
     }
 
-    lazy val approximateCount: Long = source.approximateTotalCount
+    lazy val approximateCount: Long = baseRDD.approximateTotalCount
 
     lazy val hashPartitioner: HashPartitioner = new HashPartitioner(spatialPartitioner.numPartitions)
 
@@ -80,5 +80,18 @@ case class GridPartitioner(source: SpatialRDD[Geometry], partitions: Int, gt: Co
         val transformationF = entityType.transform
         val entitiesRDD: RDD[(Int, Entity)] = partitionedRDD.map{case (pid, geom) => (pid, transformationF(geom))}
         entitiesRDD
+    }
+
+    /**
+     * the number of all blocks in all partitions
+     */
+    def computeTotalBlocks(theta: TileGranularities): Double ={
+
+        val globalMinX: Double = partitionBorders.map(p => p.getMinX / theta.x).min
+        val globalMaxX: Double = partitionBorders.map(p => p.getMaxX / theta.x).max
+        val globalMinY: Double = partitionBorders.map(p => p.getMinY / theta.y).min
+        val globalMaxY: Double = partitionBorders.map(p => p.getMaxY / theta.y).max
+
+        (globalMaxX - globalMinX + 1) * (globalMaxY - globalMinY + 1)
     }
 }

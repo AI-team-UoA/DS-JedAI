@@ -19,7 +19,7 @@ relation: "DE9IM"                                       # the target relation. W
 configurations:
   partitions: "number of partitions"
   thetaGranularity: "avg"                               # define the extend of dynamic tiling based on the geometries of source - Experiments have shown that "avg" is the best option
-  gridType: "spatial paritioner grid Type algorithm"    # allowed values:  KDBTREE, QUADTREE
+  gridType: "spatial partitioner grid Type algorithm"    # allowed values:  KDBTREE, QUADTREE
   mainWF: "WF"                                          # specify main weighting function - allowed values: CF, JS, MBRO, PEARSON_X2, ISP
   secondaryWF: "WF"                                     # specify secondary weighting function - allowed values: CF, JS, MBRO, PEARSON_X2, ISP
   progressiveAlgorithm : "PA"                           # specify progressive algorithm - allowed values: PROGRESSIVE_GIANT, TOPK, RECIPROCAL_TOPK & RANDOM

@@ -33,7 +33,7 @@ case class IM(s: Entity, t: Entity, im: IntersectionMatrix){
 
     def !=(im: IM): Boolean = ! ==(im)
 
-    override def toString: String = s"id1: ${getId1}, id2: ${getId2}, relate: $relate, isContains: $isContains, isCoveredBy: $isCoveredBy,  " +
+    override def toString: String = s"id1: $getId1, id2: $getId2, relate: $relate, isContains: $isContains, isCoveredBy: $isCoveredBy,  " +
         s"isCovers: $isCovers, isCrosses: $isCrosses, isEquals: $isEquals, isIntersects: $isIntersects, isOverlaps: $isOverlaps, isTouches: $isTouches, " +
         s"isWithin: $isWithin"
 }

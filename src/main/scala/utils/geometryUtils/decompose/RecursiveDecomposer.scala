@@ -191,8 +191,8 @@ case class RecursiveDecomposer(theta: TileGranularities) extends DecomposerT[Geo
 
 
     /**
-     * Split linestring into smaller linestrings. Splitting is determined by the threshold.
-     * The width and the height of the produced linestrings will not exceed the threshold
+     * Split linestring into smaller lineStrings. Splitting is determined by the threshold.
+     * The width and the height of the produced lineStrings will not exceed the threshold
      *
      * @param line           input linestring
      * @return              a seq of smaller linestring

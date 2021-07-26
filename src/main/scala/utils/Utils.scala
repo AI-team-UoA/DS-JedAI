@@ -1,70 +1,26 @@
 package utils
 
 
+import cats.implicits._
+import model.IM
 import model.entities.Entity
-import model.{IM, TileGranularities}
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
-import org.apache.spark.sql.{Encoder, Encoders, Row, SparkSession}
+import org.apache.spark.sql.{Row, SparkSession}
 import org.locationtech.jts.geom.Envelope
 
 import scala.collection.mutable
-import scala.reflect.ClassTag
-import cats.implicits._
 
 object Utils extends Serializable {
 
-	implicit def singleSTR[A](implicit c: ClassTag[String]): Encoder[String] = Encoders.STRING
-	implicit def singleInt[A](implicit c: ClassTag[Int]): Encoder[Int] = Encoders.scalaInt
-	implicit def tuple[String, Int](implicit s: Encoder[String], t: Encoder[Int]): Encoder[(String,Int)] = Encoders.tuple[String,Int](s, t)
-
-	val accumulate: Iterator[IM] => (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = imIterator => {
-		var totalContains: Int = 0
-		var totalCoveredBy: Int = 0
-		var totalCovers: Int = 0
-		var totalCrosses: Int = 0
-		var totalEquals: Int = 0
-		var totalIntersects: Int = 0
-		var totalOverlaps: Int = 0
-		var totalTouches: Int = 0
-		var totalWithin: Int = 0
-		var verifications: Int = 0
-		var qualifiedPairs: Int = 0
-		imIterator.foreach { im =>
-			verifications += 1
-			if (im.relate) {
-				qualifiedPairs += 1
-				if (im.isContains) totalContains += 1
-				if (im.isCoveredBy) totalCoveredBy += 1
-				if (im.isCovers) totalCovers += 1
-				if (im.isCrosses) totalCrosses += 1
-				if (im.isEquals) totalEquals += 1
-				if (im.isIntersects) totalIntersects += 1
-				if (im.isOverlaps) totalOverlaps += 1
-				if (im.isTouches) totalTouches += 1
-				if (im.isWithin) totalWithin += 1
-			}
-		}
-		(totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-			totalOverlaps, totalTouches, totalWithin, verifications, qualifiedPairs)
-	}
-
-	def countAllRelations(imRDD: RDD[IM]): (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) =
-		imRDD
-			.mapPartitions { imIterator => Iterator(accumulate(imIterator)) }
-			.treeReduce({ case (im1, im2) => im1 |+| im2}, 4)
-
-
-
-
-	def printPartition(joinedRDD: RDD[(Int, (Iterable[Entity],  Iterable[Entity]))], bordersEnvelope: Array[Envelope], tilesGranularities: TileGranularities): Unit ={
+	def printPartition(joinedRDD: RDD[(Int, (Iterable[Entity],  Iterable[Entity]))], bordersEnvelope: Array[Envelope]): Unit ={
 		val c = joinedRDD.map(p => (p._1, (p._2._1.size, p._2._2.size))).sortByKey().collect()
 		val log: Logger = LogManager.getRootLogger
 		log.info("Printing Partitions")
 		log.info("----------------------------------------------------------------------------")
-		var pSet = mutable.HashSet[String]()
+		val pSet = mutable.HashSet[String]()
 		c.foreach(p => {
 			val zoneStr = bordersEnvelope(p._1).toString
 			pSet += zoneStr
