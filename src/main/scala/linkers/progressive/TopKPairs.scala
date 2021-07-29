@@ -1,11 +1,11 @@
 package linkers.progressive
 
 import model.entities.Entity
-import model.{SpatialIndex, StaticComparisonPQ, TileGranularities}
+import model.{StaticComparisonPQ, TileGranularities}
 import org.locationtech.jts.geom.Envelope
+import utils.configuration.Constants
 import utils.configuration.Constants.Relation.Relation
 import utils.configuration.Constants.WeightingFunction.WeightingFunction
-import utils.configuration.Constants
 
 case class TopKPairs(source: Array[Entity], target: Iterable[Entity],
                      tileGranularities: TileGranularities, partitionBorder: Envelope,
@@ -23,7 +23,6 @@ case class TopKPairs(source: Array[Entity], target: Iterable[Entity],
      */
     def prioritize(relation: Relation): StaticComparisonPQ = {
         val localBudget = math.ceil(budget*source.length.toDouble/totalSourceEntities.toDouble).toLong
-        val sourceIndex = SpatialIndex(source, tileGranularities)
         val targetAr = target.toArray
         // the budget is divided based on the number of entities
         val k = (math.ceil(localBudget / (source.length + targetAr.length)).toInt + 1) * 2 // +1 to avoid k=0

@@ -16,6 +16,8 @@ trait LinkerT {
 
     val weightOrdering: Ordering[(Double, (Entity, Entity))] = Ordering.by[(Double, (Entity, Entity)), Double](_._1).reverse
 
+    val sourceIndex: SpatialIndex[Entity] = SpatialIndex(source, tileGranularities)
+
     /**
      * Return true if the reference point is inside the block and inside the partition
      * The reference point is the upper left point of their intersection
@@ -59,13 +61,17 @@ trait LinkerT {
         s.intersectingMBR(t, relation) && referencePointFiltering(s, t, block, partition)
 
     /**
-     * count all the necessary verifications
+     * get all the non-redundant verifications
+     * head is always the target entity and the tail is the entities we need to compare it with
+     * @return the verifications of each target geometry
+     */
+    def getVerifications: Iterable[Seq[Entity]] = target.map(t => t +: getAllCandidates(t, sourceIndex, partitionBorder, Relation.DE9IM))
+
+    /**
+     * count all the non-redundant verifications
      * @return number of verifications
      */
-    def countVerification: Long = {
-        val sourceIndex = SpatialIndex(source, tileGranularities)
-        target.flatMap(t => getAllCandidates(t, sourceIndex, partitionBorder, Relation.DE9IM)).size
-    }
+    def countVerification: Long = getVerifications.map(v => v.size-1).sum
 
     /**
      *  Given a spatial index, retrieve all candidate geometries and filter based on

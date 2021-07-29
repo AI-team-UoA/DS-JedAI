@@ -17,7 +17,6 @@ case class GIAnt(source: Array[Entity], target: Iterable[Entity], tileGranularit
      * @return an RDD containing the matching pairs
      */
     override def relate(relation: Relation): Iterator[(String, String)] = {
-        val sourceIndex = SpatialIndex(source, tileGranularities)
         target.flatMap{ t =>
             getAllCandidates(t, sourceIndex, partitionBorder, relation)
                 .filter(s => s.relate(t, relation))
@@ -31,7 +30,6 @@ case class GIAnt(source: Array[Entity], target: Iterable[Entity], tileGranularit
      * @return an RDD of intersection matrix
      */
     override def getDE9IM: Iterator[IM] = {
-            val sourceIndex = SpatialIndex(source, tileGranularities)
             target.flatMap { t =>
                 getAllCandidates(t, sourceIndex, partitionBorder, Relation.DE9IM)
                     .map(s => s.getIntersectionMatrix(t))

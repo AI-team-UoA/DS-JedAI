@@ -1,7 +1,7 @@
 package linkers.progressive
 
 import model.entities.Entity
-import model.{SpatialIndex, StaticComparisonPQ, TileGranularities}
+import model.{StaticComparisonPQ, TileGranularities}
 import org.locationtech.jts.geom.Envelope
 import utils.configuration.Constants
 import utils.configuration.Constants.Relation.Relation
@@ -24,7 +24,6 @@ case class ReciprocalTopK(source: Array[Entity], target: Iterable[Entity],
      */
     def prioritize(relation: Relation):  StaticComparisonPQ = {
         val localBudget = math.ceil(budget*source.length.toDouble/totalSourceEntities.toDouble).toLong
-        val sourceIndex = SpatialIndex(source, tileGranularities)
         val targetAr = target.toArray
 
         val sourceK = (math.ceil(localBudget / source.length).toInt + 1) * 2 // +1 to avoid k=0

@@ -22,7 +22,6 @@ case class RandomScheduling(source: Array[Entity], target: Iterable[Entity],
     def prioritize(relation: Relation): StaticComparisonPQ = {
         val targetAr = target.toArray
         val localBudget = math.ceil(budget*source.length.toDouble/totalSourceEntities.toDouble).toLong
-        val sourceIndex = SpatialIndex(source, tileGranularities)
         val pq: StaticComparisonPQ = StaticComparisonPQ(localBudget)
         var counter = 0
         val rnd = new scala.util.Random
@@ -32,7 +31,7 @@ case class RandomScheduling(source: Array[Entity], target: Iterable[Entity],
             .foreach {j =>
                 val t = targetAr(j)
                 val candidates = getAllCandidatesWithIndex(t, sourceIndex, partitionBorder, relation)
-                candidates.foreach { case (si, s) =>
+                candidates.foreach { case (si, _) =>
                     val w = rnd.nextFloat()
                     val secW = rnd.nextFloat()
                     val wp = MainWP(counter, si, j, w, secW)

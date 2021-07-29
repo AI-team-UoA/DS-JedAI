@@ -22,7 +22,6 @@ case class DynamicProgressiveGIAnt(source: Array[Entity], target: Iterable[Entit
      */
     def prioritize(relation: Relation): ComparisonPQ ={
         val localBudget = math.ceil(budget*source.length.toDouble/totalSourceEntities.toDouble).toLong
-        val sourceIndex = SpatialIndex(source, tileGranularities)
         val pq: DynamicComparisonPQ = DynamicComparisonPQ(localBudget)
         var counter = 0
         val targetAr = target.toArray
