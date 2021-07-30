@@ -1,7 +1,10 @@
 package utils.geometryUtils.decompose
 
 import org.locationtech.jts.geom.{Coordinate, Envelope, Geometry, LineString, Polygon}
+import utils.geometryUtils.GeometryUtils
 import utils.geometryUtils.GeometryUtils.geomFactory
+
+import scala.collection.SortedSet
 
 /**
  * GridDecomposer Trait
@@ -68,6 +71,26 @@ trait GridDecomposerT[T] extends DecomposerT[T] {
                     new Coordinate(env.getMaxX + epsilon, y)
                 ))
         }
+    }
+
+    /**
+     * Find the intermediate points in the edge (c1, c2) that either their x is in the set of vertical points (Xes)
+     * or their y is in the set of horizontal points (Yes)
+     * @param c1                start of edge
+     * @param c2                end of edge
+     * @param verticalPoints    set of Xes
+     * @param horizontalPoints  set of Yes
+     * @return
+     */
+    def findIntermediatePoints(c1: Coordinate, c2: Coordinate, verticalPoints: SortedSet[Double], horizontalPoints: SortedSet[Double]): List[Coordinate] ={
+        val (maxX, minX) = if (c1.x > c2.x) (c1.x, c2.x) else (c2.x, c1.x)
+        val vp = verticalPoints.from(minX).to(maxX)
+        val intersectingVerticalPoints = GeometryUtils.getIntersectionWithVerticalLine(c1, c2, vp).toList
+
+        val (maxY, minY) = if (c1.y > c2.y) (c1.y, c2.y) else (c2.y, c1.y)
+        val hp = horizontalPoints.from(minY).to(maxY)
+        val intersectingHorizontalPoints = GeometryUtils.getIntersectionWithHorizontalLine(c1, c2, hp).toList
+        intersectingHorizontalPoints ::: intersectingVerticalPoints
     }
 
 

@@ -1,8 +1,7 @@
 package utils.geometryUtils.decompose
 
 import model.TileGranularities
-import org.locationtech.jts.geom.{Coordinate, Envelope, Geometry, LineString, LinearRing, Polygon}
-import utils.geometryUtils.GeometryUtils
+import org.locationtech.jts.geom._
 
 import scala.collection.SortedSet
 import scala.math.ceil
@@ -22,6 +21,8 @@ case class EnvelopeRefiner(theta: TileGranularities) extends GridDecomposerT[Env
      */
     override def decomposePolygon(polygon: Polygon): Seq[Envelope] = decomposeGeometry(polygon)
 
+    override def decomposePolygon1D(polygon: Polygon): Seq[Envelope] = decomposeGeometry(polygon)
+
     /**
      * Generate Fine-Grained Envelopes for input line
      * @param line input line
@@ -34,7 +35,7 @@ case class EnvelopeRefiner(theta: TileGranularities) extends GridDecomposerT[Env
      * @param geometry input geometry
      * @return List of Fine-Grained envelopes
      */
-    override  def decomposeGeometry(geometry: Geometry): List[Envelope] ={
+    override def decomposeGeometry(geometry: Geometry)(implicit oneDimension: Boolean): List[Envelope] ={
 
         /**
          * Define threshold that computes how many times to split
@@ -108,30 +109,30 @@ case class EnvelopeRefiner(theta: TileGranularities) extends GridDecomposerT[Env
             def getGeometry: Geometry = geometryFactory.toGeometry(getEnvelope)
             def isEmpty: Boolean = minX == Double.PositiveInfinity || maxX == Double.NegativeInfinity ||
                 minY == Double.PositiveInfinity || maxY == Double.NegativeInfinity
+            def nonEmpty: Boolean = !isEmpty
         }
 
         // find the points based on which it will split
         // the points are based on the grid defined by theta
         val env: Envelope = geom.getEnvelopeInternal
-        val (verticalPointsSeq,horizontalPointsSeq) =
-        geom match {
-            case _: LineString =>
-                // in case of lineString we consider both dimensions
-                val vertical = env.getMinX +:getVerticalPoints(env, theta.x) :+ env.getMaxX
-                val horizontal= env.getMinY +: getHorizontalPoints(env, theta.y) :+ env.getMaxY
-                (vertical, horizontal)
-            case _ if env.getWidth > env.getHeight =>
-                // in case of polygons, we consider only one dimension
-                // cut vertically
-                val vertical = env.getMinX +:getVerticalPoints(env, theta.x) :+ env.getMaxX
-                val horizontal = env.getMinY :: env.getMaxY :: Nil
-                (vertical, horizontal)
-            case _ =>
-                // cut horizontally
-                val vertical = env.getMinX :: env.getMaxX :: Nil
-                val horizontal = env.getMinY +: getHorizontalPoints(env, theta.y) :+ env.getMaxY
-                (vertical, horizontal)
-        }
+        val (verticalPointsSeq,horizontalPointsSeq) = geom match {
+                case _: LineString =>
+                    // in case of lineString we consider both dimensions
+                    val vertical = env.getMinX +:getVerticalPoints(env, theta.x) :+ env.getMaxX
+                    val horizontal = env.getMinY +: getHorizontalPoints(env, theta.y) :+ env.getMaxY
+                    (vertical, horizontal)
+                case _ if env.getWidth > env.getHeight =>
+                    // in case of polygons, we consider only one dimension
+                    // cut vertically
+                    val vertical = env.getMinX +:getVerticalPoints(env, theta.x) :+ env.getMaxX
+                    val horizontal = env.getMinY :: env.getMaxY :: Nil
+                    (vertical, horizontal)
+                case _ =>
+                    // cut horizontally
+                    val vertical = env.getMinX :: env.getMaxX :: Nil
+                    val horizontal = env.getMinY +: getHorizontalPoints(env, theta.y) :+ env.getMaxY
+                    (vertical, horizontal)
+            }
         val verticalPoints: SortedSet[Double] = collection.SortedSet(verticalPointsSeq: _*)
         val horizontalPoints: SortedSet[Double] = collection.SortedSet(horizontalPointsSeq: _*)
 
@@ -177,19 +178,7 @@ case class EnvelopeRefiner(theta: TileGranularities) extends GridDecomposerT[Env
                 }
         }
 
-        envelopes.filter(! _.isEmpty).map(e => e.getEnvelope).toList
-    }
-
-
-    def findIntermediatePoints(c1: Coordinate, c2: Coordinate, verticalPoints: SortedSet[Double], horizontalPoints: SortedSet[Double]): List[Coordinate] ={
-        val (maxX, minX) = if (c1.x > c2.x) (c1.x, c2.x) else (c2.x, c1.x)
-        val vp = verticalPoints.from(minX).to(maxX)
-        val intersectingVerticalPoints = GeometryUtils.getIntersectionWithVerticalLine(c1, c2, vp).toList
-
-        val (maxY, minY) = if (c1.y > c2.y) (c1.y, c2.y) else (c2.y, c1.y)
-        val hp = horizontalPoints.from(minY).to(maxY)
-        val intersectingHorizontalPoints = GeometryUtils.getIntersectionWithHorizontalLine(c1, c2, hp).toList
-        intersectingHorizontalPoints ::: intersectingVerticalPoints
+        envelopes.filter(_.nonEmpty).map(e => e.getEnvelope).toList
     }
 
 }

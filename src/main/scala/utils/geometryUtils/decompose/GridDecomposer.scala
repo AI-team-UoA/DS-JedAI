@@ -6,7 +6,11 @@ import org.locationtech.jts.operation.polygonize.Polygonizer
 import org.locationtech.jts.operation.union.UnaryUnionOp
 import org.locationtech.jts.precision.GeometryPrecisionReducer
 import utils.geometryUtils.GeometryUtils.flattenCollection
-import collection.JavaConverters._
+
+import scala.annotation.tailrec
+import scala.collection.JavaConverters._
+import scala.collection.SortedSet
+import scala.collection.mutable.ListBuffer
 
 /**
   * Decompose Geometry based on the grid defined by tile-granularities
@@ -25,14 +29,51 @@ case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geom
      * @param geometry geometry
      * @return a list of geometries
      */
-    def decomposeGeometry(geometry: Geometry) : Seq[Geometry] = {
+    def decomposeGeometry(geometry: Geometry)(implicit oneDimension: Boolean=false) : Seq[Geometry] = {
         geometry match {
-            case polygon: Polygon => decomposePolygon(polygon)
+            case polygon: Polygon => if (oneDimension) decomposePolygon1D(polygon) else decomposePolygon(polygon)
             case line: LineString => decomposeLineString(line)
             case gc: GeometryCollection => flattenCollection(gc).flatMap(g => decomposeGeometry(g))
             case _ => Seq(geometry)
         }
     }
+
+
+    def decomposePolygon1D(polygon: Polygon): Seq[Geometry] ={
+        def split(polygon: Polygon): Seq[Geometry] = {
+            val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
+            // find blades based on which to split
+
+            val env = polygon.getEnvelopeInternal
+            val blades =
+                if (env.getWidth > env.getHeight)
+                    // cut vertically
+                    getVerticalBlades(polygon.getEnvelopeInternal, theta.x)
+                        .flatMap(b => combineBladeWithInteriorRings(polygon, b, innerRings, isHorizontal = false))
+                else
+                    // cut horizontally
+                    getHorizontalBlades(polygon.getEnvelopeInternal, theta.y)
+                        .flatMap(b => combineBladeWithInteriorRings(polygon, b, innerRings, isHorizontal = true))
+
+            val exteriorRing = polygon.getExteriorRing
+            // polygonizer - it will find all possible geometries based on the input geometries
+            val polygonizer = new Polygonizer()
+            val union = new UnaryUnionOp(blades.asJava).union()
+            polygonizer.add(exteriorRing.union(union))
+            val fragments = polygonizer.getPolygons.asScala.map(p => p.asInstanceOf[Polygon])
+
+            // filter the polygons that cover holes
+            fragments
+                .filter(p => polygon.contains(p.getInteriorPoint))
+                .map(p => precisionReducer.reduce(p))
+                .toSeq
+        }
+
+        val env = polygon.getEnvelopeInternal
+        if (env.getWidth > theta.x || env.getHeight > theta.y) split(polygon)
+        else Seq(polygon)
+    }
+
 
     /**
      * Decompose a polygon into multiple fragments
@@ -89,11 +130,83 @@ case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geom
                 .map(l => precisionReducer.reduce(l))
 
         }
-
         val env = line.getEnvelopeInternal
         if (env.getWidth > theta.x || env.getHeight > theta.y) split(line)
         else Seq(line)
     }
 
 
+        // a list of functions that given an edge returns the index of the fragments it belongs to
+        // most probably it will return a single region
+        val regionsConditions: Seq[(Coordinate, Coordinate) => Option[Int]] =
+            (for (x <- verticalPoints.sliding(2); y <- horizontalPoints.sliding(2)) yield (x, y))
+                .zipWithIndex.map { case ((x, y), i) =>
+                    val (minX, maxX) = (x.head, x.last)
+                    val (minY, maxY) = (y.head, y.last)
+                    (head: Coordinate, last: Coordinate) =>
+                        if (head.x >= minX && head.x <= maxX && head.y >= minY && head.y <= maxY &&
+                            last.x >= minX && last.x <= maxX && last.y >= minY && last.y <= maxY
+                    ) Some(i) else None
+            }.toSeq
+
+        @tailrec
+        def computeFragments(geometryCoordinates: List[Coordinate], previousNode: Coordinate,
+                             fragmentsCoordinates: Array[ListBuffer[ListBuffer[Coordinate]]]): Array[ListBuffer[ListBuffer[Coordinate]]] = {
+            geometryCoordinates match {
+                case Nil => fragmentsCoordinates
+                case currentNode :: tail =>
+                    // define coordinate ordering
+                    val coordinateOrdering = if (previousNode.compareTo(currentNode) > 1) implicitly[Ordering[Coordinate]] else implicitly[Ordering[Coordinate]].reverse
+                    val intermediatePoints = findIntermediatePoints(previousNode, currentNode, verticalPoints, horizontalPoints).sorted(coordinateOrdering)
+
+                    // compute the points within the eddge - if returned points do not contain the points of the edge
+                    // we add them
+                    val coordinates = intermediatePoints match {
+                        case Nil => previousNode :: currentNode :: Nil
+                        case points =>
+                            val points_ = if (points.head != previousNode) previousNode +:points else points
+                            if (points_.last != currentNode) points_ :+ currentNode else points_
+                    }
+                    coordinates.sliding(2).foreach { c =>
+                        val startOfEdge = c.head
+                        val endOfEdge = c.last
+                        val regionIndices =  regionsConditions.flatMap(regionF => regionF(startOfEdge, endOfEdge))
+                        regionIndices.foreach { i =>
+                            val listOfLists: ListBuffer[ListBuffer[Coordinate]] = fragmentsCoordinates(i)
+                            if (listOfLists.isEmpty) {
+                                // if it's empty we add the start and the end
+                                val coordinatesList = new ListBuffer[Coordinate]()
+                                coordinatesList.append(startOfEdge)
+                                coordinatesList.append(endOfEdge)
+                                listOfLists.append(coordinatesList)
+                            }
+                            else {
+                                // if it's not empty there are two cases:
+                                //  - it is consecutive i.e. the last node is the same as the start => we extend the existing list
+                                //  - it is not consecutive => a new geometry starts  i.e. a new list is initialized
+                                val lastList = listOfLists.last
+                                val lastCoordinate = lastList.last
+                                if (lastCoordinate == startOfEdge) {
+                                    lastList.append(endOfEdge)
+                                }
+                                else{
+                                    val coordinatesList = new ListBuffer[Coordinate]()
+                                    coordinatesList.append(startOfEdge)
+                                    coordinatesList.append(endOfEdge)
+                                    listOfLists.append(coordinatesList)
+                                }
+                            }
+                        }
+                    }
+                    computeFragments(tail, currentNode, fragmentsCoordinates)
+            }
+        }
+
+        // An Array of empty Envelopes - this will contain the fine-grained envelopes
+        val emptyFragments: Array[ListBuffer[ListBuffer[Coordinate]]] = Array.fill(regionsConditions.length)(ListBuffer[ListBuffer[Coordinate]]())
+        val coordinateList = line.getCoordinates.toList
+        val fragments = computeFragments(coordinateList.tail, coordinateList.head, emptyFragments)
+
+        fragments.filter(_.nonEmpty).flatMap(seq => seq.filter(_.size > 1).map(l => geometryFactory.createLineString(l.toArray)))
+    }
 }
