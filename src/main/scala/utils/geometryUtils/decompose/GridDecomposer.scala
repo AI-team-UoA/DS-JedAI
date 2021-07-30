@@ -135,6 +135,19 @@ case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geom
         else Seq(line)
     }
 
+    /**
+     * Decompose a lineString into multiple fragments
+     * significantly slower
+     * @param line LineString
+     * @return a list of fragment geometries
+     */
+    def decomposeLineString_(line: LineString): Seq[Geometry] = {
+        val env = line.getEnvelopeInternal
+        val verticalPointsSeq = env.getMinX +: getVerticalPoints(env, theta.x) :+ env.getMaxX
+        val horizontalPointsSeq = env.getMinY +: getHorizontalPoints(env, theta.y) :+ env.getMaxY
+
+        val verticalPoints: SortedSet[Double] = collection.SortedSet(verticalPointsSeq: _*)
+        val horizontalPoints: SortedSet[Double] = collection.SortedSet(horizontalPointsSeq: _*)
 
         // a list of functions that given an edge returns the index of the fragments it belongs to
         // most probably it will return a single region
