@@ -1,6 +1,6 @@
 
 
-import model.entities.{IndexedFragmentedEntity, SpatialEntity}
+import model.entities.{IndexedDecomposedEntity, SpatialEntity}
 import model.{IM, SpatialIndex, TileGranularities}
 import org.locationtech.jts.geom.{Geometry, GeometryFactory}
 import org.locationtech.jts.io.WKTReader
@@ -18,11 +18,11 @@ class IntersectionMatrixTest extends AnyWordSpec  {
 
     val theta: TileGranularities = TileGranularities(source.map(_.env), source.length, ThetaOption.AVG_x2)
     val decomposer: GridDecomposer = GridDecomposer(theta)
-    val fragmentationF: Geometry => Seq[Geometry] = decomposer.decomposeGeometry
-    val fSource: Seq[IndexedFragmentedEntity] = source.map(e => IndexedFragmentedEntity(e, theta, fragmentationF))
-    val fTarget: Seq[IndexedFragmentedEntity] = target.map(e => IndexedFragmentedEntity(e, theta, fragmentationF))
+    val segmentationF: Geometry => Seq[Geometry] = decomposer.decomposeGeometry
+    val fSource: Seq[IndexedDecomposedEntity] = source.map(e => IndexedDecomposedEntity(e, theta, segmentationF))
+    val fTarget: Seq[IndexedDecomposedEntity] = target.map(e => IndexedDecomposedEntity(e, theta, segmentationF))
 
-    val index: SpatialIndex[IndexedFragmentedEntity] = SpatialIndex[IndexedFragmentedEntity](fSource.toArray, theta)
+    val index: SpatialIndex[IndexedDecomposedEntity] = SpatialIndex[IndexedDecomposedEntity](fSource.toArray, theta)
 
     "IndexedFragmentedEntities" should {
         "produce correct IM" in {

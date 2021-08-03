@@ -46,14 +46,14 @@ class DecompositionTest extends AnyWordSpec {
     }
 
 
-    "RecursiveFragmentation" should {
-       "produce fragments of same area as the initial Polygon" in {
+    "RecursiveDecomposition" should {
+       "produce segments of same area as the initial Polygon" in {
             val theta = TileGranularities(polygons.map(p => p.getEnvelopeInternal), polygons.length, ThetaOption.AVG_x2)
            val decomposer = RecursiveDecomposer(theta)
            assert(
                 polygons.forall { p =>
-                    val fragments: Seq[Geometry] = decomposer.decomposePolygon(p)
-                    val merged = fragments.foldLeft(emptyPolygon)(_ union _)
+                    val segments: Seq[Geometry] = decomposer.decomposePolygon(p)
+                    val merged = segments.foldLeft(emptyPolygon)(_ union _)
                     val diff = math.abs(merged.getArea - p.getArea)
                     diff < delta
                 }
@@ -71,13 +71,13 @@ class DecompositionTest extends AnyWordSpec {
                 }
             )
         }
-        "produce fragments of same area as the initial Polygon, despite inner holes" in {
+        "produce segments of same area as the initial Polygon, despite inner holes" in {
             val theta = TileGranularities(polygonsWithHoles.map(p => p.getEnvelopeInternal), polygons.length, ThetaOption.AVG_x2)
             val decomposer = decompose.RecursiveDecomposer(theta)
             assert(
                 polygonsWithHoles.forall { p =>
-                    val fragments: Seq[Geometry] = decomposer.decomposePolygon(p)
-                    val merged = fragments.foldLeft(emptyPolygon)(_ union _)
+                    val segments: Seq[Geometry] = decomposer.decomposePolygon(p)
+                    val merged = segments.foldLeft(emptyPolygon)(_ union _)
                     val diff = math.abs(merged.getArea - p.getArea)
                     diff < delta
                 }
@@ -85,26 +85,26 @@ class DecompositionTest extends AnyWordSpec {
         }
     }
 
-    "1D RecursiveFragmentation" should {
-        "produce fragments of same area as the initial Polygon" in {
+    "1D RecursiveDecomposition" should {
+        "produce segments of same area as the initial Polygon" in {
             val theta = TileGranularities(polygons.map(p => p.getEnvelopeInternal), polygons.length, ThetaOption.AVG_x2)
             val decomposer = RecursiveDecomposer(theta)
             assert(
                 polygons.forall { p =>
-                    val fragments: Seq[Geometry] = decomposer.decomposePolygon1D(p)
-                    val merged = fragments.foldLeft(emptyPolygon)(_ union _)
+                    val segments: Seq[Geometry] = decomposer.decomposePolygon1D(p)
+                    val merged = segments.foldLeft(emptyPolygon)(_ union _)
                     val diff = math.abs(merged.getArea - p.getArea)
                     diff < delta
                 }
             )
         }
-        "produce fragments of same area as the initial Polygon, despite inner holes" in {
+        "produce segments of same area as the initial Polygon, despite inner holes" in {
             val theta = TileGranularities(polygonsWithHoles.map(p => p.getEnvelopeInternal), polygons.length, ThetaOption.AVG_x2)
             val decomposer = decompose.RecursiveDecomposer(theta)
             assert(
                 polygonsWithHoles.forall { p =>
-                    val fragments: Seq[Geometry] = decomposer.decomposePolygon1D(p)
-                    val merged = fragments.foldLeft(emptyPolygon)(_ union _)
+                    val segments: Seq[Geometry] = decomposer.decomposePolygon1D(p)
+                    val merged = segments.foldLeft(emptyPolygon)(_ union _)
                     val diff = math.abs(merged.getArea - p.getArea)
                     diff < delta
                 }
@@ -113,15 +113,15 @@ class DecompositionTest extends AnyWordSpec {
     }
 
 
-    "2D GridFragmentation" should {
-        "produce fragments of same area as the initial Polygon" in {
+    "2D GridDecomposition" should {
+        "produce segments of same area as the initial Polygon" in {
             val theta = TileGranularities(polygons.map(p => p.getEnvelopeInternal), polygons.length, ThetaOption.AVG_x2)
             val decomposer = GridDecomposer(theta)
 
             assert(
                 polygons.forall { p =>
-                    val fragments: Seq[Geometry] = decomposer.decomposePolygon(p)
-                    val merged = fragments.foldLeft(emptyPolygon)(_ union _)
+                    val segments: Seq[Geometry] = decomposer.decomposePolygon(p)
+                    val merged = segments.foldLeft(emptyPolygon)(_ union _)
                     val diff = math.abs(merged.getArea - p.getArea)
                     diff < delta
                 }
@@ -141,22 +141,22 @@ class DecompositionTest extends AnyWordSpec {
             )
         }
 
-        "produce fragments of same area as the initial Polygon, despite inner holes" in {
+        "produce segments of same area as the initial Polygon, despite inner holes" in {
             val geometries = polygonsWithHoles
             val theta = TileGranularities(geometries.map(p => p.getEnvelopeInternal), geometries.length, ThetaOption.AVG_x2)
             val decomposer = decompose.GridDecomposer(theta)
 
             assert(
                 geometries.forall { p =>
-                    val fragments: Seq[Geometry] = decomposer.decomposeGeometry(p)
-                    val merged = fragments.foldLeft(emptyPolygon)(_ union _)
+                    val segments: Seq[Geometry] = decomposer.decomposeGeometry(p)
+                    val merged = segments.foldLeft(emptyPolygon)(_ union _)
                     val diff = math.abs(merged.getArea - p.getArea)
                     diff < delta
                 }
             )
         }
 
-        "produce fragments that overlap a single tile" in {
+        "produce segments that overlap a single tile" in {
             val geometries = source ++ target ++ polygons ++ polygonsWithHoles ++ lineStrings ++ geometryCollections
             val theta = TileGranularities(geometries.map(p => p.getEnvelopeInternal), geometries.length, ThetaOption.AVG_x2)
             val index = SpatialIndex[Geometry](Array(), theta)
@@ -166,9 +166,9 @@ class DecompositionTest extends AnyWordSpec {
                 geometries
                     .filter(p => p.getEnvelopeInternal.getWidth > theta.x || p.getEnvelopeInternal.getHeight > theta.y)
                     .forall { g =>
-                        val fragments: Seq[Geometry] = decomposer.decomposeGeometry(g)
-                        val tiles = fragments.map(f => index.index(f))
-                        val tilesG = tiles.map(ts => ts.map(t => tileToPolygon(t, theta)))
+                        val segments: Seq[Geometry] = decomposer.decomposeGeometry(g)
+                        val tiles = segments.map(f => index.index(f))
+//                        val tilesG = tiles.map(ts => ts.map(t => tileToPolygon(t, theta)))
                         val res = tiles.forall(_.length == 1)
                         res
                     }
@@ -183,41 +183,41 @@ class DecompositionTest extends AnyWordSpec {
             val theta = TileGranularities(geometries.map(p => p.getEnvelopeInternal), geometries.length, ThetaOption.AVG_x2)
             val decomposer = decompose.GridDecomposer(theta)
 
-            val fragments1: Seq[Geometry] = decomposer.decomposeGeometry(p1)
-            val fragments2: Seq[Geometry] = decomposer.decomposeGeometry(p2)
+            val segments1: Seq[Geometry] = decomposer.decomposeGeometry(p1)
+            val segments2: Seq[Geometry] = decomposer.decomposeGeometry(p2)
 
-            val index1 = new SpatialIndex[Geometry](fragments1.toArray, theta)
-            val index2 = new SpatialIndex[Geometry](fragments2.toArray, theta)
+            val index1 = new SpatialIndex[Geometry](segments1.toArray, theta)
+            val index2 = new SpatialIndex[Geometry](segments2.toArray, theta)
 
             val tilesIntersection = index1.indices.intersect(index2.indices)
             assert(tilesIntersection.nonEmpty)
         }
     }
 
-    "1D GridFragmentation" should {
-        "produce fragments of same area as the initial Polygon" in {
+    "1D GridDecomposition" should {
+        "produce segments of same area as the initial Polygon" in {
             val theta = TileGranularities(polygons.map(p => p.getEnvelopeInternal), polygons.length, ThetaOption.AVG_x2)
             val decomposer = GridDecomposer(theta)
 
             assert(
                 polygons.forall { p =>
-                    val fragments: Seq[Geometry] = decomposer.decomposePolygon1D(p)
-                    val merged = fragments.foldLeft(emptyPolygon)(_ union _)
+                    val segments: Seq[Geometry] = decomposer.decomposePolygon1D(p)
+                    val merged = segments.foldLeft(emptyPolygon)(_ union _)
                     val diff = math.abs(merged.getArea - p.getArea)
                     diff < delta
                 }
             )
         }
 
-        "produce fragments of same area as the initial Polygon, despite inner holes" in {
+        "produce segments of same area as the initial Polygon, despite inner holes" in {
             val geometries = polygonsWithHoles
             val theta = TileGranularities(geometries.map(p => p.getEnvelopeInternal), geometries.length, ThetaOption.AVG_x2)
             val decomposer = decompose.GridDecomposer(theta)
 
             assert(
                 geometries.forall { p =>
-                    val fragments: Seq[Geometry] = decomposer.decomposePolygon1D(p)
-                    val merged = fragments.foldLeft(emptyPolygon)(_ union _)
+                    val segments: Seq[Geometry] = decomposer.decomposePolygon1D(p)
+                    val merged = segments.foldLeft(emptyPolygon)(_ union _)
                     val diff = math.abs(merged.getArea - p.getArea)
                     diff < delta
                 }
@@ -226,12 +226,12 @@ class DecompositionTest extends AnyWordSpec {
     }
 
 
-    "Fragmentation methods" should {
+    "Decomposition methods" should {
         val geometries = lineStrings ++ polygons ++ geometryCollections
         val theta = TileGranularities(geometries.map(p => p.getEnvelopeInternal), geometries.length, ThetaOption.AVG_x2)
         val decomposer = decompose.RecursiveDecomposer(theta)
 
-        "RecursiveFragmentation - support all geometry types" in {
+        "RecursiveDecomposition - support all geometry types" in {
             assert(
                 geometries.forall { g =>
                     val res: Seq[Geometry] = decomposer.decomposeGeometry(g)
@@ -241,7 +241,7 @@ class DecompositionTest extends AnyWordSpec {
                 }
             )
         }
-        "GridFragmentation - support all geometry types" in {
+        "GridDecomposition - support all geometry types" in {
             val decomposer = decompose.GridDecomposer(theta)
             assert(
                 geometries.forall { g =>
@@ -254,7 +254,7 @@ class DecompositionTest extends AnyWordSpec {
         }
     }
 
-    "Envelope Fragmentation" should {
+    "Envelope Decomposition" should {
         val geometries = polygons ++ geometryCollections
         val theta = TileGranularities(geometries.map(p => p.getEnvelopeInternal), geometries.length, ThetaOption.AVG_x2)
         "Produce smaller Envelopes" in {

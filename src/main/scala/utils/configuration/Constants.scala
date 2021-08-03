@@ -124,8 +124,10 @@ object Constants {
 		type EntityTypeENUM = Value
 		val SPATIAL_ENTITY: Constants.EntityTypeENUM.Value = Value("SPATIAL_ENTITY")
 		val SPATIOTEMPORAL_ENTITY: Constants.EntityTypeENUM.Value = Value("SPATIOTEMPORAL_ENTITY")
-		val FRAGMENTED_ENTITY: Constants.EntityTypeENUM.Value = Value("FRAGMENTED_ENTITY")
-		val INDEXED_FRAGMENTED_ENTITY: Constants.EntityTypeENUM.Value = Value("INDEXED_FRAGMENTED_ENTITY")
+		val DECOMPOSED_ENTITY: Constants.EntityTypeENUM.Value = Value("DECOMPOSED_ENTITY")
+		val INDEXED_DECOMPOSED_ENTITY: Constants.EntityTypeENUM.Value = Value("INDEXED_DECOMPOSED_ENTITY")
+		val DECOMPOSED_ENTITY_1D: Constants.EntityTypeENUM.Value = Value("DECOMPOSED_ENTITY_1D")
+		val INDEXED_DECOMPOSED_ENTITY_1D: Constants.EntityTypeENUM.Value = Value("INDEXED_DECOMPOSED_ENTITY_1D")
 		val FINEGRAINED_ENTITY: Constants.EntityTypeENUM.Value = Value("FINEGRAINED_ENTITY")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)

@@ -4,7 +4,7 @@ import model.TileGranularities
 import org.locationtech.jts.geom._
 import org.locationtech.jts.operation.polygonize.Polygonizer
 import org.locationtech.jts.operation.union.UnaryUnionOp
-import org.locationtech.jts.precision.GeometryPrecisionReducer
+import utils.geometryUtils.GeometryUtils
 import utils.geometryUtils.GeometryUtils.flattenCollection
 
 import scala.annotation.tailrec
@@ -18,11 +18,6 @@ import scala.collection.mutable.ListBuffer
  */
 case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geometry] {
 
-    val geometryPrecision = 1e+11
-    val precisionModel = new PrecisionModel(geometryPrecision)
-    val precisionReducer = new GeometryPrecisionReducer(precisionModel)
-    precisionReducer.setPointwise(true)
-    precisionReducer.setChangePrecisionModel(true)
 
     /**
      * Decompose a geometry
@@ -46,26 +41,29 @@ case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geom
 
             val env = polygon.getEnvelopeInternal
             val blades =
-                if (env.getWidth > env.getHeight)
+                if (env.getWidth > env.getHeight) {
                     // cut vertically
-                    getVerticalBlades(polygon.getEnvelopeInternal, theta.x)
+                    val verticalBlades = getVerticalBlades(polygon.getEnvelopeInternal, theta.x)
                         .flatMap(b => combineBladeWithInteriorRings(polygon, b, innerRings, isHorizontal = false))
-                else
+                    val blades = verticalBlades ++ innerRings
+                    if (blades.nonEmpty) new UnaryUnionOp(blades.asJava).union() else geometryFactory.createEmpty(2)
+                } else {
                     // cut horizontally
-                    getHorizontalBlades(polygon.getEnvelopeInternal, theta.y)
+                    val horizontalBlades = getHorizontalBlades(polygon.getEnvelopeInternal, theta.y)
                         .flatMap(b => combineBladeWithInteriorRings(polygon, b, innerRings, isHorizontal = true))
+                    val blades = horizontalBlades ++ innerRings
+                    if (blades.nonEmpty) new UnaryUnionOp(blades.asJava).union() else geometryFactory.createEmpty(2)
+                }
 
-            val exteriorRing = polygon.getExteriorRing
-            // polygonizer - it will find all possible geometries based on the input geometries
+            val polygonWithBlades = polygon.getExteriorRing.union(blades)
             val polygonizer = new Polygonizer()
-            val union = new UnaryUnionOp(blades.asJava).union()
-            polygonizer.add(exteriorRing.union(union))
-            val fragments = polygonizer.getPolygons.asScala.map(p => p.asInstanceOf[Polygon])
+            polygonizer.add(polygonWithBlades)
+            val segments = polygonizer.getPolygons.asScala.map(p => p.asInstanceOf[Polygon])
 
             // filter the polygons that cover holes
-            fragments
+            segments
                 .filter(p => polygon.contains(p.getInteriorPoint))
-                .map(p => precisionReducer.reduce(p))
+                .map(p => GeometryUtils.reducePrecision(p))
                 .toSeq
         }
 
@@ -76,33 +74,35 @@ case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geom
 
 
     /**
-     * Decompose a polygon into multiple fragments
+     * Decompose a polygon into multiple segments
      * @param polygon polygon
-     * @return a list of fragment geometries
+     * @return a list of segments geometries
      */
     def decomposePolygon(polygon: Polygon): Seq[Geometry] = {
 
         def split(polygon: Polygon): Seq[Geometry] = {
-            val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
-            // find blades based on which to split
-            val horizontalBlades = getHorizontalBlades(polygon.getEnvelopeInternal, theta.y)
-                .flatMap(b => combineBladeWithInteriorRings(polygon, b, innerRings, isHorizontal = true))
-            val verticalBlades = getVerticalBlades(polygon.getEnvelopeInternal, theta.x)
-                .flatMap(b => combineBladeWithInteriorRings(polygon, b, innerRings, isHorizontal = false))
 
-            val blades: Seq[Geometry] = verticalBlades ++ horizontalBlades ++ innerRings
-            val exteriorRing = polygon.getExteriorRing
+            val blades = {
+                val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
+                // find blades based on which to split
+                val horizontalBlades = getHorizontalBlades(polygon.getEnvelopeInternal, theta.y)
+                    .flatMap(b => combineBladeWithInteriorRings(polygon, b, innerRings, isHorizontal = true))
+                val verticalBlades = getVerticalBlades(polygon.getEnvelopeInternal, theta.x)
+                    .flatMap(b => combineBladeWithInteriorRings(polygon, b, innerRings, isHorizontal = false))
 
-            // polygonizer - it will find all possible geometries based on the input geometries
+                val blades: Seq[Geometry] = verticalBlades ++ horizontalBlades ++ innerRings
+                if (blades.nonEmpty) new UnaryUnionOp(blades.asJava).union() else geometryFactory.createEmpty(2)
+            }
+
+            val polygonWithBlades = polygon.getExteriorRing.union(blades)
             val polygonizer = new Polygonizer()
-            val union = new UnaryUnionOp(blades.asJava).union()
-            polygonizer.add(exteriorRing.union(union))
-            val fragments = polygonizer.getPolygons.asScala.map(p => p.asInstanceOf[Polygon])
+            polygonizer.add(polygonWithBlades)
+            val segments = polygonizer.getPolygons.asScala.map(p => p.asInstanceOf[Polygon])
 
             // filter the polygons that cover holes
-            fragments
+            segments
                 .filter(p => polygon.contains(p.getInteriorPoint))
-                .map(p => precisionReducer.reduce(p))
+                .map(p => GeometryUtils.reducePrecision(p))
                 .toSeq
         }
 
@@ -112,9 +112,9 @@ case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geom
     }
 
     /**
-     * Decompose a lineString into multiple fragments
+     * Decompose a lineString into multiple segments
      * @param line LineString
-     * @return a list of fragment geometries
+     * @return a list of segments geometries
      */
     def decomposeLineString(line: LineString): Seq[Geometry] = {
 
@@ -127,7 +127,7 @@ case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geom
             // find line segments by removing the intersection points
             val lineSegments = line.difference(blades).asInstanceOf[MultiLineString]
             (0 until lineSegments.getNumGeometries).map(i => lineSegments.getGeometryN(i))
-                .map(l => precisionReducer.reduce(l))
+                .map(l => GeometryUtils.reducePrecision(l))
 
         }
         val env = line.getEnvelopeInternal
@@ -136,10 +136,10 @@ case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geom
     }
 
     /**
-     * Decompose a lineString into multiple fragments
+     * Decompose a lineString into multiple segments
      * significantly slower
      * @param line LineString
-     * @return a list of fragment geometries
+     * @return a list of segments geometries
      */
     def decomposeLineString_(line: LineString): Seq[Geometry] = {
         val env = line.getEnvelopeInternal
@@ -149,7 +149,7 @@ case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geom
         val verticalPoints: SortedSet[Double] = collection.SortedSet(verticalPointsSeq: _*)
         val horizontalPoints: SortedSet[Double] = collection.SortedSet(horizontalPointsSeq: _*)
 
-        // a list of functions that given an edge returns the index of the fragments it belongs to
+        // a list of functions that given an edge returns the index of the segments it belongs to
         // most probably it will return a single region
         val regionsConditions: Seq[(Coordinate, Coordinate) => Option[Int]] =
             (for (x <- verticalPoints.sliding(2); y <- horizontalPoints.sliding(2)) yield (x, y))
@@ -163,16 +163,16 @@ case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geom
             }.toSeq
 
         @tailrec
-        def computeFragments(geometryCoordinates: List[Coordinate], previousNode: Coordinate,
-                             fragmentsCoordinates: Array[ListBuffer[ListBuffer[Coordinate]]]): Array[ListBuffer[ListBuffer[Coordinate]]] = {
+        def computeGeometrySegments(geometryCoordinates: List[Coordinate], previousNode: Coordinate,
+                                    segmentsCoordinates: Array[ListBuffer[ListBuffer[Coordinate]]]): Array[ListBuffer[ListBuffer[Coordinate]]] = {
             geometryCoordinates match {
-                case Nil => fragmentsCoordinates
+                case Nil => segmentsCoordinates
                 case currentNode :: tail =>
                     // define coordinate ordering
                     val coordinateOrdering = if (previousNode.compareTo(currentNode) > 1) implicitly[Ordering[Coordinate]] else implicitly[Ordering[Coordinate]].reverse
                     val intermediatePoints = findIntermediatePoints(previousNode, currentNode, verticalPoints, horizontalPoints).sorted(coordinateOrdering)
 
-                    // compute the points within the eddge - if returned points do not contain the points of the edge
+                    // compute the points within the edge - if returned points do not contain the points of the edge
                     // we add them
                     val coordinates = intermediatePoints match {
                         case Nil => previousNode :: currentNode :: Nil
@@ -185,7 +185,7 @@ case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geom
                         val endOfEdge = c.last
                         val regionIndices =  regionsConditions.flatMap(regionF => regionF(startOfEdge, endOfEdge))
                         regionIndices.foreach { i =>
-                            val listOfLists: ListBuffer[ListBuffer[Coordinate]] = fragmentsCoordinates(i)
+                            val listOfLists: ListBuffer[ListBuffer[Coordinate]] = segmentsCoordinates(i)
                             if (listOfLists.isEmpty) {
                                 // if it's empty we add the start and the end
                                 val coordinatesList = new ListBuffer[Coordinate]()
@@ -211,15 +211,15 @@ case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geom
                             }
                         }
                     }
-                    computeFragments(tail, currentNode, fragmentsCoordinates)
+                    computeGeometrySegments(tail, currentNode, segmentsCoordinates)
             }
         }
 
         // An Array of empty Envelopes - this will contain the fine-grained envelopes
-        val emptyFragments: Array[ListBuffer[ListBuffer[Coordinate]]] = Array.fill(regionsConditions.length)(ListBuffer[ListBuffer[Coordinate]]())
+        val emptySegment: Array[ListBuffer[ListBuffer[Coordinate]]] = Array.fill(regionsConditions.length)(ListBuffer[ListBuffer[Coordinate]]())
         val coordinateList = line.getCoordinates.toList
-        val fragments = computeFragments(coordinateList.tail, coordinateList.head, emptyFragments)
+        val segments = computeGeometrySegments(coordinateList.tail, coordinateList.head, emptySegment)
 
-        fragments.filter(_.nonEmpty).flatMap(seq => seq.filter(_.size > 1).map(l => geometryFactory.createLineString(l.toArray)))
+        segments.filter(_.nonEmpty).flatMap(seq => seq.filter(_.size > 1).map(l => geometryFactory.createLineString(l.toArray)))
     }
 }

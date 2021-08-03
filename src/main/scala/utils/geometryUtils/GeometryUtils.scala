@@ -4,6 +4,7 @@ package utils.geometryUtils
 import org.apache.sedona.core.spatialRDD.SpatialRDD
 import org.locationtech.jts.geom._
 import org.locationtech.jts.io.WKTReader
+import org.locationtech.jts.precision.GeometryPrecisionReducer
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Try
@@ -13,6 +14,14 @@ object GeometryUtils {
     val wktReader = new WKTReader()
     val geomFactory = new GeometryFactory()
     val epsilon: Double = 1e-8
+
+    val geometryPrecision = 1e+11
+    val precisionModel = new PrecisionModel(geometryPrecision)
+    val precisionReducer = new GeometryPrecisionReducer(precisionModel)
+    precisionReducer.setPointwise(true)
+    precisionReducer.setChangePrecisionModel(true)
+
+    def reducePrecision(g: Geometry): Geometry = precisionReducer.reduce(g)
 
     def flattenCollection(collection: Geometry): Seq[Geometry] =
         for (i <- 0 until collection.getNumGeometries) yield {
