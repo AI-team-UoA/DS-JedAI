@@ -1,6 +1,7 @@
-package model.entities
+package model.entities.segmented
 
 import model.IM
+import model.entities.Entity
 import org.locationtech.jts.geom.Geometry
 import org.locationtech.jts.operation.union.UnaryUnionOp
 import utils.configuration.Constants.Relation
@@ -9,30 +10,29 @@ import utils.geometryUtils.EnvelopeOp
 
 import scala.collection.JavaConverters._
 
-case class DecomposedEntity(originalID: String = "", geometry: Geometry, segments: Seq[Geometry]) extends Entity {
+case class DecomposedEntity(originalID: String, geometry: Geometry, segments: Seq[Geometry]) extends SegmentedEntityT[Geometry] {
 
     override def intersectingMBR(e: Entity, relation: Relation): Boolean = {
-        lazy val segmentsIntersection: Boolean = e match {
-            case fe: DecomposedEntity =>
-                segments.exists { fg1 =>
-                    val segmentsEnv = fg1.getEnvelopeInternal
-                    fe.segments.exists(fg2 => EnvelopeOp.checkIntersection(segmentsEnv, fg2.getEnvelopeInternal, relation))
-                }
-
-            case fe: IndexedDecomposedEntity =>
-                segments.exists { fg1 =>
-                    val segmentsEnv = fg1.getEnvelopeInternal
-                    fe.segments.exists(fg2 => EnvelopeOp.checkIntersection(segmentsEnv, fg2.getEnvelopeInternal, relation))
-                }
-
-            case _ =>
-                segments.exists { fg =>
-                    val segmentsEnv = fg.getEnvelopeInternal
-                    EnvelopeOp.checkIntersection(segmentsEnv, e.env, relation)
-                }
+        lazy val segmentsEnvIntersection: Boolean = e match {
+            case DecomposedEntity(_, _, targetSegments) => segments.exists { segment1 =>
+                val segmentEnv = segment1.getEnvelopeInternal
+                targetSegments.exists(segment2 => EnvelopeOp.checkIntersection(segmentEnv, segment2.getEnvelopeInternal, relation))
+            }
+            case IndexedDecomposedEntity(_, _, targetSegments, _) => segments.exists { segment1 =>
+                val segmentEnv = segment1.getEnvelopeInternal
+                targetSegments.exists(segment2 => EnvelopeOp.checkIntersection(segmentEnv, segment2.getEnvelopeInternal, relation))
+            }
+            case FineGrainedEntity(_, _, targetEnvSegments) => segments.exists { segment1 =>
+                val segmentEnv = segment1.getEnvelopeInternal
+                targetEnvSegments.exists(env2 => EnvelopeOp.checkIntersection(segmentEnv, env2, relation))
+            }
+            case _ => segments.exists { fg =>
+                val segmentEnv = fg.getEnvelopeInternal
+                EnvelopeOp.checkIntersection(segmentEnv, e.env, relation)
+            }
         }
         val envIntersection: Boolean = EnvelopeOp.checkIntersection(env, e.env, relation)
-        envIntersection && segmentsIntersection
+        envIntersection && segmentsEnvIntersection
     }
 
 

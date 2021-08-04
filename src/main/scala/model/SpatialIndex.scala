@@ -1,6 +1,6 @@
 package model
 
-import model.entities.FineGrainedEntity
+import model.entities.segmented.FineGrainedEntity
 import org.locationtech.jts.geom.Envelope
 
 import scala.collection.mutable
@@ -22,7 +22,7 @@ case class SpatialIndex[T <: {def getEnvelopeInternal(): Envelope}](entities: Ar
     def index(t: T): Seq[(Int, Int)] = {
         t match {
             case fge: FineGrainedEntity =>
-                fge.fineGrainedEnvelopes.flatMap(env =>indexEnvelope(env) )
+                fge.segments.flatMap(env =>indexEnvelope(env) )
             case _ =>
                 val env = t.getEnvelopeInternal()
                 indexEnvelope(env)

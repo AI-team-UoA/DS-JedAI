@@ -1,6 +1,7 @@
 
 
-import model.entities.{IndexedDecomposedEntity, SpatialEntity}
+import model.entities.SpatialEntity
+import model.entities.segmented.IndexedDecomposedEntity
 import model.{IM, SpatialIndex, TileGranularities}
 import org.locationtech.jts.geom.{Geometry, GeometryFactory}
 import org.locationtech.jts.io.WKTReader
@@ -36,6 +37,4 @@ class IntersectionMatrixTest extends AnyWordSpec  {
             }
         }
     }
-
-
 }
