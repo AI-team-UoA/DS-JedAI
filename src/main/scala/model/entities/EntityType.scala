@@ -1,12 +1,13 @@
 package model.entities
 
 import model.TileGranularities
+import model.entities.segmented.{DecomposedEntity, FineGrainedEntity, IndexedDecomposedEntity}
 import org.joda.time.DateTime
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 import org.locationtech.jts.geom.{Envelope, Geometry}
 import utils.configuration.Constants
 import utils.configuration.Constants.EntityTypeENUM
-import utils.configuration.Constants.EntityTypeENUM.{EntityTypeENUM, DECOMPOSED_ENTITY, DECOMPOSED_ENTITY_1D, INDEXED_DECOMPOSED_ENTITY_1D}
+import utils.configuration.Constants.EntityTypeENUM.{DECOMPOSED_ENTITY, DECOMPOSED_ENTITY_1D, EntityTypeENUM, INDEXED_DECOMPOSED_ENTITY_1D}
 import utils.geometryUtils.decompose.{DecomposerT, EnvelopeRefiner, GridDecomposer, RecursiveDecomposer}
 
 // TODO comment

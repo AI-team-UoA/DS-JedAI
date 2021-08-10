@@ -2,11 +2,11 @@ package model.entities
 
 import org.joda.time.format.DateTimeFormat
 import org.joda.time.{DateTime, Days}
-import org.locationtech.jts.geom.Geometry
+import org.locationtech.jts.geom.{Envelope, Geometry}
 import utils.configuration.Constants
 import utils.configuration.Constants.Relation.Relation
 
-case class SpatioTemporalEntity(originalID: String, geometry: Geometry, dateStr: String)  extends Entity {
+case class SpatioTemporalEntity(originalID: String, geometry: Geometry, dateStr: String, env: Envelope)  extends Entity {
 
     lazy val dateTime: DateTime = {
         val formatter = DateTimeFormat.forPattern(Constants.defaultDatePattern)
@@ -25,5 +25,10 @@ case class SpatioTemporalEntity(originalID: String, geometry: Geometry, dateStr:
             case _ =>  super.intersectingMBR(se, relation)
         }
     }
+}
 
+object SpatioTemporalEntity{
+
+    def apply(originalID: String, geometry: Geometry, dateStr: String): SpatioTemporalEntity =
+        SpatioTemporalEntity(originalID, geometry, dateStr, geometry.getEnvelopeInternal)
 }

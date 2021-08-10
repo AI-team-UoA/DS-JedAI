@@ -1,7 +1,7 @@
 package linkers
 
-import model.{IM, SpatialIndex, TileGranularities}
 import model.entities.Entity
+import model.{IM, TileGranularities}
 import org.locationtech.jts.geom.Envelope
 import utils.configuration.Constants.Relation
 import utils.configuration.Constants.Relation.Relation

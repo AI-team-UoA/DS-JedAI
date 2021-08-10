@@ -16,7 +16,7 @@ trait Entity extends Serializable {
 
     val originalID: String
     val geometry: Geometry
-    val env: Envelope = geometry.getEnvelopeInternal
+    val env: Envelope
 
     def getEnvelopeInternal(): Envelope = env
     def getMinX: Double = env.getMinX

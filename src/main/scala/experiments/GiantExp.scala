@@ -35,6 +35,7 @@ object GiantExp {
 
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()
+        log.info(s"G.I. Algorithm: GIA.nt")
 
         val parser = new ConfigurationParser()
         val configurationOpt = parser.parse(args) match {
