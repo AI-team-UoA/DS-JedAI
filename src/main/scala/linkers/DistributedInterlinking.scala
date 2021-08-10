@@ -214,4 +214,44 @@ object DistributedInterlinking {
       wellBalancedImRDD.union(overloadedImRDD)
 
     }
+
+
+    def segmentsVerificationRedistribution(linkersRDD: RDD[LinkerT]): RDD[IM] ={
+
+        val (simpleVerificationsRDD, expensiveVerificationsRDD) = getOutliersRDD(linkersRDD, threshold = 3d)
+
+        val simpleImRDD = simpleVerificationsRDD
+            .flatMap{ entities =>
+                val t = entities.head
+                val sourceEntities = entities.tail
+                sourceEntities.map(s => s.getIntersectionMatrix(t) )
+            }
+
+        val overloadedImRDD = expensiveVerificationsRDD
+            .flatMap { entities =>
+                val t = entities.head.asInstanceOf[DecomposedEntity]
+                val sourceEntities = entities.tail
+
+                // for each source entity, find the indices of the segments it intersects
+                val intersectingTargetSegments: Seq[(Entity, Seq[Int])] = sourceEntities.map(se => (se, t.findIntersectingSegmentsIndices(se).map(_._1)))
+
+                // build trie to find which segments need to be verified with the same source geometries
+                val trie = IndicesPrefixTrie(t.segments.length, intersectingTargetSegments)
+
+
+                // extract from trie the verifications
+                // create new entity using the segment as its geometry but maintaining its initial envelope
+                // if a source entity needs to be verified with multiple segments, we unite them into a single geometry
+                // WARNING: uniting non-intersecting geometries may lead to errors.
+                trie.getFlattenNodes.map{ case (targetSegmentIndices, sourceEntities) =>
+                    val targetSegments = targetSegmentIndices.map(i => t.segments(i)).asJava
+                    val partialTarget = new UnaryUnionOp(targetSegments).union()
+                    (SpatialEntity(t.originalID, partialTarget, t.env), sourceEntities)
+                }
+            }
+            .repartition(linkersRDD.getNumPartitions)
+            .flatMap{ case (partialTarget, sourceEntities) => sourceEntities.map(s => s.getIntersectionMatrix(partialTarget))}
+
+        simpleImRDD.union(overloadedImRDD)
+    }
 }
