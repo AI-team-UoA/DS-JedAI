@@ -1,18 +1,20 @@
 package linkers
 
-import model.entities.Entity
-import model.{IM, TileGranularities}
-import org.apache.spark.rdd.RDD
-import org.locationtech.jts.geom.Envelope
 import cats.implicits._
+import model.entities.{Entity, SpatialEntity}
+import model.entities.segmented.DecomposedEntity
+import model.{IM, IndicesPrefixTrie, TileGranularities}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.TaskContext
+import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
+import org.locationtech.jts.geom.Envelope
+import org.locationtech.jts.operation.union.UnaryUnionOp
 import utils.readers.GridPartitioner
 
 import java.util.Calendar
 import scala.math.Numeric.IntIsIntegral
-
+import collection.JavaConverters._
 
 /**
  * Apply distributed Interlinking by initializing
@@ -159,17 +161,17 @@ object DistributedInterlinking {
 
     }
 
+    def getOutliersRDD(linkersRDD: RDD[LinkerT], threshold: Double): (RDD[Seq[Entity]], RDD[Seq[Entity]]) ={
+        val verificationsRDD = linkersRDD.flatMap { linker =>
+            val verifications = linker.getVerifications
+            verifications.map(entities => (entities, entities.head.originalID))
+        }
 
-    def wellBalancedExecution2(linkersRDD: RDD[LinkerT]): RDD[IM] ={
-
-
-        // TODO id can be replaced with target ID to save memory
-        val verificationsRDD = linkersRDD.flatMap(linker => linker.getVerifications).zipWithUniqueId()
-
-        val approximateCostOfTargetVerificationsRDD = verificationsRDD.map { case(verifications, id) =>
-            val numPoints:Long = verifications.head.geometry.getNumPoints
+        val approximateCostOfTargetVerificationsRDD = verificationsRDD.map { case (verifications, _) =>
+            val target = verifications.head
+            val numPoints:Long = target.geometry.getNumPoints
             val totalVerifications:Long = verifications.tail.length
-            ((numPoints*totalVerifications).toDouble, id)
+            ((numPoints*totalVerifications).toDouble, target.originalID)
         }.persist(StorageLevel.MEMORY_AND_DISK)
 
         val totalTargetVerifications = approximateCostOfTargetVerificationsRDD.count()
@@ -177,26 +179,33 @@ object DistributedInterlinking {
         val variance = approximateCostOfTargetVerificationsRDD.map(x => math.pow(x._1 - meanApproximateCost, 2)).sum /totalTargetVerifications
         val std = Math.sqrt(variance)
         val zScore: Double => Double = (x: Double) => (x - meanApproximateCost)/std
-        val outliersRDD = approximateCostOfTargetVerificationsRDD.map{case (cost, id) => (zScore(cost), id)}.filter(_._1 > 3)
-        val outliersID = outliersRDD.map(_._2).collect().toSet
+        val outliersRDD = approximateCostOfTargetVerificationsRDD.map{case (cost, id) => (zScore(cost), id)}.filter(_._1 > threshold)
+        val outliersID: Set[String] = outliersRDD.map(_._2).collect().toSet
         log.info(s"JEDAI: Total outliers ${outliersID.size}")
 
-        val simpleVerificationsRDD = verificationsRDD.filter{ case(_, id) => !outliersID.contains(id)}
-        val expensiveVerificationsRDD = verificationsRDD.filter{ case(_, id) => outliersID.contains(id)}
+        val simpleVerificationsRDD = verificationsRDD.filter{ case(_, id) => !outliersID.contains(id)}.map(_._1)
+        val expensiveVerificationsRDD = verificationsRDD.filter{ case(_, id) => outliersID.contains(id)}.map(_._1)
+
+        (simpleVerificationsRDD, expensiveVerificationsRDD)
+    }
+
+
+    def batchedRedistribution(linkersRDD: RDD[LinkerT]): RDD[IM] ={
+
+        val (simpleVerificationsRDD, expensiveVerificationsRDD) = getOutliersRDD(linkersRDD, threshold = 3d)
 
         val wellBalancedImRDD = simpleVerificationsRDD
-            .flatMap{ case (entities, _) =>
+            .flatMap{ entities =>
                 val t = entities.head
                 val sourceEntities = entities.tail
                 sourceEntities.map(s => s.getIntersectionMatrix(t) )
             }
 
-        // TODO even repartitioning of such big geometries is expensive
+        // WARNING: expensive and skewed repartitioning
         val overloadedImRDD = expensiveVerificationsRDD
-            .flatMap{ case (entities, id) =>
+            .flatMap{ entities =>
                 val t = entities.head
                 val sourceEntities = entities.tail
-                println("Partition ID: " + TaskContext.getPartitionId() + "\tPoints:" + t.geometry.getNumPoints + "\tVerifications: " + sourceEntities.length)
                 sourceEntities.map(s => (s, t))
             }
             .repartition(linkersRDD.getNumPartitions)
