@@ -51,6 +51,7 @@ object BalancingExp {
         val gridType: GridType.GridType = conf.getGridType
         val entityTypeType: EntityTypeENUM = conf.getEntityType
         val decompositionT: Int = conf.getDecompositionThreshold
+        val measureTime: Boolean = conf.measureStatistic
 
         log.info(s"Entity Type: $entityTypeType")
         log.info(s"GridType: $gridType")
@@ -76,31 +77,38 @@ object BalancingExp {
         val partitionBorders = partitioner.getPartitionsBorders(Some(theta))
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-//        DistributedInterlinking.executionStats(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
-        val linkers = DistributedInterlinking.initializeLinkers(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
-        val imRDD = DistributedInterlinking.segmentedVerificationRedistribution(linkers)
 
-        val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
-        totalOverlaps, totalTouches, totalWithin, verifications, qp) = DistributedInterlinking.accumulateIM(imRDD)
+        if (!measureTime){
+            val linkers = DistributedInterlinking.initializeLinkers(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
+            val verificationsRDD = DistributedInterlinking.batchedSegmentedVerificationRedistribution(linkers)
+            val imRDD = DistributedInterlinking.executeVerifications(verificationsRDD)
 
-        val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
-            totalIntersects + totalOverlaps + totalTouches + totalWithin
-        log.info("DS-JEDAI: Total Verifications: " + verifications)
-        log.info("DS-JEDAI: Qualifying Pairs : " + qp)
+            val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
+            totalOverlaps, totalTouches, totalWithin, verifications, qp) = DistributedInterlinking.accumulateIM(imRDD)
 
-        log.info("DS-JEDAI: CONTAINS: " + totalContains)
-        log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
-        log.info("DS-JEDAI: COVERS: " + totalCovers)
-        log.info("DS-JEDAI: CROSSES: " + totalCrosses)
-        log.info("DS-JEDAI: EQUALS: " + totalEquals)
-        log.info("DS-JEDAI: INTERSECTS: " + totalIntersects)
-        log.info("DS-JEDAI: OVERLAPS: " + totalOverlaps)
-        log.info("DS-JEDAI: TOUCHES: " + totalTouches)
-        log.info("DS-JEDAI: WITHIN: " + totalWithin)
-        log.info("DS-JEDAI: Total Discovered Relations: " + totalRelations)
+            val totalRelations = totalContains + totalCoveredBy + totalCovers + totalCrosses + totalEquals +
+                totalIntersects + totalOverlaps + totalTouches + totalWithin
+            log.info("DS-JEDAI: Total Verifications: " + verifications)
+            log.info("DS-JEDAI: Qualifying Pairs : " + qp)
 
-        val endTime = Calendar.getInstance()
-        log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime) / 1000.0)
+            log.info("DS-JEDAI: CONTAINS: " + totalContains)
+            log.info("DS-JEDAI: COVERED BY: " + totalCoveredBy)
+            log.info("DS-JEDAI: COVERS: " + totalCovers)
+            log.info("DS-JEDAI: CROSSES: " + totalCrosses)
+            log.info("DS-JEDAI: EQUALS: " + totalEquals)
+            log.info("DS-JEDAI: INTERSECTS: " + totalIntersects)
+            log.info("DS-JEDAI: OVERLAPS: " + totalOverlaps)
+            log.info("DS-JEDAI: TOUCHES: " + totalTouches)
+            log.info("DS-JEDAI: WITHIN: " + totalWithin)
+            log.info("DS-JEDAI: Total Discovered Relations: " + totalRelations)
+
+            val endTime = Calendar.getInstance()
+            log.info("DS-JEDAI: Total Execution Time: " + (endTime.getTimeInMillis - startTime) / 1000.0)
+        }
+        else {
+            //DistributedInterlinking.executionStats(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
+            DistributedInterlinking.timeBatchedRedistribution(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
+        }
 
         // TODO Remove
         System.in.read()

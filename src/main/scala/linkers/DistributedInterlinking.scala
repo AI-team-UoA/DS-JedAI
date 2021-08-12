@@ -1,8 +1,8 @@
 package linkers
 
 import cats.implicits._
-import model.entities.{Entity, SpatialEntity}
 import model.entities.segmented.DecomposedEntity
+import model.entities.{Entity, SpatialEntity}
 import model.{IM, IndicesPrefixTrie, TileGranularities}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.TaskContext
@@ -13,8 +13,8 @@ import org.locationtech.jts.operation.union.UnaryUnionOp
 import utils.readers.GridPartitioner
 
 import java.util.Calendar
+import scala.collection.JavaConverters._
 import scala.math.Numeric.IntIsIntegral
-import collection.JavaConverters._
 
 /**
  * Apply distributed Interlinking by initializing
@@ -161,17 +161,20 @@ object DistributedInterlinking {
 
     }
 
-    def getOutliersRDD(linkersRDD: RDD[LinkerT], threshold: Double): (RDD[Seq[Entity]], RDD[Seq[Entity]]) ={
+    def getOutliersRDD(linkersRDD: RDD[LinkerT], threshold: Double): (RDD[List[Entity]], RDD[List[Entity]]) ={
+
+        // verifications accompanied of targets id
         val verificationsRDD = linkersRDD.flatMap { linker =>
             val verifications = linker.getVerifications
             verifications.map(entities => (entities, entities.head.originalID))
         }
 
-        val approximateCostOfTargetVerificationsRDD = verificationsRDD.map { case (verifications, _) =>
+        // approximate the cost of each target verifications
+        val approximateCostOfTargetVerificationsRDD = verificationsRDD.map { case (verifications, id) =>
             val target = verifications.head
             val numPoints:Long = target.geometry.getNumPoints
             val totalVerifications:Long = verifications.tail.length
-            ((numPoints*totalVerifications).toDouble, target.originalID)
+            ((numPoints*totalVerifications).toDouble, id)
         }.persist(StorageLevel.MEMORY_AND_DISK)
 
         val totalTargetVerifications = approximateCostOfTargetVerificationsRDD.count()
@@ -185,6 +188,8 @@ object DistributedInterlinking {
 
         val simpleVerificationsRDD = verificationsRDD.filter{ case(_, id) => !outliersID.contains(id)}.map(_._1)
         val expensiveVerificationsRDD = verificationsRDD.filter{ case(_, id) => outliersID.contains(id)}.map(_._1)
+
+        approximateCostOfTargetVerificationsRDD.unpersist()
 
         (simpleVerificationsRDD, expensiveVerificationsRDD)
     }
@@ -250,7 +255,90 @@ object DistributedInterlinking {
                 }
             }
             .repartition(linkersRDD.getNumPartitions)
-            .flatMap{ case (partialTarget, sourceEntities) => sourceEntities.map(s => s.getIntersectionMatrix(partialTarget))}
+
+
+//            val partitionsLoad = overloadedImRDD.mapPartitions(verificationsI => Iterator((TaskContext.getPartitionId(), verificationsI.map{ ver => ver._2.head.geometry.getNumPoints * ver._2.tail.size}.sum)))
+//            log.info("Partition ID\tWeight")
+//            partitionsLoad.sortBy(_._1).foreach{case (id, w) => log.info(id + "\t" + w)}
+
+        simpleVerificationsRDD.union(overloadedImRDD)
+    }
+
+    def executeVerifications(verificationsRDD: RDD[List[Entity]]): RDD[IM] =
+        verificationsRDD.flatMap{ entities =>
+            val t = entities.head
+            val sourceEntities = entities.tail
+            sourceEntities.map(s => s.getIntersectionMatrix(t) )
+        }
+
+    def timeVerifications(verificationsRDD: RDD[List[Entity]]): Unit = {
+        val timesRDD = verificationsRDD.mapPartitions { verificationsI =>
+            val startTime = Calendar.getInstance().getTimeInMillis
+            val pid = TaskContext.getPartitionId()
+            val im = verificationsI.flatMap{ entities =>
+                val t = entities.head
+                val sourceEntities = entities.tail
+                sourceEntities.map(s => s.getIntersectionMatrix(t) )
+            }
+
+            val endTime = Calendar.getInstance().getTimeInMillis
+            val time = (endTime - startTime) / 1000.0
+            Iterator((pid, time, im.length))
+        }
+        log.info("PID\tTime\t#Verifications")
+        timesRDD.sortBy(_._1).foreach{case (pid, time, v) => log.info(pid + "\t" + time + "\t" + v)}
+    }
+
+
+    /***************************************************************************************************************/
+
+
+    def getOutliersWithTimeRDD(linkersRDD: RDD[(Iterator[LinkerT], Long)], threshold: Double): (RDD[(Iterator[List[Entity]], Long)], RDD[(Iterator[List[Entity]], Long)]) = {
+
+        // verifications accompanied of targets id
+        val verificationsWithTimeRDD: RDD[(Iterator[List[(List[Entity], String)]], Long)] =
+            linkersRDD.map { linkersI =>
+                val startTime = linkersI._2
+                val linkers = linkersI._1
+                val verifications = linkers.map { linker =>
+                    val verifications = linker.getVerifications.toList
+                    verifications.map(entities => (entities, entities.head.originalID))
+                }
+                (verifications, startTime)
+            }
+
+        val verificationsRDD: RDD[Iterator[List[(List[Entity], String)]]] = verificationsWithTimeRDD.map(_._1)
+
+        // approximate the cost of each target verifications
+        val approximateCostOfTargetVerificationsRDD: RDD[(Double, String)] =
+            verificationsRDD.flatMap { verificationsI =>
+                verificationsI.flatMap { verificationsList =>
+                    verificationsList.map { case (verifications, id) =>
+                        val target = verifications.head
+                        val numPoints: Long = target.geometry.getNumPoints
+                        val totalVerifications: Long = verifications.tail.length
+                        ((numPoints * totalVerifications).toDouble, id)
+                    }
+                }
+            }.persist(StorageLevel.MEMORY_AND_DISK)
+
+        val totalTargetVerifications = approximateCostOfTargetVerificationsRDD.count()
+        val meanApproximateCost = approximateCostOfTargetVerificationsRDD.map(_._1).sum / totalTargetVerifications
+        val variance = approximateCostOfTargetVerificationsRDD.map(x => math.pow(x._1 - meanApproximateCost, 2)).sum / totalTargetVerifications
+        val std = Math.sqrt(variance)
+        val zScore: Double => Double = (x: Double) => (x - meanApproximateCost) / std
+        val outliersRDD = approximateCostOfTargetVerificationsRDD.map { case (cost, id) => (zScore(cost), id) }.filter(_._1 > threshold)
+        val outliersID: Set[String] = outliersRDD.map(_._2).collect().toSet
+        log.info(s"JEDAI: Total outliers ${outliersID.size}")
+
+        val simpleVerificationsRDD: RDD[(Iterator[List[Entity]], Long)] =
+            verificationsWithTimeRDD.map { verificationsI =>
+                val startTime = verificationsI._2
+                val filteredVerifications: Iterator[List[Entity]] = verificationsI._1.flatMap { verificationsList =>
+                    verificationsList.filter { case (_, id) => !outliersID.contains(id)}.map(_._1)
+                }
+                (filteredVerifications, startTime)
+            }
 
         simpleImRDD.union(overloadedImRDD)
     }

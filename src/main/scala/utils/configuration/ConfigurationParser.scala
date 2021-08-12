@@ -90,7 +90,7 @@ class ConfigurationParser {
 					nextOption(map ++ Map(InputConfigurations.CONF_PARTITIONS -> value), tail)
 				case "-gt" :: value :: tail =>
 					nextOption(map ++ Map(InputConfigurations.CONF_GRID_TYPE -> value), tail)
-				case "-s" :: tail =>
+				case "-stats" :: tail =>
 					nextOption(map ++ Map(InputConfigurations.CONF_STATISTICS -> "true"), tail)
 				case "-o" :: value :: tail =>
 					nextOption(map ++ Map(InputConfigurations.CONF_OUTPUT -> value), tail)
