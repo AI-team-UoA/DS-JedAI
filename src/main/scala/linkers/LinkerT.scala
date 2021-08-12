@@ -65,7 +65,7 @@ trait LinkerT {
      * head is always the target entity and the tail is the entities we need to compare it with
      * @return the verifications of each target geometry
      */
-    def getVerifications: Iterable[Seq[Entity]] = target.map(t => t +: getAllCandidates(t, sourceIndex, partitionBorder, Relation.DE9IM))
+    def getVerifications: Iterable[List[Entity]] = target.map(t => t :: getAllCandidates(t, sourceIndex, partitionBorder, Relation.DE9IM).toList)
 
     /**
      * count all the non-redundant verifications
