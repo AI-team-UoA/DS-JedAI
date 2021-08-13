@@ -107,7 +107,8 @@ object BalancingExp {
         }
         else {
             //DistributedInterlinking.executionStats(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
-            DistributedInterlinking.timeBatchedRedistribution(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
+            val linkers = DistributedInterlinking.initializeLinkers(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
+            DistributedInterlinking.timeBatchedSegmentedVerificationRedistribution(linkers)
         }
 
         // TODO Remove

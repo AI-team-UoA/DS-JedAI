@@ -274,12 +274,6 @@ object DistributedInterlinking {
                 }
             }
             .repartition(linkersRDD.getNumPartitions)
-
-
-//            val partitionsLoad = overloadedImRDD.mapPartitions(verificationsI => Iterator((TaskContext.getPartitionId(), verificationsI.map{ ver => ver._2.head.geometry.getNumPoints * ver._2.tail.size}.sum)))
-//            log.info("Partition ID\tWeight")
-//            partitionsLoad.sortBy(_._1).foreach{case (id, w) => log.info(id + "\t" + w)}
-
         simpleVerificationsRDD.union(overloadedImRDD)
     }
 
@@ -290,88 +284,8 @@ object DistributedInterlinking {
             sourceEntities.map(s => s.getIntersectionMatrix(t) )
         }
 
-    def timeVerifications(verificationsRDD: RDD[List[Entity]]): Unit = {
-        val timesRDD = verificationsRDD.mapPartitions { verificationsI =>
-            val startTime = Calendar.getInstance().getTimeInMillis
-            val pid = TaskContext.getPartitionId()
-            val im = verificationsI.flatMap{ entities =>
-                val t = entities.head
-                val sourceEntities = entities.tail
-                sourceEntities.map(s => s.getIntersectionMatrix(t) )
-            }
-
-            val endTime = Calendar.getInstance().getTimeInMillis
-            val time = (endTime - startTime) / 1000.0
-            Iterator((pid, time, im.length))
-        }
-        log.info("PID\tTime\t#Verifications")
-        timesRDD.sortBy(_._1).foreach{case (pid, time, v) => log.info(pid + "\t" + time + "\t" + v)}
-    }
-
 
     /***************************************************************************************************************/
-
-
-    def getOutliersWithTimeRDD(linkersRDD: RDD[(Iterator[LinkerT], Long)], threshold: Double): (RDD[(Iterator[List[Entity]], Long)], RDD[(Iterator[List[Entity]], Long)]) = {
-
-        // verifications accompanied of targets id
-        val verificationsWithTimeRDD: RDD[(Iterator[List[(List[Entity], String)]], Long)] =
-            linkersRDD.map { linkersI =>
-                val startTime = linkersI._2
-                val linkers = linkersI._1
-                val verifications = linkers.map { linker =>
-                    val verifications = linker.getVerifications.toList
-                    verifications.map(entities => (entities, entities.head.originalID))
-                }
-                (verifications, startTime)
-            }
-
-        val verificationsRDD: RDD[Iterator[List[(List[Entity], String)]]] = verificationsWithTimeRDD.map(_._1)
-
-        // approximate the cost of each target verifications
-        val approximateCostOfTargetVerificationsRDD: RDD[(Double, String)] =
-            verificationsRDD.flatMap { verificationsI =>
-                verificationsI.flatMap { verificationsList =>
-                    verificationsList.map { case (verifications, id) =>
-                        val target = verifications.head
-                        val numPoints: Long = target.geometry.getNumPoints
-                        val totalVerifications: Long = verifications.tail.length
-                        ((numPoints * totalVerifications).toDouble, id)
-                    }
-                }
-            }.persist(StorageLevel.MEMORY_AND_DISK)
-
-        val totalTargetVerifications = approximateCostOfTargetVerificationsRDD.count()
-        val meanApproximateCost = approximateCostOfTargetVerificationsRDD.map(_._1).sum / totalTargetVerifications
-        val variance = approximateCostOfTargetVerificationsRDD.map(x => math.pow(x._1 - meanApproximateCost, 2)).sum / totalTargetVerifications
-        val std = Math.sqrt(variance)
-        val zScore: Double => Double = (x: Double) => (x - meanApproximateCost) / std
-        val outliersRDD = approximateCostOfTargetVerificationsRDD.map { case (cost, id) => (zScore(cost), id) }.filter(_._1 > threshold)
-        val outliersID: Set[String] = outliersRDD.map(_._2).collect().toSet
-        log.info(s"JEDAI: Total outliers ${outliersID.size}")
-
-        val simpleVerificationsRDD: RDD[(Iterator[List[Entity]], Long)] =
-            verificationsWithTimeRDD.map { verificationsI =>
-                val startTime = verificationsI._2
-                val filteredVerifications: Iterator[List[Entity]] = verificationsI._1.flatMap { verificationsList =>
-                    verificationsList.filter { case (_, id) => !outliersID.contains(id)}.map(_._1)
-                }
-                (filteredVerifications, startTime)
-            }
-
-        val expensiveVerificationsRDD: RDD[(Iterator[List[Entity]], Long)] =
-            verificationsWithTimeRDD.map { verificationsI =>
-                val startTime = verificationsI._2
-                val filteredVerifications: Iterator[List[Entity]] = verificationsI._1.flatMap { verificationsList =>
-                    verificationsList.filter { case (_, id) => outliersID.contains(id)}.map(_._1)
-                }
-                (filteredVerifications, startTime)
-            }
-
-        approximateCostOfTargetVerificationsRDD.unpersist()
-
-        (simpleVerificationsRDD, expensiveVerificationsRDD)
-    }
 
 
     def timeGiant(source: RDD[(Int, Entity)], target: RDD[(Int, Entity)], partitionBorders: Array[Envelope],
@@ -399,10 +313,51 @@ object DistributedInterlinking {
         logTime(timesRDD)
     }
 
-    def timeBatchedRedistribution(source: RDD[(Int, Entity)], target: RDD[(Int, Entity)], partitionBorders: Array[Envelope],
-                                  theta: TileGranularities, gridPartitioner: GridPartitioner): Unit ={
+    def timeBatchedRedistribution(linkersRDD: RDD[LinkerT]): Unit ={
+        val (simpleVerificationsRDD, expensiveVerificationsRDD) = getOutliersRDD(linkersRDD, threshold = 3d)
 
-        val linkersRDD = initializeLinkers(source, target, partitionBorders, theta, gridPartitioner)
+        val simpleTimeRDD: RDD[(Int, Double)] = simpleVerificationsRDD
+            .mapPartitions{ verificationsI =>
+                val pid = TaskContext.getPartitionId()
+                val startTime = Calendar.getInstance().getTimeInMillis
+                val im = verificationsI.flatMap{ entities =>
+                    val t = entities.head
+                    val sourceEntities = entities.tail
+                    sourceEntities.map(s => s.getIntersectionMatrix(t))
+                }
+                val endTime = Calendar.getInstance().getTimeInMillis
+                val time = (endTime - startTime) / 1000.0
+                Iterator((pid, time))
+            }
+
+        val expensiveTimeRDD: RDD[(Int, Double)] = expensiveVerificationsRDD
+            .mapPartitions{ verificationsI =>
+                val verifications = verificationsI.flatMap{ entities =>
+                    val t = entities.head
+                    val sourceEntities = entities.tail
+                    sourceEntities.map(s => (s, t))
+                }
+                verifications
+            }
+            .repartition(linkersRDD.getNumPartitions)
+            .mapPartitions { verificationsI =>
+                val pid = TaskContext.getPartitionId()
+                val startTime = Calendar.getInstance().getTimeInMillis
+                val times = verificationsI.map { case (s, t) =>
+                    val im = s.getIntersectionMatrix(t)
+                    val endTime = Calendar.getInstance().getTimeInMillis
+                    (endTime - startTime) / 1000.0
+                }
+                Iterator((pid, times.max))
+            }
+        log.info()
+        log.info("Verification Cost")
+        logTime(simpleTimeRDD.union(expensiveTimeRDD))
+
+    }
+
+
+    def timeSegmentsVerificationRedistribution(linkersRDD: RDD[LinkerT]): Unit ={
 
         val (simpleVerificationsRDD, expensiveVerificationsRDD) = getOutliersRDD(linkersRDD, threshold = 3d)
 
@@ -420,52 +375,99 @@ object DistributedInterlinking {
                 Iterator((pid, time))
             }
 
-        val repartitionRDD: RDD[((Entity, Entity), Long)] = expensiveVerificationsRDD
-            .mapPartitions{ verificationsI =>
-                val pid = TaskContext.getPartitionId()
-                val startTime = Calendar.getInstance().getTimeInMillis
-                val verifications = verificationsI.flatMap{ entities =>
-                    val t = entities.head
-                    val sourceEntities = entities.tail
-                    sourceEntities.map(s => (s, t))
+        val expensiveTimeRDD = expensiveVerificationsRDD
+            .flatMap { entities =>
+                val t = entities.head.asInstanceOf[DecomposedEntity]
+                val sourceEntities = entities.tail
+
+                // build trie to find which segments need to be verified with the same source geometries
+                val trie = IndicesPrefixTrie(t, sourceEntities)
+
+                // extract from trie the verifications
+                // create new entity using the segment as its geometry but maintaining its initial envelope
+                // if a source entity needs to be verified with multiple segments, we unite them into a single geometry
+                // WARNING: uniting non-intersecting geometries may lead to errors.
+                val flattenNodes = trie.getFlattenNodes
+                flattenNodes.map{ case (targetSegmentIndices, sourceEntities) =>
+                    val targetSegments = targetSegmentIndices.map(i => t.segments(i)).asJava
+                    val partialTarget = new UnaryUnionOp(targetSegments).union()
+                    SpatialEntity(t.originalID, partialTarget, t.env) :: sourceEntities
                 }
-                verifications.map(v => (v, startTime))
             }
             .repartition(linkersRDD.getNumPartitions)
-            .persist(StorageLevel.MEMORY_AND_DISK)
-
-
-        val repartitionTimeRDD = repartitionRDD.mapPartitions{ verificationsI =>
-            val pid = TaskContext.getPartitionId()
-            val times = verificationsI.map { verifications =>
-                val startTime = verifications._2
-                val endTime = Calendar.getInstance().getTimeInMillis
-                (endTime - startTime) / 1000.0
-            }
-            Iterator((pid, times.max))
-        }
-        log.info("Repartition Cost")
-        logTime(repartitionTimeRDD)
-
-        val expensiveTimeRDD = repartitionRDD
             .mapPartitions { verificationsI =>
                 val pid = TaskContext.getPartitionId()
                 val startTime = Calendar.getInstance().getTimeInMillis
-                val times = verificationsI.map { verifications =>
-                    val (s, t) = verifications._1
-                    val im = s.getIntersectionMatrix(t)
+                val times = verificationsI.map { entities =>
+                    val t = entities.head
+                    val sourceEntities = entities.tail
+                    val im = sourceEntities.map(s => s.getIntersectionMatrix(t))
                     val endTime = Calendar.getInstance().getTimeInMillis
                     (endTime - startTime) / 1000.0
                 }
                 Iterator((pid, times.max))
             }
-
+        log.info()
         log.info("Verification Cost")
         logTime(simpleTimeRDD.union(expensiveTimeRDD))
-        repartitionRDD.unpersist()
-
     }
 
+
+    def timeBatchedSegmentedVerificationRedistribution(linkersRDD: RDD[LinkerT]): Unit ={
+
+        val (simpleVerificationsRDD, expensiveVerificationsRDD) = getOutliersRDD(linkersRDD, threshold = 3d)
+
+        val simpleTimeRDD: RDD[(Int, Double)] = simpleVerificationsRDD
+            .mapPartitions{ verificationsI =>
+                val pid = TaskContext.getPartitionId()
+                val startTime = Calendar.getInstance().getTimeInMillis
+                val im = verificationsI.flatMap{ entities =>
+                    val t = entities.head
+                    val sourceEntities = entities.tail
+                    sourceEntities.map(s => s.getIntersectionMatrix(t))
+                }
+                val endTime = Calendar.getInstance().getTimeInMillis
+                val time = (endTime - startTime) / 1000.0
+                Iterator((pid, time))
+            }
+
+        val expensiveTimeRDD = expensiveVerificationsRDD
+            .flatMap { entities =>
+                val t = entities.head.asInstanceOf[DecomposedEntity]
+                val sourceEntities = entities.tail
+
+                // build trie to find which segments need to be verified with the same source geometries
+                val trie = IndicesPrefixTrie(t, sourceEntities)
+                trie.balanceTrie()
+
+                // extract from trie the verifications
+                // create new entity using the segment as its geometry but maintaining its initial envelope
+                // if a source entity needs to be verified with multiple segments, we unite them into a single geometry
+                // WARNING: uniting non-intersecting geometries may lead to errors.
+                val flattenNodes = trie.getFlattenNodes
+                flattenNodes.map{ case (targetSegmentIndices, sourceEntities) =>
+                    val targetSegments = targetSegmentIndices.map(i => t.segments(i)).asJava
+                    val partialTarget = new UnaryUnionOp(targetSegments).union()
+                    SpatialEntity(t.originalID, partialTarget, t.env) :: sourceEntities
+                }
+            }
+            .repartition(linkersRDD.getNumPartitions)
+            .mapPartitions { verificationsI =>
+                val pid = TaskContext.getPartitionId()
+                val startTime = Calendar.getInstance().getTimeInMillis
+                val times = verificationsI.map { entities =>
+                    val t = entities.head
+                    val sourceEntities = entities.tail
+                    val im = sourceEntities.map(s => s.getIntersectionMatrix(t))
+                    val endTime = Calendar.getInstance().getTimeInMillis
+                    (endTime - startTime) / 1000.0
+                }
+                Iterator((pid, times.max))
+            }
+        log.info()
+        log.info("Verification Cost")
+        logTime(simpleTimeRDD.union(expensiveTimeRDD))
+    }
 
     def logTime(timesRDD: RDD[(Int, Double)]): Unit ={
         log.info("PID\tTime")
