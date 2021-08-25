@@ -1,6 +1,6 @@
 package experiments
 
-import linkers.DistributedInterlinking
+import linkers.{DistributedInterlinking, WellBalancedDistributedInterlinking}
 import model.TileGranularities
 import model.entities.{DecomposedEntityType, Entity, EntityType, EntityTypeFactory, SpatialEntityType}
 import org.apache.log4j.{Level, LogManager, Logger}
@@ -80,8 +80,8 @@ object BalancingExp {
 
         if (!measureTime){
             val linkers = DistributedInterlinking.initializeLinkers(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
-            val verificationsRDD = DistributedInterlinking.batchedSegmentedVerificationRedistribution(linkers)
-            val imRDD = DistributedInterlinking.executeVerifications(verificationsRDD)
+            val verificationsRDD = WellBalancedDistributedInterlinking.batchedSegmentedVerificationRedistribution(linkers)
+            val imRDD = WellBalancedDistributedInterlinking.executeVerifications(verificationsRDD)
 
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
             totalOverlaps, totalTouches, totalWithin, verifications, qp) = DistributedInterlinking.accumulateIM(imRDD)
@@ -108,7 +108,7 @@ object BalancingExp {
         else {
             //DistributedInterlinking.executionStats(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
             val linkers = DistributedInterlinking.initializeLinkers(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
-            DistributedInterlinking.timeBatchedSegmentedVerificationRedistribution(linkers)
+            WellBalancedDistributedInterlinking.timeBatchedSegmentedVerificationRedistribution(linkers)
         }
 
         // TODO Remove
