@@ -27,22 +27,22 @@ import cats.implicits._
  * @param entities entities assigned to this node
  * @param children children trie nodes
  */
-case class IndicesPrefixTrieNode(referenceIndex: Int, entities: ListBuffer[ListBuffer[Entity]], children: Array[Option[IndicesPrefixTrieNode]]) {
-    val MAX_SIZE = 512
+case class IndicesPrefixTrieNode[T](referenceIndex: Int, entities: ListBuffer[ListBuffer[T]], children: Array[Option[IndicesPrefixTrieNode[T]]]) {
+    val MAX_SIZE = 256
 
-    def insert(e: Entity): Unit = {
-        if (entities.isEmpty) entities.append(new ListBuffer[Entity]())
+    def insert(e: T): Unit = {
+        if (entities.isEmpty) entities.append(new ListBuffer[T]())
         val lastEntities = entities.last
         if (lastEntities.length < MAX_SIZE)
             lastEntities.append(e)
         else{
-            val newEntities = new ListBuffer[Entity]()
+            val newEntities = new ListBuffer[T]()
             newEntities.append(e)
             entities.append(newEntities)
         }
     }
 
-    def insert(indices: List[Int], e: Entity, size: Int): Unit = indices match {
+    def insert(indices: List[Int], e: T, size: Int): Unit = indices match {
         case head :: tail if head == referenceIndex => insert(tail, e, size)
         case head :: tail =>
             val currentIndex = head - (referenceIndex+1)
@@ -50,7 +50,7 @@ case class IndicesPrefixTrieNode(referenceIndex: Int, entities: ListBuffer[ListB
                 case Some(trie) =>
                     trie.insert(tail, e, size)
                 case None =>
-                    val trie = IndicesPrefixTrieNode(head, new ListBuffer[ListBuffer[Entity]](), Array.fill(size-head)(None))
+                    val trie = IndicesPrefixTrieNode(head, new ListBuffer[ListBuffer[T]](), Array.fill[Option[IndicesPrefixTrieNode[T]]](size-(head+1))(None))
                     trie.insert(tail, e, size)
                     children(currentIndex) = Some(trie)
             }
@@ -58,12 +58,12 @@ case class IndicesPrefixTrieNode(referenceIndex: Int, entities: ListBuffer[ListB
     }
 
 
-    def getFlattenNodes(parentIndices: List[Int], accumulated: List[(List[Int], List[Entity])]):
-    List[(List[Int], List[Entity])] ={
+    def getFlattenNodes(parentIndices: List[Int], accumulated: List[(List[Int], List[T])]):
+    List[(List[Int], List[T])] ={
 
         @tailrec
-        def flattenNode(nodes: List[Option[IndicesPrefixTrieNode]], parentIndices: List[Int],
-                        accumulated: List[(List[Int], List[Entity])]): List[(List[Int], List[Entity])] ={
+        def flattenNode(nodes: List[Option[IndicesPrefixTrieNode[T]]], parentIndices: List[Int],
+                        accumulated: List[(List[Int], List[T])]): List[(List[Int], List[T])] ={
 
             nodes match {
                 case head :: tail =>
@@ -78,30 +78,28 @@ case class IndicesPrefixTrieNode(referenceIndex: Int, entities: ListBuffer[ListB
             }
         }
 
-        val newIndices: List[Int] = referenceIndex :: parentIndices
-        val nodeResults =   if (entities.nonEmpty) entities.map(e => (newIndices, e.toList)).toList ::: accumulated
-                            else accumulated
+        val newIndices: List[Int] = if (referenceIndex > -1) referenceIndex :: parentIndices else parentIndices
+        val nodeResults = if (entities.nonEmpty) entities.map(e => (newIndices, e.toList)).toList ::: accumulated
+                          else accumulated
         flattenNode(children.toList, newIndices, nodeResults)
     }
-
 }
 
 
-case class IndicesPrefixTrie(head: IndicesPrefixTrieNode, mainEntity: DecomposedEntity){
+case class IndicesPrefixTrie[T](head: IndicesPrefixTrieNode[T], segments: IndexedSeq[Geometry]){
     val AVG_WEIGHT: Int = 20000
     val BUFFER: Int = 5000
-    val size: Int = mainEntity.segments.length
-    val segments: IndexedSeq[Geometry] = mainEntity.segments
+    val size: Int = segments.size
 
-    def insert(indices: List[Int], e: Entity): Unit = head.insert(indices, e, size)
-    def getFlattenNodes: List[(List[Int], List[Entity])] = head.getFlattenNodes(Nil, Nil)
+    def insert(indices: List[Int], e: T): Unit = head.insert(indices, e, size)
+    def getFlattenNodes: List[(List[Int], List[T])] = head.getFlattenNodes(Nil, Nil)
 
-    def getNodeCost(node: IndicesPrefixTrieNode, extraWeight: Long = 0L): Long =
+    def getNodeCost(node: IndicesPrefixTrieNode[T], extraWeight: Long = 0L): Long =
         (segments(node.referenceIndex).getNumPoints * node.entities.length) + extraWeight
 
     def balanceTrie(): Unit ={
 
-        def compressNode(node: IndicesPrefixTrieNode, cost: Long): Unit ={
+        def compressNode(node: IndicesPrefixTrieNode[T], cost: Long): Unit ={
             val someChildren =  NonEmptyList.fromList(node.children.toList.flatten)
             someChildren match {
                 case Some(children) =>
@@ -115,8 +113,7 @@ case class IndicesPrefixTrie(head: IndicesPrefixTrieNode, mainEntity: Decomposed
         }
 
 
-
-        def balance(node: IndicesPrefixTrieNode): Unit ={
+        def balance(node: IndicesPrefixTrieNode[T]): Unit ={
             val cost = getNodeCost(node)
             if (cost < AVG_WEIGHT - BUFFER)
                 compressNode(node, cost)
@@ -131,17 +128,23 @@ case class IndicesPrefixTrie(head: IndicesPrefixTrieNode, mainEntity: Decomposed
 
 object IndicesPrefixTrie {
 
-    def apply(mainEntity: DecomposedEntity, entities: Seq[Entity]): IndicesPrefixTrie ={
+    def apply(mainEntity: DecomposedEntity, entities: Seq[Entity]): IndicesPrefixTrie[Entity] ={
 
         // for each entity, find the indices of the segments it intersects
         val intersectingTargetSegments: Seq[(Entity, Seq[Int])] = entities.map(se => (se, mainEntity.findIntersectingSegmentsIndices(se).map(_._1)))
         val size = mainEntity.segments.size
 
-        val head = IndicesPrefixTrieNode(0, new ListBuffer[ListBuffer[Entity]](), Array.fill(size-1)(None))
-        intersectingTargetSegments
-            .filter(_._2.nonEmpty)
+        val head = IndicesPrefixTrieNode[Entity](referenceIndex = -1, new ListBuffer[ListBuffer[Entity]](), Array.fill(size)(None))
+        intersectingTargetSegments.filter(_._2.nonEmpty)
             .foreach{ case (se, segmentsIndices) => head.insert(segmentsIndices.sorted.toList, se, size) }
+        IndicesPrefixTrie[Entity](head, mainEntity.segments)
+    }
 
-        IndicesPrefixTrie(head, mainEntity)
+
+    def apply(entities: Seq[(Int, List[Int])], segments: IndexedSeq[Geometry]): IndicesPrefixTrie[Int] ={
+        val size = segments.size
+        val head = IndicesPrefixTrieNode[Int](referenceIndex = -1, new ListBuffer[ListBuffer[Int]](), Array.fill(size)(None))
+        entities.foreach{ case (id, indices) => head.insert(indices.sorted, id, size) }
+        IndicesPrefixTrie[Int](head, segments)
     }
 }
