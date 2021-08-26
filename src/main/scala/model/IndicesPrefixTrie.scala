@@ -94,8 +94,10 @@ case class IndicesPrefixTrie[T](head: IndicesPrefixTrieNode[T], segments: Indexe
     def insert(indices: List[Int], e: T): Unit = head.insert(indices, e, size)
     def getFlattenNodes: List[(List[Int], List[T])] = head.getFlattenNodes(Nil, Nil)
 
-    def getNodeCost(node: IndicesPrefixTrieNode[T], extraWeight: Long = 0L): Long =
-        (segments(node.referenceIndex).getNumPoints * node.entities.length) + extraWeight
+    def getNodeCost(node: IndicesPrefixTrieNode[T], extraWeight: Long = 0L): Long = {
+        if (node.referenceIndex >= 0) (segments(node.referenceIndex).getNumPoints * node.entities.length) + extraWeight
+        else 0L
+    }
 
     def balanceTrie(): Unit ={
 
