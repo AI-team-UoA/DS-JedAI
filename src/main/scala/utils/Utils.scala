@@ -2,20 +2,15 @@ package utils
 
 
 import cats.implicits._
-import linkers.DistributedInterlinking.log
-import linkers.GIAnt
-import model.{IM, TileGranularities}
+import model.IM
 import model.entities.Entity
 import org.apache.log4j.{LogManager, Logger}
-import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{Row, SparkSession}
 import org.locationtech.jts.geom.Envelope
-import utils.readers.GridPartitioner
 
-import java.util.Calendar
 import scala.collection.mutable
 
 object Utils extends Serializable {
@@ -62,23 +57,23 @@ object Utils extends Serializable {
 		rdd.map { im =>
 			val sb = new StringBuilder()
 			if (im.isContains)
-				sb.append("<" + im.getId1 +">" + " " + contains + " " + "<" + im.getId2 + ">" + " .\n")
+				sb.append( im.getId1 + " " + contains + " " + im.getId2 + " .\n")
 			if (im.isCoveredBy)
-				sb.append("<" + im.getId1 +">" + " " + coveredBy + " " + "<" + im.getId2 + ">" + " .\n")
+				sb.append(im.getId1 + " " + coveredBy + " " + im.getId2 + " .\n")
 			if (im.isCovers)
-				sb.append("<" + im.getId1 +">" + " " + covers + " " + "<" + im.getId2 + ">" + " .\n")
+				sb.append(im.getId1 + " " + covers + " " + im.getId2 + " .\n")
 			if (im.isCrosses)
-				sb.append("<" + im.getId1 +">" + " " + crosses + " " + "<" + im.getId2 + ">" + " .\n")
+				sb.append(im.getId1 + " " + crosses + " " + im.getId2 + " .\n")
 			if (im.isEquals)
-				sb.append("<" + im.getId1 +">" + " " + equals + " " + "<" + im.getId2 + ">" + " .\n")
+				sb.append(im.getId1 + " " + equals + " " + im.getId2 + " .\n")
 			if (im.isIntersects)
-				sb.append("<" + im.getId1 +">" + " " + intersects + " " + "<" + im.getId2 + ">" + " .\n")
+				sb.append(im.getId1 + " " + intersects + " " + im.getId2 + " .\n")
 			if (im.isOverlaps)
-				sb.append("<" + im.getId1 +">" + " " + overlaps + " " + "<" + im.getId2 + ">" + " .\n")
+				sb.append(im.getId1 + " " + overlaps + " " + im.getId2 + " .\n")
 			if (im.isTouches)
-				sb.append("<" + im.getId1 +">" + " " + touches + " " + "<" + im.getId2 + ">" + " .\n")
+				sb.append(im.getId1 + " " + touches + " " + im.getId2 + " .\n")
 			if (im.isWithin)
-				sb.append("<" + im.getId1 +">" + " " + within + " " + "<" + im.getId2 + ">" + " .\n")
+				sb.append(im.getId1 + " " + within + " " + im.getId2 + " .\n")
 			sb.toString()
 		}.saveAsTextFile(path)
 	}

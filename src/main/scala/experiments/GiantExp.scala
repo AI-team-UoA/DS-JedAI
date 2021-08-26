@@ -91,6 +91,7 @@ object GiantExp {
             log.info(s"DS-JEDAI: Target geometries: $targetCount")
             log.info(s"DS-JEDAI: Cartesian: ${sourceCount*targetCount}")
             log.info(s"DS-JEDAI: Verifications: ${DistributedInterlinking.countVerifications(linkers)}")
+            DistributedInterlinking.executionStats(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
         }
         else if (relation.equals(Relation.DE9IM)) {
             val imRDD = DistributedInterlinking.computeIM(linkers)
@@ -130,5 +131,6 @@ object GiantExp {
 
         val endTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Total Execution Time: " + (endTime - startTime) / 1000.0)
+
     }
 }

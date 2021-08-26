@@ -146,9 +146,9 @@ object DistributedInterlinking {
 
         val basicStats = verificationsPerPartition.map{ verificationsI =>
             val verifications = verificationsI.toList
-            val totalVerifications = verifications.size
-            val (points, totalMax) = if (totalVerifications > 0) verifications.map { entities => (entities.head.geometry.getNumPoints, entities.tail.length)}.max else (0,0)
-            (TaskContext.getPartitionId(), totalVerifications, points, totalMax)
+            val totalVerifications = verifications.map(vl => vl.tail.length).sum
+            val (maxPoints, totalVerificationsWithMax) = if (totalVerifications > 0) verifications.map { entities => (entities.head.geometry.getNumPoints, entities.tail.length)}.max else (0,0)
+            (TaskContext.getPartitionId(), totalVerifications, maxPoints, totalVerificationsWithMax)
         }.sortBy(_._1).collect()
 
         basicStats.zip(timePerPartition).foreach{ case( (pid, verifications, points, totalMax), (_, time)) =>
