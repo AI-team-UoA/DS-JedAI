@@ -49,20 +49,26 @@ object SedonaExp {
             case FileTypes.TSV => "\t"
             case _ => ""
         }
+
+        val sourceIdField = s"_c${conf.source.realIdField.get}"
+        val sourceGeometryField = s"_c${conf.source.geometryField}"
+        val targetIdField = s"_c${conf.target.realIdField.get}"
+        val targetGeometryField = s"_c${conf.target.geometryField}"
+
         val isValid = udf((g: Geometry) => g.isValid)
         val sourcePath = conf.source.path
         val source =  spark.read.format("csv")
             .option("delimiter", delimiter)
             .option("quote", "\"")
-            .option("header", value = true)
+            .option("header", value = false)
             .load(sourcePath)
-            .filter(col(conf.source.realIdField.get).isNotNull)
-            .filter(col(conf.source.geometryField).isNotNull)
-            .filter(! col(conf.source.geometryField).contains("EMPTY"))
-            .filter(! col(conf.source.geometryField).contains("GEOMETRYCOLLECTION"))
+            .filter(col(sourceIdField).isNotNull)
+            .filter(col(sourceGeometryField).isNotNull)
+            .filter(! col(sourceGeometryField).contains("EMPTY"))
+            .filter(! col(sourceGeometryField).contains("GEOMETRYCOLLECTION"))
 
         source.createOrReplaceTempView("Source")
-        val sourceQuery = s"SELECT ST_GeomFromWKT(Source.${conf.source.geometryField}) AS WKT,  Source.${conf.source.realIdField.get} AS REAL_ID FROM Source".stripMargin
+        val sourceQuery = s"SELECT ST_GeomFromWKT(Source.$sourceGeometryField) AS WKT,  Source.$sourceIdField AS REAL_ID FROM Source".stripMargin
         val sourceDF = spark.sql(sourceQuery).withColumn("valid", isValid(col("WKT"))).filter(col("valid"))
         sourceDF.createOrReplaceTempView("sSource")
 
@@ -70,15 +76,15 @@ object SedonaExp {
         val target =  spark.read.format("csv")
             .option("delimiter", delimiter)
             .option("quote", "\"")
-            .option("header", value = true)
+            .option("header", value = false)
             .load(targetPath)
-            .filter(col(conf.target.realIdField.get).isNotNull)
-            .filter(col(conf.target.geometryField).isNotNull)
-            .filter(! col(conf.target.geometryField).contains("EMPTY"))
-            .filter(! col(conf.target.geometryField).contains("GEOMETRYCOLLECTION"))
+            .filter(col(targetIdField).isNotNull)
+            .filter(col(targetGeometryField).isNotNull)
+            .filter(! col(targetGeometryField).contains("EMPTY"))
+            .filter(! col(targetGeometryField).contains("GEOMETRYCOLLECTION"))
 
         target.createOrReplaceTempView("Target")
-        val targetQuery = s"SELECT ST_GeomFromWKT(Target.${conf.target.geometryField}) AS WKT,  Target.${conf.target.realIdField.get} AS REAL_ID FROM Target".stripMargin
+        val targetQuery = s"SELECT ST_GeomFromWKT(Target.$targetGeometryField) AS WKT,  Target.$targetIdField AS REAL_ID FROM Target".stripMargin
         val targetDF = spark.sql(targetQuery).withColumn("valid", isValid(col("WKT"))).filter(col("valid"))
         targetDF.createOrReplaceTempView("sTarget")
 
