@@ -4,7 +4,7 @@ package experiments
 import linkers.DistributedInterlinking
 import linkers.progressive.DistributedProgressiveInterlinking
 import model.TileGranularities
-import model.entities.{Entity, SpatialEntityType}
+import model.entities.{EntityT, GeometryToEntity}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -12,7 +12,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.{Partitioner, SparkConf, SparkContext}
+import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.{Envelope, Geometry}
 import utils.configuration.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.configuration.Constants.Relation.Relation
@@ -70,16 +70,16 @@ object EvaluationExp {
         // load datasets
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
         val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
+        val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
+        val approximateSourceCount = partitioner.approximateCount
+        val theta = TileGranularities(sourceSpatialRDD.rawSpatialRDD.rdd.map(_.getEnvelopeInternal), approximateSourceCount, conf.getTheta)
 
         // spatial partition
-        val entityType = SpatialEntityType()
-        val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
-        val sourceRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(sourceSpatialRDD, entityType)
-        val targetRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(targetSpatialRDD, entityType)
-        val approximateSourceCount = partitioner.approximateCount
+        val geometry2entity: Geometry => EntityT = GeometryToEntity.getTransformer(EntityTypeENUM.SPATIAL_ENTITY, None, None)
+        val sourceRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(sourceSpatialRDD, geometry2entity)
+        val targetRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(targetSpatialRDD, geometry2entity)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
-        val theta = TileGranularities(sourceRDD.map(_._2.env), approximateSourceCount, conf.getTheta)
         val partitionBorder = partitioner.getPartitionsBorders(Some(theta))
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
@@ -119,7 +119,7 @@ object EvaluationExp {
      * @param ws the weighting scheme
      * @param n  the size of list storing the results
      */
-    def printResults(source:RDD[(Int, Entity)], target:RDD[(Int, Entity)],
+    def printResults(source:RDD[(Int, EntityT)], target:RDD[(Int, EntityT)],
                      theta: TileGranularities, partitionBorders: Array[Envelope], sourceCount: Long,
                      partitioner: GridPartitioner, totalRelations: Int, budget: Int,
                      pa: ProgressiveAlgorithm, wf: (WeightingFunction, Option[WeightingFunction]), ws: Constants.WeightingScheme, n: Int = 10): Unit = {
@@ -157,8 +157,8 @@ object EvaluationExp {
     def computeOptimalMetrics(bu: Double, qp: Double): (Double, Double) ={
         val qpSum = BigDecimal(1d).until(qp, 1d).sum
         val rest = bu - qp
-        val pgr = ((qpSum + (rest*qp))/qp.toDouble)/bu.toDouble
-        val precision = qp.toDouble/bu.toDouble
+        val pgr = ((qpSum + (rest*qp))/qp)/bu
+        val precision = qp/bu
 
         (pgr.toDouble, precision)
     }

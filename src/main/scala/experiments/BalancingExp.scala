@@ -2,7 +2,7 @@ package experiments
 
 import linkers.{DistributedInterlinking, WellBalancedDistributedInterlinking}
 import model.TileGranularities
-import model.entities.{DecomposedEntityType, Entity, EntityType, EntityTypeFactory, SpatialEntityType}
+import model.entities.{EntityT, GeometryToEntity}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -14,7 +14,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
 import utils.configuration.ConfigurationParser
 import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
-import utils.configuration.Constants.{EntityTypeENUM, GridType}
+import utils.configuration.Constants.GridType
 import utils.readers.{GridPartitioner, Reader}
 
 import java.util.Calendar
@@ -49,15 +49,16 @@ object BalancingExp {
 
         val partitions: Int = conf.getPartitions
         val gridType: GridType.GridType = conf.getGridType
+        val relation = conf.getRelation
+        val measureTime = conf.measureStatistic
         val entityTypeType: EntityTypeENUM = conf.getEntityType
-        val decompositionT: Int = conf.getDecompositionThreshold
-        val measureTime: Boolean = conf.measureStatistic
-
-        log.info(s"Entity Type: $entityTypeType")
-        log.info(s"GridType: $gridType")
+        val decompositionT: Option[Double] = conf.getDecompositionThreshold
         val startTime = Calendar.getInstance().getTimeInMillis
-        log.info(s"Decomposition Threshold: $decompositionT ")
 
+        log.info(s"GridType: $gridType")
+        log.info(s"Relation: $relation")
+        log.info(s"Entity Type: $entityTypeType")
+        if(decompositionT.isDefined) log.info(s"Decomposition Threshold: ${decompositionT.get} ")
 
         // load datasets
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
@@ -67,16 +68,17 @@ object BalancingExp {
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
         val approximateSourceCount = partitioner.approximateCount
         val theta = TileGranularities(sourceSpatialRDD.rawSpatialRDD.rdd.map(_.getEnvelopeInternal), approximateSourceCount, conf.getTheta)
-        val decompositionTheta = theta*decompositionT
-        val entityType: EntityType = EntityTypeFactory.get(entityTypeType, Some(decompositionTheta), conf.source.datePattern).getOrElse(SpatialEntityType())
+        val decompositionTheta = decompositionT.map(dt => theta*dt)
 
-        val sourceRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(sourceSpatialRDD, SpatialEntityType())
-        val targetRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(targetSpatialRDD, DecomposedEntityType(decompositionTheta, EntityTypeENUM.DECOMPOSED_ENTITY))
+        val sourceTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(entityTypeType, decompositionTheta, conf.source.datePattern)
+        val sourceRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(sourceSpatialRDD, sourceTransformer)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
-
         val partitionBorders = partitioner.getPartitionsBorders(Some(theta))
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
+        val targetTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(entityTypeType, decompositionTheta, conf.target.datePattern)
+        val targetRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(targetSpatialRDD, targetTransformer)
+        sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
         if (!measureTime){
             val linkers = DistributedInterlinking.initializeLinkers(sourceRDD, targetRDD, partitionBorders, theta, partitioner)

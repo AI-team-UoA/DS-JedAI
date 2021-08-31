@@ -68,17 +68,15 @@ case class GridPartitioner(baseRDD: SpatialRDD[Geometry], partitions: Int, gt: C
      *  on the built spatial partitioner
      *
      * @param srdd  rdd to transform
-     * @param entityType type of entity to transform to
+     * @param geometry2entity a function that transforms a geometry to an entity
      * @return a spatially distributed RDD of entities
      */
-    def distributeAndTransform(srdd: SpatialRDD[Geometry], entityType: EntityType): RDD[(Int, Entity)] = {
+    def distributeAndTransform(srdd: SpatialRDD[Geometry], geometry2entity: Geometry => EntityT): RDD[(Int, EntityT)] = {
 
         val partitionedRDD: RDD[(Int, Geometry)] = srdd.rawSpatialRDD.rdd
             .flatMap(geom => spatialPartitioner.placeObject(geom).asScala.map(i => (i._1.toInt, geom)))
             .partitionBy(hashPartitioner)
-
-        val transformationF = entityType.transform
-        val entitiesRDD: RDD[(Int, Entity)] = partitionedRDD.map{case (pid, geom) => (pid, transformationF(geom))}
+        val entitiesRDD: RDD[(Int, EntityT)] = partitionedRDD.map{case (pid, geom) => (pid, geometry2entity(geom))}
         entitiesRDD
     }
 

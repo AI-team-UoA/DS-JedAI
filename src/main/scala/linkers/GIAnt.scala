@@ -1,12 +1,12 @@
 package linkers
 
-import model.entities.Entity
+import model.entities.EntityT
 import model.{IM, TileGranularities}
 import org.locationtech.jts.geom.Envelope
 import utils.configuration.Constants.Relation
 import utils.configuration.Constants.Relation.Relation
 
-case class GIAnt(source: Array[Entity], target: Iterable[Entity], tileGranularities: TileGranularities,
+case class GIAnt(source: Array[EntityT], target: Iterable[EntityT], tileGranularities: TileGranularities,
                  partitionBorder: Envelope) extends LinkerT {
 
     /**
@@ -18,7 +18,7 @@ case class GIAnt(source: Array[Entity], target: Iterable[Entity], tileGranularit
      */
     override def relate(relation: Relation): Iterator[(String, String)] = {
         target.flatMap{ t =>
-            getAllCandidates(t, sourceIndex, partitionBorder, relation)
+            getAllCandidates(t, sourceIndex, partitionBorder)
                 .filter(s => s.relate(t, relation))
                 .map(s => (s.originalID, t.originalID))
         }
@@ -31,7 +31,7 @@ case class GIAnt(source: Array[Entity], target: Iterable[Entity], tileGranularit
      */
     override def getDE9IM: Iterator[IM] = {
             target.flatMap { t =>
-                getAllCandidates(t, sourceIndex, partitionBorder, Relation.DE9IM)
+                getAllCandidates(t, sourceIndex, partitionBorder)
                     .map(s => s.getIntersectionMatrix(t))
             }
         }.toIterator

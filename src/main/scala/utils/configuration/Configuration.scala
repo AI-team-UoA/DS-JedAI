@@ -1,7 +1,7 @@
 package utils.configuration
 
 import org.joda.time.format.DateTimeFormat
-import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
+import utils.configuration.Constants.EntityTypeENUM.{DECOMPOSED_ENTITY, DECOMPOSED_ENTITY_1D, EntityTypeENUM, INDEXED_DECOMPOSED_ENTITY_1D}
 import utils.configuration.Constants.FileTypes.FileTypes
 import utils.configuration.Constants.GridType.GridType
 import utils.configuration.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
@@ -57,7 +57,11 @@ sealed trait ConfigurationT {
 
     def getTotalQualifyingPairs: Option[Int] = configurations.get(InputConfigurations.CONF_QUALIFYING_PAIRS).map(_.toInt)
 
-    def getDecompositionThreshold: Int = configurations.getOrElse(InputConfigurations.CONF_DECOMPOSITION_THRESHOLD, "4").toInt
+    def getDecompositionThreshold: Option[Double] = getEntityType match {
+        case DECOMPOSED_ENTITY | DECOMPOSED_ENTITY_1D | INDEXED_DECOMPOSED_ENTITY_1D | INDEXED_DECOMPOSED_ENTITY_1D =>
+            Some(configurations.getOrElse(InputConfigurations.CONF_DECOMPOSITION_THRESHOLD, "1").toDouble)
+        case _ => None
+    }
 }
 
 
