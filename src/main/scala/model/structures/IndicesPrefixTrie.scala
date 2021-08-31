@@ -1,13 +1,13 @@
-package model
+package model.structures
 
 import cats.data.NonEmptyList
-import model.entities.Entity
+import cats.implicits._
+import model.entities.EntityT
 import model.entities.segmented.DecomposedEntity
 import org.locationtech.jts.geom.Geometry
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
-import cats.implicits._
 
 
 
@@ -130,16 +130,16 @@ case class IndicesPrefixTrie[T](head: IndicesPrefixTrieNode[T], segments: Indexe
 
 object IndicesPrefixTrie {
 
-    def apply(mainEntity: DecomposedEntity, entities: Seq[Entity]): IndicesPrefixTrie[Entity] ={
+    def apply(mainEntity: DecomposedEntity, entities: Seq[EntityT]): IndicesPrefixTrie[EntityT] ={
 
         // for each entity, find the indices of the segments it intersects
-        val intersectingTargetSegments: Seq[(Entity, Seq[Int])] = entities.map(se => (se, mainEntity.findIntersectingSegmentsIndices(se).map(_._1)))
+        val intersectingTargetSegments: Seq[(EntityT, Seq[Int])] = entities.map(se => (se, mainEntity.findIntersectingSegmentsIndices(se).map(_._1)))
         val size = mainEntity.segments.size
 
-        val head = IndicesPrefixTrieNode[Entity](referenceIndex = -1, new ListBuffer[ListBuffer[Entity]](), Array.fill(size)(None))
+        val head = IndicesPrefixTrieNode[EntityT](referenceIndex = -1, new ListBuffer[ListBuffer[EntityT]](), Array.fill(size)(None))
         intersectingTargetSegments.filter(_._2.nonEmpty)
             .foreach{ case (se, segmentsIndices) => head.insert(segmentsIndices.sorted.toList, se, size) }
-        IndicesPrefixTrie[Entity](head, mainEntity.segments)
+        IndicesPrefixTrie[EntityT](head, mainEntity.segments)
     }
 
 

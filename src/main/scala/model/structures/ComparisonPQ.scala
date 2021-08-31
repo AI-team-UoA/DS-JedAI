@@ -1,7 +1,9 @@
-package model
+package model.structures
+
+import model.WeightedPair
+import org.spark_project.guava.collect.MinMaxPriorityQueue
 
 import java.util
-import org.spark_project.guava.collect.MinMaxPriorityQueue
 import scala.collection.JavaConverters._
 
 
