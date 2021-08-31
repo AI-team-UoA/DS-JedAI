@@ -71,7 +71,7 @@ object Reader {
             val geometryFactory = new GeometryFactory()
             p.map{line =>
                 val tokens = line.split(delimiter)
-                val geomText = tokens(geometryIndex)
+                val geomText = tokens(geometryIndex).replaceAll("^\"|\"$", "")
                 val id = tokens(idIndex)
                 val geom = if(geomText.nonEmpty) reader.read(geomText)
                             else geometryFactory.createEmpty(2)
