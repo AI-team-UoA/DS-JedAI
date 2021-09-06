@@ -1,5 +1,6 @@
 package utils.readers
 
+import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.formatMapper.GeoJsonReader
 import org.apache.sedona.core.formatMapper.shapefileParser.ShapefileReader
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
@@ -14,6 +15,8 @@ import org.locationtech.jts.geom.{Geometry, GeometryFactory}
 import org.locationtech.jts.io.WKTReader
 import utils.configuration.Constants.FileTypes
 import utils.configuration.DatasetConfigurations
+
+import scala.util.{Failure, Success, Try}
 
 object Reader {
 
@@ -62,21 +65,26 @@ object Reader {
      */
     def loadDelimitedFile(filepath: String, realIdField: String, geometryField: String, dateField: Option[String], delimiter: String): SpatialRDD[Geometry] ={
 //        WktReader.readToGeometryRDD(sc, filepath, geometryField.toInt, false, true)
-        val rawTextRDD = sc.textFile(filepath)
+        val rawTextRDD: RDD[String] = sc.textFile(filepath)
         val idIndex = realIdField.toInt
         val geometryIndex = geometryField.toInt
+        val maxIndex = math.max(idIndex, geometryIndex)
 
         val geomRDD: RDD[Geometry] = rawTextRDD.mapPartitions{ p =>
             val reader = new WKTReader()
             val geometryFactory = new GeometryFactory()
-            p.map{line =>
-                val tokens = line.split(delimiter)
-                val geomText = tokens(geometryIndex).replaceAll("^\"|\"$", "")
+            p.map{line => line.split(delimiter)}
+            .filter(tokens => tokens.nonEmpty && tokens.length > maxIndex)
+            .map{ tokens =>
+                val geomText = tokens(geometryIndex).replaceAll("\"", "")
                 val id = tokens(idIndex)
-                val geom = if(geomText.nonEmpty) reader.read(geomText)
-                            else geometryFactory.createEmpty(2)
-                geom.setUserData(id)
-                geom
+                val geometry = Try(reader.read(geomText)) match {
+                    case Success(g) if g!= null=> g
+                    case _ =>
+                        geometryFactory.createEmpty(2)
+                }
+                geometry.setUserData(id)
+                geometry
             }
         }
         val spatialRDD = new SpatialRDD[Geometry]()
