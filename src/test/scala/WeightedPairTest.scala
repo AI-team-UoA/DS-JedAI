@@ -1,4 +1,5 @@
-import model.{CompositeWP, DynamicComparisonPQ, HybridWP, MainWP, StaticComparisonPQ}
+import model.structures.{DynamicComparisonPQ, StaticComparisonPQ}
+import model.{CompositeWP, HybridWP, MainWP}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should._
 

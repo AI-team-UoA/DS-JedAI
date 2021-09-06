@@ -80,7 +80,7 @@ object EvaluationExp {
         val targetRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(targetSpatialRDD, geometry2entity)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 
-        val partitionBorder = partitioner.getPartitionsBorders(Some(theta))
+        val partitionBorder = partitioner.getPartitionsBorders(theta)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val (totalVerifications, totalRelatedPairs) =

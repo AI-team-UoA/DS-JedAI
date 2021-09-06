@@ -67,6 +67,7 @@ object SedonaExp {
             .filter(! col(sourceGeometryField).contains("EMPTY"))
             .filter(! col(sourceGeometryField).contains("GEOMETRYCOLLECTION"))
 
+
         source.createOrReplaceTempView("Source")
         val sourceQuery = s"SELECT ST_GeomFromWKT(Source.$sourceGeometryField) AS WKT,  Source.$sourceIdField AS REAL_ID FROM Source".stripMargin
         val sourceDF = spark.sql(sourceQuery).withColumn("valid", isValid(col("WKT"))).filter(col("valid"))

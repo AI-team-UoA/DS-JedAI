@@ -2,24 +2,32 @@ package linkers
 
 import linkers.DistributedInterlinking.log
 import model.entities.segmented.DecomposedEntity
-import model.entities.{Entity, SpatialEntity}
-import model.{IM, IndicesPrefixTrie, TileGranularities}
+import model.entities.{EntityT, SpatialEntity}
+import model.IM
+import model.structures.IndicesPrefixTrie
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
-import org.locationtech.jts.geom.Envelope
 import org.locationtech.jts.operation.union.UnaryUnionOp
-import utils.readers.GridPartitioner
 
 import java.util.Calendar
 import scala.collection.JavaConverters._
 
 object WellBalancedDistributedInterlinking {
 
-    def getOutliersRDD(linkersRDD: RDD[LinkerT], threshold: Double): (RDD[List[Entity]], RDD[List[Entity]]) ={
+    /**
+     *  Partition verifications into two groups, skew and cheap
+     *  For each verification, i.e., RDD[t::S_n], estimate its weight as W_t = t.getNumPoints*|S_n|
+     *  consider the verifications that their z-score > threshold as skew and the rest as cheap ones
+     *
+     * @param linkersRDD an RDD of linkers
+     * @param threshold a z-score threshold
+     * @return a tuple containing the skew and cheap verifications as RDDs
+     */
+    def partitionVerifications(linkersRDD: RDD[LinkerT], threshold: Double=3d): (RDD[List[EntityT]], RDD[List[EntityT]]) ={
 
         // verifications accompanied of targets id
-        val verificationsRDD = linkersRDD.flatMap { linker =>
+        val verificationsRDD: RDD[(List[EntityT], String)] = linkersRDD.flatMap { linker =>
             val verifications = linker.getVerifications
             verifications.map(entities => (entities, entities.head.originalID))
         }
@@ -37,22 +45,24 @@ object WellBalancedDistributedInterlinking {
         val variance = approximateCostOfTargetVerificationsRDD.map(x => math.pow(x._1 - meanApproximateCost, 2)).sum /totalTargetVerifications
         val std = Math.sqrt(variance)
         val zScore: Double => Double = (x: Double) => (x - meanApproximateCost)/std
-        val outliersRDD = approximateCostOfTargetVerificationsRDD.map{case (cost, id) => (zScore(cost), id)}.filter(_._1 > threshold)
-        val outliersID: Set[String] = outliersRDD.map(_._2).collect().toSet
-        log.info(s"JEDAI: Total outliers ${outliersID.size}")
 
-        val simpleVerificationsRDD = verificationsRDD.filter{ case(_, id) => !outliersID.contains(id)}.map(_._1)
-        val expensiveVerificationsRDD = verificationsRDD.filter{ case(_, id) => outliersID.contains(id)}.map(_._1)
+        // partition based on z-score  and threshold
+        val skewVerificationsCostRDD: RDD[(Double, String)] = approximateCostOfTargetVerificationsRDD.map{case (cost, id) => (zScore(cost), id)}.filter(_._1 > threshold)
+        val skewVerificationsIDs: Set[String] = skewVerificationsCostRDD.map(_._2).collect().toSet
+        log.info(s"JEDAI: Total skew verifications ${skewVerificationsIDs.size}")
+
+        val cheapVerificationsRDD: RDD[List[EntityT]] = verificationsRDD.filter{ case(_, id) => !skewVerificationsIDs.contains(id)}.map(_._1)
+        val skewVerificationsRDD: RDD[List[EntityT]] = verificationsRDD.filter{ case(_, id) => skewVerificationsIDs.contains(id)}.map(_._1)
 
         approximateCostOfTargetVerificationsRDD.unpersist()
 
-        (simpleVerificationsRDD, expensiveVerificationsRDD)
+        (cheapVerificationsRDD, skewVerificationsRDD)
     }
 
 
     def batchedRedistribution(linkersRDD: RDD[LinkerT]): RDD[IM] ={
 
-        val (simpleVerificationsRDD, expensiveVerificationsRDD) = getOutliersRDD(linkersRDD, threshold = 3d)
+        val (simpleVerificationsRDD, expensiveVerificationsRDD) = partitionVerifications(linkersRDD)
 
         val wellBalancedImRDD = simpleVerificationsRDD
             .flatMap{ entities =>
@@ -76,9 +86,9 @@ object WellBalancedDistributedInterlinking {
     }
 
 
-    def segmentsVerificationRedistribution(linkersRDD: RDD[LinkerT]): RDD[List[Entity]] ={
+    def segmentsVerificationRedistribution(linkersRDD: RDD[LinkerT]): RDD[List[EntityT]] ={
 
-        val (simpleVerificationsRDD, expensiveVerificationsRDD) = getOutliersRDD(linkersRDD, threshold = 3d)
+        val (simpleVerificationsRDD, expensiveVerificationsRDD) = partitionVerifications(linkersRDD)
 
         val overloadedImRDD = expensiveVerificationsRDD
             .flatMap { entities =>
@@ -95,7 +105,7 @@ object WellBalancedDistributedInterlinking {
                 flattenNodes.map{ case (targetSegmentIndices, sourceEntities) =>
                     val targetSegments = targetSegmentIndices.map(i => t.segments(i)).asJava
                     val partialTarget = new UnaryUnionOp(targetSegments).union()
-                    SpatialEntity(t.originalID, partialTarget, t.env) :: sourceEntities
+                    SpatialEntity(t.originalID, partialTarget, t.approximation) :: sourceEntities
                 }
             }
             .repartition(linkersRDD.getNumPartitions)
@@ -104,9 +114,9 @@ object WellBalancedDistributedInterlinking {
     }
 
 
-    def batchedSegmentedVerificationRedistribution(linkersRDD: RDD[LinkerT]): RDD[List[Entity]] ={
+    def batchedSegmentedVerificationRedistribution(linkersRDD: RDD[LinkerT]): RDD[List[EntityT]] ={
 
-        val (simpleVerificationsRDD, expensiveVerificationsRDD) = getOutliersRDD(linkersRDD, threshold = 3d)
+        val (simpleVerificationsRDD, expensiveVerificationsRDD) = partitionVerifications(linkersRDD)
 
         val overloadedImRDD = expensiveVerificationsRDD
             .flatMap { entities =>
@@ -124,14 +134,14 @@ object WellBalancedDistributedInterlinking {
                 flattenNodes.map{ case (targetSegmentIndices, sourceEntities) =>
                     val targetSegments = targetSegmentIndices.map(i => t.segments(i)).asJava
                     val partialTarget = new UnaryUnionOp(targetSegments).union()
-                    SpatialEntity(t.originalID, partialTarget, t.env) :: sourceEntities
+                    SpatialEntity(t.originalID, partialTarget, t.approximation) :: sourceEntities
                 }
             }
             .repartition(linkersRDD.getNumPartitions)
         simpleVerificationsRDD.union(overloadedImRDD)
     }
 
-    def executeVerifications(verificationsRDD: RDD[List[Entity]]): RDD[IM] =
+    def executeVerifications(verificationsRDD: RDD[List[EntityT]]): RDD[IM] =
         verificationsRDD.flatMap{ entities =>
             val t = entities.head
             val sourceEntities = entities.tail
@@ -142,7 +152,7 @@ object WellBalancedDistributedInterlinking {
     /***************************************************************************************************************/
 
     def timeBatchedRedistribution(linkersRDD: RDD[LinkerT]): Unit ={
-        val (simpleVerificationsRDD, expensiveVerificationsRDD) = getOutliersRDD(linkersRDD, threshold = 3d)
+        val (simpleVerificationsRDD, expensiveVerificationsRDD) = partitionVerifications(linkersRDD)
 
         val simpleTimeRDD: RDD[(Int, Double)] = simpleVerificationsRDD
             .mapPartitions{ verificationsI =>
@@ -187,7 +197,7 @@ object WellBalancedDistributedInterlinking {
 
     def timeSegmentsVerificationRedistribution(linkersRDD: RDD[LinkerT]): Unit ={
 
-        val (simpleVerificationsRDD, expensiveVerificationsRDD) = getOutliersRDD(linkersRDD, threshold = 3d)
+        val (simpleVerificationsRDD, expensiveVerificationsRDD) = partitionVerifications(linkersRDD)
 
         val simpleTimeRDD: RDD[(Int, Double)] = simpleVerificationsRDD
             .mapPartitions{ verificationsI =>
@@ -218,7 +228,7 @@ object WellBalancedDistributedInterlinking {
                 flattenNodes.map{ case (targetSegmentIndices, sourceEntities) =>
                     val targetSegments = targetSegmentIndices.map(i => t.segments(i)).asJava
                     val partialTarget = new UnaryUnionOp(targetSegments).union()
-                    SpatialEntity(t.originalID, partialTarget, t.env) :: sourceEntities
+                    SpatialEntity(t.originalID, partialTarget, t.approximation) :: sourceEntities
                 }
             }
             .repartition(linkersRDD.getNumPartitions)
@@ -242,7 +252,7 @@ object WellBalancedDistributedInterlinking {
 
     def timeBatchedSegmentedVerificationRedistribution(linkersRDD: RDD[LinkerT]): Unit ={
 
-        val (simpleVerificationsRDD, expensiveVerificationsRDD) = getOutliersRDD(linkersRDD, threshold = 3d)
+        val (simpleVerificationsRDD, expensiveVerificationsRDD) = partitionVerifications(linkersRDD)
 
         val simpleTimeRDD: RDD[(Int, Double)] = simpleVerificationsRDD
             .mapPartitions{ verificationsI =>
@@ -274,7 +284,7 @@ object WellBalancedDistributedInterlinking {
                 flattenNodes.map{ case (targetSegmentIndices, sourceEntities) =>
                     val targetSegments = targetSegmentIndices.map(i => t.segments(i)).asJava
                     val partialTarget = new UnaryUnionOp(targetSegments).union()
-                    SpatialEntity(t.originalID, partialTarget, t.env) :: sourceEntities
+                    SpatialEntity(t.originalID, partialTarget, t.approximation) :: sourceEntities
                 }
             }
             .repartition(linkersRDD.getNumPartitions)

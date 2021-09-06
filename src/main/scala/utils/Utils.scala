@@ -3,7 +3,7 @@ package utils
 
 import cats.implicits._
 import model.IM
-import model.entities.Entity
+import model.entities.EntityT
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
@@ -15,7 +15,7 @@ import scala.collection.mutable
 
 object Utils extends Serializable {
 
-	def printPartition(joinedRDD: RDD[(Int, (Iterable[Entity],  Iterable[Entity]))], bordersEnvelope: Array[Envelope]): Unit ={
+	def printPartition(joinedRDD: RDD[(Int, (Iterable[EntityT],  Iterable[EntityT]))], bordersEnvelope: Array[Envelope]): Unit ={
 		val c = joinedRDD.map(p => (p._1, (p._2._1.size, p._2._2.size))).sortByKey().collect()
 		val log: Logger = LogManager.getRootLogger
 		log.info("Printing Partitions")

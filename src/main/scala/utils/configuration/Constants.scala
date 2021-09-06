@@ -38,11 +38,11 @@ object Constants {
 
 	object ThetaOption extends Enumeration{
 		type ThetaOption = Value
-		val MAX: Constants.ThetaOption.Value = Value("max")
-		val MIN: Constants.ThetaOption.Value = Value("min")
-		val AVG: Constants.ThetaOption.Value = Value("avg")
-		val AVG_x2: Constants.ThetaOption.Value = Value("avg2")
-		val NO_USE: Constants.ThetaOption.Value = Value("none")
+		val MAX: ThetaOption.Value = Value("max")
+		val MIN: ThetaOption.Value = Value("min")
+		val AVG: ThetaOption.Value = Value("avg")
+		val AVG_x2: ThetaOption.Value = Value("avg2")
+		val NO_USE: ThetaOption.Value = Value("none")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
@@ -52,14 +52,14 @@ object Constants {
 	 */
 	object FileTypes extends Enumeration{
 		type FileTypes = Value
-		val NTRIPLES: Constants.FileTypes.Value = Value("nt")
-		val TURTLE: Constants.FileTypes.Value = Value("ttl")
-		val RDFXML: Constants.FileTypes.Value = Value("xml")
-		val RDFJSON: Constants.FileTypes.Value = Value("rj")
-		val CSV: Constants.FileTypes.Value = Value("csv")
-		val TSV: Constants.FileTypes.Value = Value("tsv")
-		val SHP: Constants.FileTypes.Value = Value("shp")
-		val GEOJSON: Constants.FileTypes.Value = Value("geojson")
+		val NTRIPLES: FileTypes.Value = Value("nt")
+		val TURTLE: FileTypes.Value = Value("ttl")
+		val RDFXML: FileTypes.Value = Value("xml")
+		val RDFJSON: FileTypes.Value = Value("rj")
+		val CSV: FileTypes.Value = Value("csv")
+		val TSV: FileTypes.Value = Value("tsv")
+		val SHP: FileTypes.Value = Value("shp")
+		val GEOJSON: FileTypes.Value = Value("geojson")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
@@ -71,19 +71,19 @@ object Constants {
 		type WeightingFunction = Value
 
 		// co-occurrence frequency
-		val CF: Constants.WeightingFunction.Value = Value("CF")
+		val CF: WeightingFunction.Value = Value("CF")
 
 		// jaccard  similarity
-		val JS: Constants.WeightingFunction.Value = Value("JS")
+		val JS: WeightingFunction.Value = Value("JS")
 
 		// Pearson's chi squared test
-		val PEARSON_X2: Constants.WeightingFunction.Value = Value("PEARSON_X2")
+		val PEARSON_X2: WeightingFunction.Value = Value("PEARSON_X2")
 
 		// minimum bounding rectangle overlap
-		val MBRO: Constants.WeightingFunction.Value = Value("MBRO")
+		val MBRO: WeightingFunction.Value = Value("MBRO")
 
 		// inverse sum of points
-		val ISP: Constants.WeightingFunction.Value = Value("ISP")
+		val ISP: WeightingFunction.Value = Value("ISP")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
@@ -104,6 +104,7 @@ object Constants {
 		val CONF_WS = "ws"
 		val CONF_OUTPUT = "outputPath"
 		val CONF_ENTITY_TYPE = "entityType"
+		val CONF_GEOMETRY_APPROXIMATION_TYPE = "geometryApproximationType"
 		val CONF_STATISTICS = "stats"
 		val CONF_TOTAL_VERIFICATIONS = "totalVerifications"
 		val CONF_QUALIFYING_PAIRS = "qualifyingPairs"
@@ -113,12 +114,11 @@ object Constants {
 
 	object GridType extends Enumeration{
 		type GridType = Value
-		val KDBTREE: Constants.GridType.Value = Value("KDBTREE")
-		val QUADTREE: Constants.GridType.Value = Value("QUADTREE")
+		val KDBTREE: GridType.Value = Value("KDBTREE")
+		val QUADTREE: GridType.Value = Value("QUADTREE")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
-
 
 	object EntityTypeENUM extends Enumeration {
 		type EntityTypeENUM = Value
@@ -138,12 +138,12 @@ object Constants {
 	 */
 	object ProgressiveAlgorithm extends Enumeration {
 		type ProgressiveAlgorithm = Value
-		val PROGRESSIVE_GIANT: Constants.ProgressiveAlgorithm.Value = Value("PROGRESSIVE_GIANT")
-		val DYNAMIC_PROGRESSIVE_GIANT: Constants.ProgressiveAlgorithm.Value = Value("DYNAMIC_PROGRESSIVE_GIANT")
-		val GEOMETRY_CENTRIC: Constants.ProgressiveAlgorithm.Value = Value("GEOMETRY_CENTRIC")
-		val TOPK: Constants.ProgressiveAlgorithm.Value = Value("TOPK")
-		val RECIPROCAL_TOPK: Constants.ProgressiveAlgorithm.Value = Value("RECIPROCAL_TOPK")
-		val RANDOM: Constants.ProgressiveAlgorithm.Value = Value("RANDOM")
+		val PROGRESSIVE_GIANT: ProgressiveAlgorithm.Value = Value("PROGRESSIVE_GIANT")
+		val DYNAMIC_PROGRESSIVE_GIANT: ProgressiveAlgorithm.Value = Value("DYNAMIC_PROGRESSIVE_GIANT")
+		val GEOMETRY_CENTRIC: ProgressiveAlgorithm.Value = Value("GEOMETRY_CENTRIC")
+		val TOPK: ProgressiveAlgorithm.Value = Value("TOPK")
+		val RECIPROCAL_TOPK: ProgressiveAlgorithm.Value = Value("RECIPROCAL_TOPK")
+		val RANDOM: ProgressiveAlgorithm.Value = Value("RANDOM")
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}

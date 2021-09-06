@@ -1,13 +1,14 @@
 package linkers.progressive
 
 import model._
-import model.entities.Entity
+import model.entities.EntityT
+import model.structures.{ComparisonPQ, DynamicComparisonPQ}
 import org.locationtech.jts.geom.Envelope
 import utils.configuration.Constants
 import utils.configuration.Constants.Relation.Relation
 import utils.configuration.Constants.WeightingFunction.WeightingFunction
 
-case class DynamicProgressiveGIAnt(source: Array[Entity], target: Iterable[Entity],
+case class DynamicProgressiveGIAnt(source: Array[EntityT], target: Iterable[EntityT],
                                    tileGranularities: TileGranularities, partitionBorder: Envelope,
                                    mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction], budget: Int,
                                    totalSourceEntities: Long, ws: Constants.WeightingScheme, totalBlocks: Double)
@@ -30,7 +31,7 @@ case class DynamicProgressiveGIAnt(source: Array[Entity], target: Iterable[Entit
             .indices
             .foreach {j =>
                 val t = targetAr(j)
-                val candidates = getAllCandidatesWithIndex(t, sourceIndex, partitionBorder, relation)
+                val candidates = getAllCandidatesWithIndex(t, sourceIndex, partitionBorder)
                 candidates.foreach { case (i, s) =>
                     val wp = weightedPairFactory.createWeightedPair(counter, s, i, t, j)
                     pq.enqueue(wp)
@@ -41,7 +42,7 @@ case class DynamicProgressiveGIAnt(source: Array[Entity], target: Iterable[Entit
     }
 
 
-    override def computeDE9IM(pq: ComparisonPQ, source: Array[Entity], target: Array[Entity]): Iterator[IM] = {
+    override def computeDE9IM(pq: ComparisonPQ, source: Array[EntityT], target: Array[EntityT]): Iterator[IM] = {
         val sourceCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId1, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
         val targetCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
 

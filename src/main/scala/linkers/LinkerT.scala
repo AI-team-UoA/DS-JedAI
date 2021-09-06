@@ -28,22 +28,16 @@ trait LinkerT {
      * @param partition current partition
      * @return true if the reference point is in the block and in partition
      */
-    def referencePointFiltering(s: Entity, t: Entity, b:(Int, Int), partition: Envelope): Boolean ={
-        val env1 = s.env
-        val env2 = t.env
-        val (rfX, rfY) = EnvelopeOp.getReferencePoint(env1, env2, tileGranularities)
-
-        val blockContainsRF: Boolean =  b._1 <= rfX && b._1+1 >= rfX && b._2 <= rfY && b._2+1 >= rfY
-        val partitionContainsRF: Boolean = partition.getMinX <= rfX && partition.getMaxX >= rfX && partition.getMinY <= rfY && partition.getMaxY >= rfY
+    def referencePointFiltering(s: EntityT, t: EntityT, b:(Int, Int), partition: Envelope): Boolean ={
+        val (rfX, rfY) = s.approximation.getReferencePoint(t.approximation, tileGranularities)
+        val blockContainsRF: Boolean =  b._1 <= rfX && b._1+1 > rfX && b._2 <= rfY && b._2+1 > rfY
+        val partitionContainsRF: Boolean = partition.getMinX <= rfX && partition.getMaxX > rfX && partition.getMinY <= rfY && partition.getMaxY > rfY
         blockContainsRF && partitionContainsRF
     }
 
-    def referencePointFiltering(s: Entity, t: Entity, partition: Envelope): Boolean ={
-        val env1 = s.env
-        val env2 = t.env
-        val (rfX, rfY) = EnvelopeOp.getReferencePoint(env1, env2, tileGranularities)
-
-        val partitionContainsRF: Boolean = partition.getMinX <= rfX && partition.getMaxX >= rfX && partition.getMinY <= rfY && partition.getMaxY >= rfY
+    def referencePointFiltering(s: EntityT, t: EntityT, partition: Envelope): Boolean ={
+        val (rfX, rfY) = s.approximation.getReferencePoint(t.approximation, tileGranularities)
+        val partitionContainsRF: Boolean = partition.getMinX <= rfX && partition.getMaxX > rfX && partition.getMinY <= rfY && partition.getMaxY > rfY
         partitionContainsRF
     }
 
@@ -52,13 +46,12 @@ trait LinkerT {
      *
      * @param s source spatial entity
      * @param t source spatial entity
-     * @param relation examining relation
      * @param block block the comparison belongs to
      * @param partition the partition the comparisons belong to
      * @return true if comparison is necessary
      */
-    def filterVerifications(s: Entity, t: Entity, relation: Relation, block: (Int, Int), partition: Envelope): Boolean =
-        s.intersectingMBR(t, relation) && referencePointFiltering(s, t, block, partition)
+    def filterVerifications(s: EntityT, t: EntityT, block: (Int, Int), partition: Envelope): Boolean =
+        s.approximateIntersection(t) && referencePointFiltering(s, t, block, partition)
 
     /**
      * get all the non-redundant verifications

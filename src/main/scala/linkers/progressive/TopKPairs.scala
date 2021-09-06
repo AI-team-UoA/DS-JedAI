@@ -1,13 +1,14 @@
 package linkers.progressive
 
-import model.entities.Entity
-import model.{StaticComparisonPQ, TileGranularities}
+import model.entities.EntityT
+import model.TileGranularities
+import model.structures.StaticComparisonPQ
 import org.locationtech.jts.geom.Envelope
 import utils.configuration.Constants
 import utils.configuration.Constants.Relation.Relation
 import utils.configuration.Constants.WeightingFunction.WeightingFunction
 
-case class TopKPairs(source: Array[Entity], target: Iterable[Entity],
+case class TopKPairs(source: Array[EntityT], target: Iterable[EntityT],
                      tileGranularities: TileGranularities, partitionBorder: Envelope,
                      mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction], budget: Int,
                      totalSourceEntities: Long, ws: Constants.WeightingScheme, totalBlocks: Double)
@@ -35,7 +36,7 @@ case class TopKPairs(source: Array[Entity], target: Iterable[Entity],
             .indices
             .foreach {j =>
                 val t = targetAr(j)
-                val candidates = getAllCandidatesWithIndex(t, sourceIndex, partitionBorder, relation)
+                val candidates = getAllCandidatesWithIndex(t, sourceIndex, partitionBorder)
                 candidates.foreach { case (i, s) =>
                     val wp = weightedPairFactory.createWeightedPair(counter, s, i, t, j)
                     counter += 1

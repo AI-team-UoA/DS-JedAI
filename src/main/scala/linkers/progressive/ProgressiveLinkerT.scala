@@ -1,8 +1,9 @@
 package linkers.progressive
 
 import linkers.LinkerT
-import model.{ComparisonPQ, IM, SpatialIndex, WeightedPairFactory}
-import model.entities.Entity
+import model.{IM, WeightedPairFactory}
+import model.entities.EntityT
+import model.structures.{ComparisonPQ, SpatialIndex}
 import org.locationtech.jts.geom.Envelope
 import utils.configuration.Constants
 import utils.configuration.Constants.Relation
@@ -29,11 +30,11 @@ trait ProgressiveLinkerT extends LinkerT{
      * @param relation examining relation
      * @return all candidate geometries of se
      */
-    def getAllCandidatesWithIndex(se: Entity, index: SpatialIndex[Entity], partition: Envelope, relation: Relation): Seq[(Int, Entity)] ={
+    def getAllCandidatesWithIndex(se: EntityT, index: SpatialIndex[EntityT], partition: Envelope): Seq[(Int, EntityT)] ={
         index.index(se)
             .flatMap { block =>
                 val blockCandidates = index.getWithIndex(block)
-                blockCandidates.filter(candidate => filterVerifications(candidate._2, se, relation, block, partition))
+                blockCandidates.filter(candidate => filterVerifications(candidate._2, se, block, partition))
             }
     }
 
@@ -44,7 +45,7 @@ trait ProgressiveLinkerT extends LinkerT{
      * @param target target entities
      * @return an iterator of  IM
      */
-    def computeDE9IM(pq: ComparisonPQ, source: Array[Entity], target: Array[Entity]): Iterator[IM] =
+    def computeDE9IM(pq: ComparisonPQ, source: Array[EntityT], target: Array[EntityT]): Iterator[IM] =
         if (!pq.isEmpty)
             pq.dequeueAll.map{ wp =>
                 val s = source(wp.entityId1)

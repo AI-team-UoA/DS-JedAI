@@ -1,9 +1,9 @@
 package model
 
-import model.entities.Entity
+import model.entities.EntityT
 import org.locationtech.jts.geom.IntersectionMatrix
 
-case class IM(s: Entity, t: Entity, im: IntersectionMatrix){
+case class IM(s: EntityT, t: EntityT, im: IntersectionMatrix){
 
     def getId1: String = s.originalID
     def getId2: String = t.originalID

@@ -1,7 +1,7 @@
 package linkers
 
 import cats.implicits._
-import model.entities.Entity
+import model.entities.EntityT
 import model.{IM, TileGranularities}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.spark.TaskContext
@@ -34,11 +34,10 @@ object DistributedInterlinking {
      * @param gridPartitioner partitioner
      * @return an RDD with linkers in each partition
      */
-    def initializeLinkers(source: RDD[(Int, Entity)], target: RDD[(Int, Entity)], partitionBorders: Array[Envelope],
+    def initializeLinkers(source: RDD[(Int, EntityT)], target: RDD[(Int, EntityT)], partitionBorders: Array[Envelope],
                           theta: TileGranularities, gridPartitioner: GridPartitioner): RDD[LinkerT] = {
-
-        val joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))] = source.cogroup(target, gridPartitioner.hashPartitioner)
-        joinedRDD.map { case (pid: Int, (sourceP: Iterable[Entity], targetP: Iterable[Entity])) =>
+        val joinedRDD: RDD[(Int, (Iterable[EntityT], Iterable[EntityT]))] = source.cogroup(target, gridPartitioner.hashPartitioner)
+        joinedRDD.map { case (pid: Int, (sourceP: Iterable[EntityT], targetP: Iterable[EntityT])) =>
             val partition = partitionBorders(pid)
             GIAnt(sourceP.toArray, targetP, theta, partition)
         }
@@ -119,13 +118,13 @@ object DistributedInterlinking {
     }
 
 
-    def executionStats(source: RDD[(Int, Entity)], target: RDD[(Int, Entity)], partitionBorders: Array[Envelope],
+    def executionStats(source: RDD[(Int, EntityT)], target: RDD[(Int, EntityT)], partitionBorders: Array[Envelope],
                        theta: TileGranularities, gridPartitioner: GridPartitioner): Unit ={
 
-        val joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))] = source.cogroup(target, gridPartitioner.hashPartitioner)
+        val joinedRDD: RDD[(Int, (Iterable[EntityT], Iterable[EntityT]))] = source.cogroup(target, gridPartitioner.hashPartitioner)
         val linkersRDD: RDD[(Iterator[GIAnt], Long)] = joinedRDD.mapPartitions { iter =>
             val startTime = Calendar.getInstance().getTimeInMillis
-            val linkers = iter.map { case (pid: Int, (sourceP: Iterable[Entity], targetP: Iterable[Entity])) =>
+            val linkers = iter.map { case (pid: Int, (sourceP: Iterable[EntityT], targetP: Iterable[EntityT])) =>
                 val partition = partitionBorders(pid)
                 GIAnt(sourceP.toArray, targetP, theta, partition)
             }
@@ -155,13 +154,13 @@ object DistributedInterlinking {
             log.info(pid+"\t"+verifications+"\t"+points+"\t"+totalMax+"\t"+time)}
     }
 
-    def timeGiant(source: RDD[(Int, Entity)], target: RDD[(Int, Entity)], partitionBorders: Array[Envelope],
+    def timeGiant(source: RDD[(Int, EntityT)], target: RDD[(Int, EntityT)], partitionBorders: Array[Envelope],
                   theta: TileGranularities, gridPartitioner: GridPartitioner): Unit ={
 
-        val joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))] = source.cogroup(target, gridPartitioner.hashPartitioner)
+        val joinedRDD: RDD[(Int, (Iterable[EntityT], Iterable[EntityT]))] = source.cogroup(target, gridPartitioner.hashPartitioner)
         val linkersRDD: RDD[(Iterator[GIAnt], Long)] = joinedRDD.mapPartitions { iter =>
             val startTime = Calendar.getInstance().getTimeInMillis
-            val linkers = iter.map { case (pid: Int, (sourceP: Iterable[Entity], targetP: Iterable[Entity])) =>
+            val linkers = iter.map { case (pid: Int, (sourceP: Iterable[EntityT], targetP: Iterable[EntityT])) =>
                 val partition = partitionBorders(pid)
                 GIAnt(sourceP.toArray, targetP, theta, partition)
             }

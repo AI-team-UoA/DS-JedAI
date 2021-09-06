@@ -1,9 +1,8 @@
 package experiments
 
-import java.util.Calendar
 import linkers.progressive.DistributedProgressiveInterlinking
 import model.TileGranularities
-import model.entities.{Entity, SpatialEntityType}
+import model.entities.{EntityT, GeometryToEntity}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -15,9 +14,11 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
 import utils.configuration.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.configuration.Constants.WeightingFunction.WeightingFunction
-import utils.configuration.Constants.{GridType, Relation}
+import utils.configuration.Constants.{EntityTypeENUM, GridType, Relation}
 import utils.configuration.{ConfigurationParser, Constants}
 import utils.readers.{GridPartitioner, Reader}
+
+import java.util.Calendar
 
 object ProgressiveExp {
 
@@ -66,18 +67,18 @@ object ProgressiveExp {
         // load datasets
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
         val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
+        val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
+        val approximateSourceCount = partitioner.approximateCount
+        val theta = TileGranularities(sourceSpatialRDD.rawSpatialRDD.rdd.map(_.getEnvelopeInternal), approximateSourceCount, conf.getTheta)
 
         // spatial partition
-        val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)
-        val entityType = SpatialEntityType()
-        val sourceRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(sourceSpatialRDD, entityType)
-        val targetRDD: RDD[(Int, Entity)] = partitioner.distributeAndTransform(targetSpatialRDD, entityType)
-        val approximateSourceCount = partitioner.approximateCount
+        val geometry2entity: Geometry => EntityT = GeometryToEntity.getTransformer(EntityTypeENUM.SPATIAL_ENTITY, None, None)
+        val sourceRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(sourceSpatialRDD, geometry2entity)
+        val targetRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(targetSpatialRDD, geometry2entity)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
         val sourceCount = sourceRDD.count()
 
-        val theta = TileGranularities(sourceRDD.map(_._2.env), approximateSourceCount, conf.getTheta)
-        val partitionBorders = partitioner.getPartitionsBorders(Some(theta))
+        val partitionBorders = partitioner.getPartitionsBorders(theta)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis

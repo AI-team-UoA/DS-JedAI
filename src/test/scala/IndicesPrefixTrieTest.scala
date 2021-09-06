@@ -1,4 +1,4 @@
-import model.{IndicesPrefixTrie, IndicesPrefixTrieNode}
+import model.structures.{IndicesPrefixTrie, IndicesPrefixTrieNode}
 import org.locationtech.jts.geom.{Geometry, GeometryFactory}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec

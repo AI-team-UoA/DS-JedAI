@@ -3,6 +3,7 @@ package utils.configuration
 import org.joda.time.format.DateTimeFormat
 import utils.configuration.Constants.EntityTypeENUM.{DECOMPOSED_ENTITY, DECOMPOSED_ENTITY_1D, EntityTypeENUM, INDEXED_DECOMPOSED_ENTITY_1D}
 import utils.configuration.Constants.FileTypes.FileTypes
+import utils.configuration.Constants.GeometryApproximationENUM.GeometryApproximationENUM
 import utils.configuration.Constants.GridType.GridType
 import utils.configuration.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.configuration.Constants.Relation.Relation
@@ -57,11 +58,19 @@ sealed trait ConfigurationT {
 
     def getTotalQualifyingPairs: Option[Int] = configurations.get(InputConfigurations.CONF_QUALIFYING_PAIRS).map(_.toInt)
 
-    def getDecompositionThreshold: Option[Double] = getEntityType match {
-        case DECOMPOSED_ENTITY | DECOMPOSED_ENTITY_1D | INDEXED_DECOMPOSED_ENTITY_1D | INDEXED_DECOMPOSED_ENTITY_1D =>
-            Some(configurations.getOrElse(InputConfigurations.CONF_DECOMPOSITION_THRESHOLD, "1").toDouble)
-        case _ => None
-    }
+    def getDecompositionThreshold: Option[Double] =
+        if (configurations.contains(InputConfigurations.CONF_DECOMPOSITION_THRESHOLD))
+            configurations.get(InputConfigurations.CONF_DECOMPOSITION_THRESHOLD).map(_.toDouble)
+        else {
+            getEntityType match {
+                case DECOMPOSED_ENTITY | DECOMPOSED_ENTITY_1D | INDEXED_DECOMPOSED_ENTITY_1D | INDEXED_DECOMPOSED_ENTITY_1D =>
+                    Some(configurations.getOrElse(InputConfigurations.CONF_DECOMPOSITION_THRESHOLD, "1").toDouble)
+                case _ => None
+            }
+        }
+    def getApproximationType: Option[GeometryApproximationENUM] =
+        configurations.get(InputConfigurations.CONF_GEOMETRY_APPROXIMATION_TYPE).map(ga => GeometryApproximationENUM.withName(ga))
+
 }
 
 

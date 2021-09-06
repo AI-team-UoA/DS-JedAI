@@ -1,8 +1,9 @@
 package linkers.progressive
 
 import cats.implicits._
-import model.entities.Entity
-import model.{DynamicComparisonPQ, IM, TileGranularities, WeightedPair}
+import model.entities.EntityT
+import model.structures.DynamicComparisonPQ
+import model.{IM, TileGranularities, WeightedPair}
 import org.apache.spark.rdd.RDD
 import org.locationtech.jts.geom.Envelope
 import utils.configuration.Constants
@@ -37,7 +38,7 @@ object DistributedProgressiveInterlinking {
      * @param ws  weighting scheme
      * @return an RDD with progressive linkers in each partition
      */
-    def initializeProgressiveLinkers(source: RDD[(Int, Entity)], target: RDD[(Int, Entity)],
+    def initializeProgressiveLinkers(source: RDD[(Int, EntityT)], target: RDD[(Int, EntityT)],
                                      partitionBorders: Array[Envelope],
                                      theta: TileGranularities, progressiveAlgorithm: ProgressiveAlgorithm,
                                      gridPartitioner: GridPartitioner, sourceCount: Long,
@@ -45,8 +46,8 @@ object DistributedProgressiveInterlinking {
                                      ws: Constants.WeightingScheme ): RDD[ProgressiveLinkerT] = {
 
         val totalBlocks = gridPartitioner.computeTotalBlocks(theta)
-        val joinedRDD: RDD[(Int, (Iterable[Entity], Iterable[Entity]))] = source.cogroup(target, gridPartitioner.hashPartitioner)
-        joinedRDD.map { case (pid: Int,  (sourceP: Iterable[Entity], targetP:Iterable[Entity])) =>
+        val joinedRDD: RDD[(Int, (Iterable[EntityT], Iterable[EntityT]))] = source.cogroup(target, gridPartitioner.hashPartitioner)
+        joinedRDD.map { case (pid: Int,  (sourceP: Iterable[EntityT], targetP:Iterable[EntityT])) =>
             val partition = partitionBorders(pid)
 
             progressiveAlgorithm match {

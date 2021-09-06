@@ -1,6 +1,6 @@
 package model
 
-import model.entities.Entity
+import model.entities.EntityT
 import org.apache.commons.math3.stat.inference.ChiSquareTest
 import utils.configuration.Constants.WeightingFunction.WeightingFunction
 import utils.configuration.Constants._
@@ -150,7 +150,7 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
      * @param t target entity
      * @return a weight
      */
-    def getMainWeight(s: Entity, t: Entity): Float = getWeight(s, t, mainWF)
+    def getMainWeight(s: EntityT, t: EntityT): Float = getWeight(s, t, mainWF)
 
 
     /**
@@ -159,7 +159,7 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
      * @param t target entity
      * @return a weight
      */
-    def getSecondaryWeight(s: Entity, t: Entity): Float =
+    def getSecondaryWeight(s: EntityT, t: EntityT): Float =
         secondaryWF match {
             case Some(wf) => getWeight(s, t, wf)
             case None => 0f
@@ -171,8 +171,10 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
      * @param s        Spatial entity
      * @param t        Spatial entity
      * @return weight
+     *
+     *         TODO refactor
      */
-    def getWeight(s: Entity, t: Entity, wf: WeightingFunction): Float = {
+    def getWeight(s: EntityT, t: EntityT, wf: WeightingFunction): Float = {
         val sBlocks = (ceil(s.getMaxX/tileGranularities.x).toInt - floor(s.getMinX/tileGranularities.x).toInt + 1) *
             (ceil(s.getMaxY/tileGranularities.y).toInt - floor(s.getMinY/tileGranularities.y).toInt + 1)
         val tBlocks = (ceil(t.getMaxX/tileGranularities.x).toInt - floor(t.getMinX/tileGranularities.x).toInt + 1) *
@@ -184,7 +186,7 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
         wf match {
             case WeightingFunction.MBRO =>
                 val intersectionArea = s.getIntersectingInterior(t).getArea
-                val w = intersectionArea / (s.env.getArea + t.env.getArea - intersectionArea)
+                val w = intersectionArea / (s.approximation.getArea + t.approximation.getArea - intersectionArea)
                 if (!w.isNaN) w.toFloat else 0f
 
             case WeightingFunction.ISP =>
@@ -205,7 +207,7 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
     }
 
 
-    def createWeightedPair(counter: Int, s: Entity, sIndex: Int, t:Entity, tIndex: Int): WeightedPair = {
+    def createWeightedPair(counter: Int, s: EntityT, sIndex: Int, t:EntityT, tIndex: Int): WeightedPair = {
         weightingScheme match {
             case SIMPLE =>
                 val mw = getWeight(s, t, mainWF)
