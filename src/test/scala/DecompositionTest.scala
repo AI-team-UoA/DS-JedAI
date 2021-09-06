@@ -1,7 +1,8 @@
 
 
 import TestingGeometries._
-import model.{SpatialIndex, TileGranularities}
+import model.TileGranularities
+import model.structures.SpatialIndex
 import org.locationtech.jts.geom._
 import org.locationtech.jts.io.WKTReader
 import org.locationtech.jts.operation.union.UnaryUnionOp

@@ -1,16 +1,19 @@
 package model.entities.segmented
 
-import model.entities.Entity
-import model.{IM, SpatialIndex, TileGranularities}
+import model.approximations.FineGrainedEnvelopes
+import model.entities.EntityT
+import model.structures.SpatialIndex
+import model.{IM, TileGranularities, structures}
 import org.locationtech.jts.geom.{Geometry, IntersectionMatrix}
-import utils.configuration.Constants.Relation.Relation
+import utils.configuration.Constants.Relation
 import utils.geometryUtils.EnvelopeOp
 import utils.geometryUtils.EnvelopeOp.EnvelopeIntersectionTypes
 import utils.geometryUtils.EnvelopeOp.EnvelopeIntersectionTypes.EnvelopeIntersectionTypes
 
 import scala.annotation.tailrec
 
-case class IndexedDecomposedEntity(originalID: String, geometry: Geometry, segments: IndexedSeq[Geometry], index: SpatialIndex[Geometry]) extends SegmentedEntityT[Geometry] {
+case class IndexedDecomposedEntity(originalID: String, geometry: Geometry, approximation: FineGrainedEnvelopes,
+                                   segments: IndexedSeq[Geometry], index: SpatialIndex[Geometry]) extends SegmentedEntityT[Geometry] {
 
     def getTileIndices: Set[(Int, Int)] = index.indices
 
@@ -19,25 +22,14 @@ case class IndexedDecomposedEntity(originalID: String, geometry: Geometry, segme
     def getSegmentsIndexFromTile(tile: (Int, Int)): Seq[Int] = index.getIndices(tile)
 
 
-    override def intersectingMBR(e: Entity, relation: Relation): Boolean = {
-        lazy val segmentsEnvIntersection: Boolean = e match {
-            case DecomposedEntity(_, _, targetSegments) => segments.exists { segment1 =>
-                val segmentEnv = segment1.getEnvelopeInternal
-                targetSegments.exists(segment2 => EnvelopeOp.checkIntersection(segmentEnv, segment2.getEnvelopeInternal, relation))
-            }
-            case IndexedDecomposedEntity(_, _, _, targetIndex) =>
-                index.indices.intersect(targetIndex.indices).nonEmpty
-            case FineGrainedEntity(_, _, targetEnvSegments) => segments.exists { segment1 =>
-                val segmentEnv = segment1.getEnvelopeInternal
-                targetEnvSegments.exists(env2 => EnvelopeOp.checkIntersection(segmentEnv, env2, relation))
-            }
-            case _ => segments.exists { fg =>
-                val segmentEnv = fg.getEnvelopeInternal
-                EnvelopeOp.checkIntersection(segmentEnv, e.env, relation)
-            }
-        }
-        val envIntersection: Boolean = EnvelopeOp.checkIntersection(env, e.env, relation)
-        envIntersection && segmentsEnvIntersection
+    override def approximateIntersection(e: EntityT): Boolean = {
+         e match {
+            case IndexedDecomposedEntity(_, _, _, _, targetIndex) =>
+                val envelopeIntersection: Boolean = approximation.getEnvelopeInternal().intersects(e.getEnvelopeInternal())
+                envelopeIntersection && index.indices.intersect(targetIndex.indices).nonEmpty
+            case _ =>
+                super.approximateIntersection(e)
+         }
     }
 
 
@@ -105,7 +97,7 @@ case class IndexedDecomposedEntity(originalID: String, geometry: Geometry, segme
     }
 
 
-     override def getIntersectionMatrix(e: Entity): IM = {
+     override def getIntersectionMatrix(e: EntityT): IM = {
          e match {
 
              case fe: IndexedDecomposedEntity =>
@@ -113,22 +105,24 @@ case class IndexedDecomposedEntity(originalID: String, geometry: Geometry, segme
                  val im = if (commonTiles.length < 10) segmentedVerification(fe, commonTiles) else geometry.relate(fe.geometry)
                  IM(this, fe, im)
 
-             case e: Entity => super.getIntersectionMatrix(e)
+             case e: EntityT => super.getIntersectionMatrix(e)
          }
      }
 }
 
 
 object IndexedDecomposedEntity{
-    def apply(e: Entity, theta: TileGranularities, decompose: Geometry => Seq[Geometry]): IndexedDecomposedEntity ={
+    def apply(e: EntityT, theta: TileGranularities, decompose: Geometry => Seq[Geometry]): IndexedDecomposedEntity ={
         val segments = decompose(e.geometry).toArray
-        val index = SpatialIndex(segments, theta)
-        IndexedDecomposedEntity(e.originalID, e.geometry, segments, index)
+        val index = structures.SpatialIndex(segments, theta)
+        val approximation = FineGrainedEnvelopes(e.geometry, segments)
+        IndexedDecomposedEntity(e.originalID, e.geometry, approximation, segments, index)
     }
 
     def apply(id: String, geometry: Geometry, theta: TileGranularities, decompose: Geometry => Seq[Geometry]): IndexedDecomposedEntity = {
         val segments = decompose(geometry).toArray
-        val index = SpatialIndex(segments, theta)
-        IndexedDecomposedEntity(id, geometry, segments, index)
+        val index = structures.SpatialIndex(segments, theta)
+        val approximation = FineGrainedEnvelopes(geometry, segments)
+        IndexedDecomposedEntity(id, geometry, approximation, segments, index)
     }
 }

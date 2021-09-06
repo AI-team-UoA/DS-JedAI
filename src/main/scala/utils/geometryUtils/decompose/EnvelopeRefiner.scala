@@ -19,16 +19,16 @@ case class EnvelopeRefiner(theta: TileGranularities) extends GridDecomposerT[Env
      * @param polygon input polygon
      * @return List of Fine-Grained envelopes
      */
-    override def decomposePolygon(polygon: Polygon): Seq[Envelope] = decomposeGeometry(polygon)
+    override def decomposePolygon(polygon: Polygon): List[Envelope] = decomposeGeometry(polygon)
 
-    override def decomposePolygon1D(polygon: Polygon): Seq[Envelope] = decomposeGeometry(polygon)
+    override def decomposePolygon1D(polygon: Polygon): List[Envelope] = decomposeGeometry(polygon)
 
     /**
      * Generate Fine-Grained Envelopes for input line
      * @param line input line
      * @return List of Fine-Grained envelopes
      */
-    override def decomposeLineString(line: LineString): Seq[Envelope] = decomposeGeometry(line)
+    override def decomposeLineString(line: LineString): List[Envelope] = decomposeGeometry(line)
 
     /**
      * Generate Fine-Grained Envelopes for input geometry

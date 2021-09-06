@@ -1,22 +1,21 @@
 package linkers
 
-import model.{IM, SpatialIndex, TileGranularities}
-import model.entities.Entity
+import model.entities.EntityT
+import model.structures.SpatialIndex
+import model.{IM, TileGranularities, structures}
 import org.locationtech.jts.geom.Envelope
-import utils.configuration.Constants.Relation
 import utils.configuration.Constants.Relation.Relation
-import utils.geometryUtils.EnvelopeOp
 
 trait LinkerT {
 
-    val source: Array[Entity]
-    val target: Iterable[Entity]
+    val source: Array[EntityT]
+    val target: Iterable[EntityT]
     val tileGranularities: TileGranularities
     val partitionBorder: Envelope
 
-    val weightOrdering: Ordering[(Double, (Entity, Entity))] = Ordering.by[(Double, (Entity, Entity)), Double](_._1).reverse
+    val weightOrdering: Ordering[(Double, (EntityT, EntityT))] = Ordering.by[(Double, (EntityT, EntityT)), Double](_._1).reverse
 
-    val sourceIndex: SpatialIndex[Entity] = SpatialIndex(source, tileGranularities)
+    val sourceIndex: SpatialIndex[EntityT] = structures.SpatialIndex(source, tileGranularities)
 
     /**
      * Return true if the reference point is inside the block and inside the partition
@@ -58,7 +57,7 @@ trait LinkerT {
      * head is always the target entity and the tail is the entities we need to compare it with
      * @return the verifications of each target geometry
      */
-    def getVerifications: Iterable[List[Entity]] = target.map(t => t :: getAllCandidates(t, sourceIndex, partitionBorder, Relation.DE9IM).toList)
+    def getVerifications: Iterable[List[EntityT]] = target.map(t => t :: getAllCandidates(t, sourceIndex, partitionBorder).toList)
 
     /**
      * count all the non-redundant verifications
@@ -73,15 +72,13 @@ trait LinkerT {
      * @param se target Spatial entity
      * @param index spatial index
      * @param partition current partition
-     * @param relation examining relation
      * @return all candidate geometries of se
      */
-    def getAllCandidates(se: Entity, index: SpatialIndex[Entity], partition: Envelope, relation: Relation): Seq[Entity] ={
-        index.index(se)
-            .flatMap { block =>
-                val blockCandidates = index.get(block)
-                blockCandidates.filter(candidate => `filterVerifications`(candidate, se, relation, block, partition))
-            }
+    def getAllCandidates(se: EntityT, index: SpatialIndex[EntityT], partition: Envelope): Seq[EntityT] ={
+        index.index(se).flatMap { block =>
+            val blockCandidates = index.get(block)
+            blockCandidates.filter(candidate => filterVerifications(candidate, se, block, partition))
+        }
     }
 
     def relate(relation: Relation): Iterator[(String, String)]

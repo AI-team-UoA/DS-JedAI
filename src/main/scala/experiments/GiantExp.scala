@@ -2,6 +2,7 @@ package experiments
 
 import linkers.DistributedInterlinking
 import model.TileGranularities
+import model.approximations.{GeometryApproximationT, GeometryToApproximation}
 import model.entities.{EntityT, GeometryToEntity}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
@@ -15,6 +16,7 @@ import org.locationtech.jts.geom.Geometry
 import utils.Utils
 import utils.configuration.ConfigurationParser
 import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
+import utils.configuration.Constants.GeometryApproximationENUM.GeometryApproximationENUM
 import utils.configuration.Constants.{GridType, Relation}
 import utils.readers.{GridPartitioner, Reader}
 
@@ -71,14 +73,19 @@ object GiantExp {
         val theta = TileGranularities(sourceSpatialRDD.rawSpatialRDD.rdd.map(_.getEnvelopeInternal), approximateSourceCount, conf.getTheta)
         val decompositionTheta = decompositionT.map(dt => theta*dt)
 
-        val sourceTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(entityTypeType, decompositionTheta, conf.source.datePattern)
+        // set Approximation
+        val approximationTypeOpt: Option[GeometryApproximationENUM] = conf.getApproximationType
+        val approximationTransformerOpt: Option[Geometry => GeometryApproximationT] = GeometryToApproximation.getTransformer(approximationTypeOpt, decompositionTheta.getOrElse(theta))
+        // set Entity type
+        val sourceTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(entityTypeType, decompositionTheta, conf.source.datePattern, approximationTransformerOpt)
+        val targetTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(entityTypeType, decompositionTheta, conf.target.datePattern, approximationTransformerOpt)
+
         val sourceRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(sourceSpatialRDD, sourceTransformer)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
-        val partitionBorders = partitioner.getPartitionsBorders(Some(theta))
+        val targetRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(targetSpatialRDD, targetTransformer)
         log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
 
-        val targetTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(entityTypeType, decompositionTheta, conf.target.datePattern)
-        val targetRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(targetSpatialRDD, targetTransformer)
+        val partitionBorders = partitioner.getPartitionsBorders(theta)
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
         val linkers = DistributedInterlinking.initializeLinkers(sourceRDD, targetRDD, partitionBorders, theta, partitioner)

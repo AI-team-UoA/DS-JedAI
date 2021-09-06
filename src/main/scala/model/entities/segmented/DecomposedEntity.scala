@@ -1,75 +1,35 @@
 package model.entities.segmented
 
 import model.IM
-import model.entities.Entity
+import model.approximations.FineGrainedEnvelopes
+import model.entities.EntityT
 import org.locationtech.jts.geom.Geometry
 import org.locationtech.jts.operation.union.UnaryUnionOp
-import utils.configuration.Constants.Relation
-import utils.configuration.Constants.Relation.Relation
-import utils.geometryUtils.EnvelopeOp
 
 import scala.collection.JavaConverters._
 
-case class DecomposedEntity(originalID: String, geometry: Geometry, segments: IndexedSeq[Geometry]) extends SegmentedEntityT[Geometry] {
+case class DecomposedEntity(originalID: String, geometry: Geometry, approximation: FineGrainedEnvelopes,
+                            segments: IndexedSeq[Geometry]) extends SegmentedEntityT[Geometry] {
 
-    override def intersectingMBR(e: Entity, relation: Relation): Boolean = {
-        lazy val segmentsEnvIntersection: Boolean = e match {
-            case DecomposedEntity(_, _, targetSegments) => segments.exists { segment1 =>
-                val segmentEnv = segment1.getEnvelopeInternal
-                targetSegments.exists(segment2 => EnvelopeOp.checkIntersection(segmentEnv, segment2.getEnvelopeInternal, relation))
-            }
-            case IndexedDecomposedEntity(_, _, targetSegments, _) => segments.exists { segment1 =>
-                val segmentEnv = segment1.getEnvelopeInternal
-                targetSegments.exists(segment2 => EnvelopeOp.checkIntersection(segmentEnv, segment2.getEnvelopeInternal, relation))
-            }
-            case FineGrainedEntity(_, _, targetEnvSegments) => segments.exists { segment1 =>
-                val segmentEnv = segment1.getEnvelopeInternal
-                targetEnvSegments.exists(env2 => EnvelopeOp.checkIntersection(segmentEnv, env2, relation))
-            }
-            case _ => segments.exists { fg =>
-                val segmentEnv = fg.getEnvelopeInternal
-                EnvelopeOp.checkIntersection(segmentEnv, e.env, relation)
-            }
+    def findIntersectingSegments(e: EntityT): Seq[(Geometry, Geometry)] ={
+        e match {
+            case DecomposedEntity(_,_,tApproximation,tSegments) =>
+                approximation.findIntersectingEnvelopesIndices(tApproximation)
+                    .map{case (i, j) => (segments(i), tSegments(j)) }
+            case IndexedDecomposedEntity(_,_,tApproximation,tSegments, _) =>
+                approximation.findIntersectingEnvelopesIndices(tApproximation)
+                    .map{case (i, j) => (segments(i), tSegments(j)) }
+            case _ =>
+                approximation.findIntersectingEnvelopesIndices(e.approximation)
+                    .map{case (i, _) => (segments(i), e.geometry) }
         }
-        val envIntersection: Boolean = EnvelopeOp.checkIntersection(env, e.env, relation)
-        envIntersection && segmentsEnvIntersection
     }
 
-
-    def findIntersectingSegments(e: Entity): Seq[(Geometry, Geometry)] =
-        e match {
-            case DecomposedEntity(_, _, targetSegments) =>
-                for (f1 <- segments; f2 <- targetSegments
-                     if EnvelopeOp.checkIntersection(f1.getEnvelopeInternal, f2.getEnvelopeInternal, Relation.DE9IM)
-                     ) yield (f1, f2)
-
-            case IndexedDecomposedEntity(_, _, targetSegments, _) =>
-                for (f1 <- segments; f2 <- targetSegments
-                     if EnvelopeOp.checkIntersection(f1.getEnvelopeInternal, f2.getEnvelopeInternal, Relation.DE9IM)
-                     ) yield (f1, f2)
-            case _ =>
-                for (f1 <- segments if EnvelopeOp.checkIntersection(f1.getEnvelopeInternal, e.env, Relation.DE9IM)
-                     ) yield (f1, e.geometry)
-        }
-
-    def findIntersectingSegmentsIndices(e: Entity): Seq[(Int, Int)] =
-        e match {
-            case DecomposedEntity(_, _, targetSegments) =>
-                for (i <- segments.indices; j <- targetSegments.indices
-                     if EnvelopeOp.checkIntersection(segments(i).getEnvelopeInternal, targetSegments(j).getEnvelopeInternal, Relation.DE9IM)
-                     ) yield (i, j)
-
-            case IndexedDecomposedEntity(_, _, targetSegments, _) =>
-                for (i <- segments.indices; j <- targetSegments.indices
-                     if EnvelopeOp.checkIntersection(segments(i).getEnvelopeInternal, targetSegments(j).getEnvelopeInternal, Relation.DE9IM)
-                     ) yield (i, j)
-            case _ =>
-                for (i <- segments.indices if EnvelopeOp.checkIntersection(segments(i).getEnvelopeInternal, e.env, Relation.DE9IM)
-                     ) yield (i, 0)
-        }
+    def findIntersectingSegmentsIndices(e: EntityT): Seq[(Int, Int)] =
+        approximation.findIntersectingEnvelopesIndices(e.approximation)
 
 
-    override def getIntersectionMatrix(e: Entity): IM = {
+    override def getIntersectionMatrix(e: EntityT): IM = {
         val candidateSegments = findIntersectingSegments(e)
         val im =
             if (candidateSegments.length < 10) {
@@ -92,13 +52,15 @@ case class DecomposedEntity(originalID: String, geometry: Geometry, segments: In
 
 object DecomposedEntity {
 
-    def apply(e: Entity, decompose: Geometry => Seq[Geometry]): DecomposedEntity ={
+    def apply(e: EntityT, decompose: Geometry => Seq[Geometry]): DecomposedEntity ={
         val segments = decompose(e.geometry)
-        DecomposedEntity(e.originalID, e.geometry, segments.toIndexedSeq)
+        val approximation = FineGrainedEnvelopes(e.geometry, segments)
+        DecomposedEntity(e.originalID, e.geometry, approximation, segments.toIndexedSeq)
     }
 
     def apply(originalID: String, geom: Geometry, decompose: Geometry => Seq[Geometry]): DecomposedEntity ={
         val segments = decompose(geom)
-        DecomposedEntity(originalID, geom, segments.toIndexedSeq)
+        val approximation = FineGrainedEnvelopes(geom, segments)
+        DecomposedEntity(originalID, geom, approximation, segments.toIndexedSeq)
     }
 }

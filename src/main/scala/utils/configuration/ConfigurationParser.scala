@@ -42,7 +42,6 @@ class ConfigurationParser {
 		}
 
 
-
 	/**
 	 * Parse Yaml configuration file
 	 * @param confPath path to yaml configuration file
@@ -96,6 +95,8 @@ class ConfigurationParser {
 					nextOption(map ++ Map(InputConfigurations.CONF_OUTPUT -> value), tail)
 				case "-et" :: value :: tail =>
 					nextOption(map ++ Map(InputConfigurations.CONF_ENTITY_TYPE -> value), tail)
+				case "-gat" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_GEOMETRY_APPROXIMATION_TYPE -> value), tail)
 				case ("-b" | "-budget") :: value :: tail =>
 					nextOption(map ++ Map(InputConfigurations.CONF_BUDGET -> value), tail)
 				case "-pa" :: value :: tail =>
@@ -192,6 +193,8 @@ class ConfigurationParser {
 					Some(ConfigurationErrorMessage(s"Weighting Scheme '$value' is not supported"))
 				case InputConfigurations.CONF_ENTITY_TYPE if !EntityTypeENUM.exists(value) =>
 					Some(ConfigurationErrorMessage(s"Entity Type '$value' is not supported"))
+				case InputConfigurations.CONF_GEOMETRY_APPROXIMATION_TYPE if !GeometryApproximationENUM.exists(value) =>
+					Some(ConfigurationErrorMessage(s"Geometry Approximation Type '$value' is not supported"))
 				case InputConfigurations.CONF_DECOMPOSITION_THRESHOLD if !(value forall Character.isDigit) =>
 					Some(ConfigurationErrorMessage("Not valid value for threshold"))
 				case InputConfigurations.CONF_UNRECOGNIZED =>

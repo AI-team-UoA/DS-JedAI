@@ -1,7 +1,7 @@
 package model.structures
 
 import model.TileGranularities
-import model.entities.segmented.FineGrainedEntity
+import model.entities.EntityT
 import org.locationtech.jts.geom.Envelope
 
 import scala.collection.mutable
@@ -22,8 +22,8 @@ case class SpatialIndex[T <: {def getEnvelopeInternal(): Envelope}](entities: Ar
 
     def index(t: T): Seq[(Int, Int)] = {
         t match {
-            case fge: FineGrainedEntity =>
-                fge.segments.flatMap(env => indexEnvelope(env))
+            case t: EntityT =>
+                t.approximation.getOverlappingTiles(theta)
             case _ =>
                 val env = t.getEnvelopeInternal()
                 indexEnvelope(env)
@@ -41,6 +41,7 @@ case class SpatialIndex[T <: {def getEnvelopeInternal(): Envelope}](entities: Ar
             val x2 = math.ceil(BigDecimal(maxX / theta.x).setScale(divisionPrecision, RoundingMode.HALF_EVEN).toDouble).toInt
             val y1 = math.floor(BigDecimal(minY / theta.y).setScale(divisionPrecision, RoundingMode.HALF_EVEN).toDouble).toInt
             val y2 = math.ceil(BigDecimal(maxY / theta.y).setScale(divisionPrecision, RoundingMode.HALF_EVEN).toDouble).toInt
+
             for (x <- x1 until x2; y <- y1 until y2) yield (x, y)
         }
     }

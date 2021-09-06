@@ -1,12 +1,12 @@
 package model.entities
 
+import model.approximations.{GeometryApproximationT, MBR}
 import org.joda.time.format.DateTimeFormat
 import org.joda.time.{DateTime, Days}
-import org.locationtech.jts.geom.{Envelope, Geometry}
+import org.locationtech.jts.geom.Geometry
 import utils.configuration.Constants
-import utils.configuration.Constants.Relation.Relation
 
-case class SpatioTemporalEntity(originalID: String, geometry: Geometry, dateStr: String, env: Envelope)  extends Entity {
+case class SpatioTemporalEntity(originalID: String, geometry: Geometry, dateStr: String, approximation: GeometryApproximationT)  extends EntityT {
 
     lazy val dateTime: DateTime = {
         val formatter = DateTimeFormat.forPattern(Constants.defaultDatePattern)
@@ -19,10 +19,10 @@ case class SpatioTemporalEntity(originalID: String, geometry: Geometry, dateStr:
         days < 2
     }
 
-    override def intersectingMBR(se: Entity, relation: Relation): Boolean = {
+    override def approximateIntersection(se: EntityT): Boolean = {
         se match {
-            case entity: SpatioTemporalEntity => super.intersectingMBR(se, relation) && temporalFiltering(entity.dateTime)
-            case _ =>  super.intersectingMBR(se, relation)
+            case entity: SpatioTemporalEntity => super.approximateIntersection(se) && temporalFiltering(entity.dateTime)
+            case _ =>  super.approximateIntersection(se)
         }
     }
 }
@@ -30,5 +30,9 @@ case class SpatioTemporalEntity(originalID: String, geometry: Geometry, dateStr:
 object SpatioTemporalEntity{
 
     def apply(originalID: String, geometry: Geometry, dateStr: String): SpatioTemporalEntity =
-        SpatioTemporalEntity(originalID, geometry, dateStr, geometry.getEnvelopeInternal)
+        SpatioTemporalEntity(originalID, geometry, dateStr, MBR(geometry.getEnvelopeInternal))
+
+    def apply(originalID: String, geometry: Geometry, dateStr: String, approximationTransformer: Geometry => GeometryApproximationT): SpatioTemporalEntity = {
+        SpatioTemporalEntity(originalID, geometry, dateStr, approximationTransformer(geometry))
+    }
 }

@@ -1,10 +1,17 @@
 package model.entities
 
-import org.locationtech.jts.geom.{Envelope, Geometry}
+import model.approximations.{GeometryApproximationT, MBR}
+import org.locationtech.jts.geom.Geometry
 
-case class SpatialEntity(originalID: String, geometry: Geometry, env: Envelope) extends Entity
+case class SpatialEntity(originalID: String, geometry: Geometry, approximation: GeometryApproximationT) extends EntityT
 
 object SpatialEntity{
 
-    def apply(originalID: String, geometry: Geometry): SpatialEntity = SpatialEntity(originalID, geometry, geometry.getEnvelopeInternal)
+    def apply(originalID: String, geometry: Geometry): SpatialEntity = {
+        SpatialEntity(originalID, geometry, MBR(geometry.getEnvelopeInternal))
+    }
+
+    def apply(originalID: String, geometry: Geometry, approximationTransformer: Geometry => GeometryApproximationT): SpatialEntity = {
+        SpatialEntity(originalID, geometry, approximationTransformer(geometry))
+    }
 }
