@@ -1,7 +1,8 @@
 package model.entities
 
 import model.TileGranularities
-import model.entities.segmented.{DecomposedEntity, FineGrainedEntity, IndexedDecomposedEntity}
+import model.approximations.GeometryApproximationT
+import model.entities.segmented.{DecomposedEntity, IndexedDecomposedEntity}
 import org.joda.time.DateTime
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 import org.locationtech.jts.geom.{Envelope, Geometry}
@@ -24,14 +25,22 @@ object GeometryToEntity {
      * @param entityType requested type of entity
      * @param decompositionThetaOpt decomposition threshold in order it is a decomposed entity
      * @param datePattern date pattern in case is a temporal entity
+     * @param approxTransformationOpt transformation function for transforming a Geometry to a Geometry Approximation
      * @return a function that maps a geometry to the requested type of entity
      */
-    def getTransformer(entityType: EntityTypeENUM, decompositionThetaOpt: Option[TileGranularities], datePattern: Option[String] = None): Geometry => EntityT ={
+    def getTransformer(entityType: EntityTypeENUM, decompositionThetaOpt: Option[TileGranularities],
+                       datePattern: Option[String] = None, approxTransformationOpt: Option[Geometry => GeometryApproximationT]=None)
+    : Geometry => EntityT ={
 
         entityType match {
 
             case EntityTypeENUM.SPATIAL_ENTITY =>
-                geometry: Geometry => SpatialEntity(geometry.getUserData.asInstanceOf[String], geometry)
+                approxTransformationOpt match {
+                    case Some(approxTransformation) =>
+                        geometry: Geometry => SpatialEntity(geometry.getUserData.asInstanceOf[String], geometry, approxTransformation)
+                    case None =>
+                        geometry: Geometry => SpatialEntity(geometry.getUserData.asInstanceOf[String], geometry)
+                }
 
             case EntityTypeENUM.SPATIOTEMPORAL_ENTITY =>
                 val pattern = datePattern.getOrElse(Constants.defaultDatePattern)
@@ -44,7 +53,13 @@ object GeometryToEntity {
                     val dateStr = userdata(1)
                     val date: DateTime = formatter.parseDateTime(dateStr)
                     val dateInDefaultPattern = date.toString(Constants.defaultDatePattern)
-                    SpatioTemporalEntity(realID, geometry, dateInDefaultPattern)
+
+                    approxTransformationOpt match {
+                        case Some(approxTransformation) =>
+                                SpatioTemporalEntity(realID, geometry, dateInDefaultPattern, approxTransformation)
+                        case None =>
+                            SpatioTemporalEntity(realID, geometry, dateInDefaultPattern)
+                    }
                 }
 
             case EntityTypeENUM.INDEXED_DECOMPOSED_ENTITY =>
@@ -61,11 +76,6 @@ object GeometryToEntity {
                 val decomposer: DecomposerT[Geometry] = RecursiveDecomposer(decompositionThetaOpt.get)
                 val segmentationF: Geometry => Seq[Geometry] = g =>  decomposer.decomposeGeometry(g)(oneDimension = true)
                 geometry: Geometry =>  DecomposedEntity(geometry.getUserData.asInstanceOf[String], geometry, segmentationF)
-
-            case EntityTypeENUM.FINEGRAINED_ENTITY =>
-                val decomposer: EnvelopeRefiner = EnvelopeRefiner(decompositionThetaOpt.get)
-                val segmentationF: Geometry => Seq[Envelope] = decomposer.decomposeGeometry
-                geometry: Geometry => FineGrainedEntity(geometry.getUserData.asInstanceOf[String], geometry, decompositionThetaOpt.get, segmentationF)
         }
     }
 }
