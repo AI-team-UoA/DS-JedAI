@@ -3,6 +3,7 @@ package linkers.progressive
 import model.entities.EntityT
 import model._
 import model.structures.StaticComparisonPQ
+import model.weightedPairs.SimpleWP
 import org.locationtech.jts.geom.Envelope
 import utils.configuration.Constants
 import utils.configuration.Constants.Relation.Relation
@@ -35,7 +36,7 @@ case class RandomScheduling(source: Array[EntityT], target: Iterable[EntityT],
                 candidates.foreach { case (si, _) =>
                     val w = rnd.nextFloat()
                     val secW = rnd.nextFloat()
-                    val wp = MainWP(counter, si, j, w, secW)
+                    val wp = SimpleWP(counter, si, j, w, secW)
                     pq.enqueue(wp)
                     counter += 1
                 }

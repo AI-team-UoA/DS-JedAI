@@ -3,7 +3,8 @@ package linkers.progressive
 import cats.implicits._
 import model.entities.EntityT
 import model.structures.DynamicComparisonPQ
-import model.{IM, TileGranularities, WeightedPair}
+import model.weightedPairs.WeightedPairT
+import model.{IM, TileGranularities}
 import org.apache.spark.rdd.RDD
 import org.locationtech.jts.geom.Envelope
 import utils.configuration.Constants
@@ -150,13 +151,13 @@ object DistributedProgressiveInterlinking {
                          ): Seq[(Double, Long, Long, (List[Int], List[Int]))]={
 
         // computes weighted the weighted comparisons
-        val matches: RDD[(WeightedPair, Boolean)] = progressiveLinkersRDD
+        val matches: RDD[(WeightedPairT, Boolean)] = progressiveLinkersRDD
             .flatMap { linker =>
                 val targetAr = linker.target.toArray
 
                 val pq: DynamicComparisonPQ = linker.prioritize(relation).asInstanceOf[DynamicComparisonPQ]
-                val sourceCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId1, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
-                val targetCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
+                val sourceCandidates: Map[Int, List[WeightedPairT]] = pq.iterator().map(wp => (wp.entityId1, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
+                val targetCandidates: Map[Int, List[WeightedPairT]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
                 if (!pq.isEmpty)
                     Iterator.continually{
                         val wp = pq.dequeueHead()

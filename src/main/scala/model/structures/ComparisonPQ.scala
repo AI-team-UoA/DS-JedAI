@@ -1,6 +1,6 @@
 package model.structures
 
-import model.WeightedPair
+import model.weightedPairs.WeightedPairT
 import org.spark_project.guava.collect.MinMaxPriorityQueue
 
 import java.util
@@ -8,20 +8,20 @@ import scala.collection.JavaConverters._
 
 
 sealed trait ComparisonPQ {
-    val pq: util.AbstractCollection[WeightedPair]
+    val pq: util.AbstractCollection[WeightedPairT]
     val maxSize: Long
 
-    def enqueue(wp: WeightedPair): Unit ={
+    def enqueue(wp: WeightedPairT): Unit ={
         pq.add(wp)
         if (pq.size > maxSize)
             dequeueLast()
     }
 
-    def enqueueAll(items: Iterator[WeightedPair]): Unit = items.foreach(wp => enqueue(wp))
+    def enqueueAll(items: Iterator[WeightedPairT]): Unit = items.foreach(wp => enqueue(wp))
 
-    def take(n: Int): Iterator[WeightedPair] = Iterator.continually{ dequeueHead() }.take(n)
+    def take(n: Int): Iterator[WeightedPairT] = Iterator.continually{ dequeueHead() }.take(n)
 
-    def dequeueAll: Iterator[WeightedPair] = take(maxSize.toInt)
+    def dequeueAll: Iterator[WeightedPairT] = take(maxSize.toInt)
 
     def clear(): Unit = pq.clear()
 
@@ -29,35 +29,35 @@ sealed trait ComparisonPQ {
 
     def size(): Int = pq.size()
 
-    def dequeueHead(): WeightedPair
+    def dequeueHead(): WeightedPairT
 
-    def dequeueLast(): WeightedPair
+    def dequeueLast(): WeightedPairT
 
-    def iterator(): Iterator[WeightedPair] = pq.iterator().asScala
+    def iterator(): Iterator[WeightedPairT] = pq.iterator().asScala
 
-    def dynamicUpdate(wp: WeightedPair): Unit = {}
+    def dynamicUpdate(wp: WeightedPairT): Unit = {}
 }
 
 
 case class StaticComparisonPQ(maxSize: Long) extends ComparisonPQ{
 
-    val pq: MinMaxPriorityQueue[WeightedPair] = MinMaxPriorityQueue.maximumSize(maxSize.toInt+1).create()
+    val pq: MinMaxPriorityQueue[WeightedPairT] = MinMaxPriorityQueue.maximumSize(maxSize.toInt+1).create()
 
-    def dequeueHead(): WeightedPair = pq.pollFirst()
+    def dequeueHead(): WeightedPairT = pq.pollFirst()
 
-    def dequeueLast(): WeightedPair = pq.pollLast()
+    def dequeueLast(): WeightedPairT = pq.pollLast()
 
 }
 
 case class DynamicComparisonPQ(maxSize: Long) extends ComparisonPQ{
 
-    val pq: util.TreeSet[WeightedPair] = new util.TreeSet[WeightedPair]()
+    val pq: util.TreeSet[WeightedPairT] = new util.TreeSet[WeightedPairT]()
 
-    def dequeueHead(): WeightedPair = pq.pollFirst()
+    def dequeueHead(): WeightedPairT = pq.pollFirst()
 
-    def dequeueLast(): WeightedPair = pq.pollLast()
+    def dequeueLast(): WeightedPairT = pq.pollLast()
 
-    override def dynamicUpdate(wp: WeightedPair): Unit ={
+    override def dynamicUpdate(wp: WeightedPairT): Unit ={
         val exists = pq.remove(wp)
         if (exists){
             wp.incrementRelatedMatches()

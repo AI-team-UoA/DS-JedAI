@@ -3,6 +3,7 @@ package linkers.progressive
 import model._
 import model.entities.EntityT
 import model.structures.{ComparisonPQ, DynamicComparisonPQ}
+import model.weightedPairs.WeightedPairT
 import org.locationtech.jts.geom.Envelope
 import utils.configuration.Constants
 import utils.configuration.Constants.Relation.Relation
@@ -43,8 +44,8 @@ case class DynamicProgressiveGIAnt(source: Array[EntityT], target: Iterable[Enti
 
 
     override def computeDE9IM(pq: ComparisonPQ, source: Array[EntityT], target: Array[EntityT]): Iterator[IM] = {
-        val sourceCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId1, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
-        val targetCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
+        val sourceCandidates: Map[Int, List[WeightedPairT]] = pq.iterator().map(wp => (wp.entityId1, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
+        val targetCandidates: Map[Int, List[WeightedPairT]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
 
         if (!pq.isEmpty)
             Iterator.continually {
@@ -72,8 +73,8 @@ case class DynamicProgressiveGIAnt(source: Array[EntityT], target: Iterable[Enti
     override def relate(relation: Relation): Iterator[(String, String)] = {
         val targetAr = target.toArray
         val pq: DynamicComparisonPQ = prioritize(relation).asInstanceOf[DynamicComparisonPQ]
-        val sourceCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId1, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
-        val targetCandidates: Map[Int, List[WeightedPair]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
+        val sourceCandidates: Map[Int, List[WeightedPairT]] = pq.iterator().map(wp => (wp.entityId1, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
+        val targetCandidates: Map[Int, List[WeightedPairT]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
         if (!pq.isEmpty)
             Iterator.continually{
                 val wp = pq.dequeueHead()

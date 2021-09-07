@@ -1,5 +1,5 @@
 import model.structures.{DynamicComparisonPQ, StaticComparisonPQ}
-import model.{CompositeWP, HybridWP, MainWP}
+import model.weightedPairs.{CompositeWP, HybridWP, SimpleWP}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should._
 
@@ -8,17 +8,17 @@ class WeightedPairTest extends AnyFunSuite with Matchers  {
 
     test("models.WeightedPair - MainWP with StaticComparisonPQ") {
        val pairs = List(
-           MainWP(1, 1, 11, mainWeight = 0.9f),
-           MainWP(2, 2, 10, mainWeight = 0.8f, secondaryWeight = 0.1f),
-           MainWP(3, 3, 9, mainWeight = 0.7f, secondaryWeight = 0.2f),
-           MainWP(4, 4, 8, mainWeight = 0.6f, secondaryWeight = 0.3f),
-           MainWP(45, 5, 7, mainWeight = 0.6f, secondaryWeight = 0.3f),
-           MainWP(5, 6, 6, mainWeight = 0.5f, secondaryWeight = 0.4f),
-           MainWP(6, 7, 5, mainWeight = 0.4f, secondaryWeight = 0.5f),
-           MainWP(7, 8, 4, mainWeight = 0.3f, secondaryWeight = 0.6f),
-           MainWP(8, 9, 3, mainWeight = 0.2f, secondaryWeight = 0.7f),
-           MainWP(9, 10, 2, mainWeight = 0.1f, secondaryWeight = 0.8f),
-           MainWP(10, 11, 1, mainWeight = 0f, secondaryWeight = 0.9f)
+           SimpleWP(1, 1, 11, mainWeight = 0.9f),
+           SimpleWP(2, 2, 10, mainWeight = 0.8f, secondaryWeight = 0.1f),
+           SimpleWP(3, 3, 9, mainWeight = 0.7f, secondaryWeight = 0.2f),
+           SimpleWP(4, 4, 8, mainWeight = 0.6f, secondaryWeight = 0.3f),
+           SimpleWP(45, 5, 7, mainWeight = 0.6f, secondaryWeight = 0.3f),
+           SimpleWP(5, 6, 6, mainWeight = 0.5f, secondaryWeight = 0.4f),
+           SimpleWP(6, 7, 5, mainWeight = 0.4f, secondaryWeight = 0.5f),
+           SimpleWP(7, 8, 4, mainWeight = 0.3f, secondaryWeight = 0.6f),
+           SimpleWP(8, 9, 3, mainWeight = 0.2f, secondaryWeight = 0.7f),
+           SimpleWP(9, 10, 2, mainWeight = 0.1f, secondaryWeight = 0.8f),
+           SimpleWP(10, 11, 1, mainWeight = 0f, secondaryWeight = 0.9f)
        )
         val pq = StaticComparisonPQ(pairs.length)
         pq.enqueueAll(pairs.iterator)
@@ -82,17 +82,17 @@ class WeightedPairTest extends AnyFunSuite with Matchers  {
 
     test("models.WeightedPair - MainWP with DynamicComparisonPQ") {
         val pairs = List(
-            MainWP(1, 1, 11, mainWeight = 0.9f),
-            MainWP(2, 2, 10, mainWeight = 0.8f, secondaryWeight = 0.1f),
-            MainWP(3, 3, 9, mainWeight = 0.7f, secondaryWeight = 0.2f),
-            MainWP(4, 4, 8, mainWeight = 0.6f, secondaryWeight = 0.3f),
-            MainWP(45, 5, 7, mainWeight = 0.6f, secondaryWeight = 0.3f),
-            MainWP(5, 6, 6, mainWeight = 0.5f, secondaryWeight = 0.4f),
-            MainWP(6, 7, 5, mainWeight = 0.4f, secondaryWeight = 0.5f),
-            MainWP(7, 8, 4, mainWeight = 0.3f, secondaryWeight = 0.6f),
-            MainWP(8, 9, 3, mainWeight = 0.2f, secondaryWeight = 0.7f),
-            MainWP(9, 10, 2, mainWeight = 0.1f, secondaryWeight = 0.8f),
-            MainWP(10, 11, 1, mainWeight = 0f, secondaryWeight = 0.9f)
+            SimpleWP(1, 1, 11, mainWeight = 0.9f),
+            SimpleWP(2, 2, 10, mainWeight = 0.8f, secondaryWeight = 0.1f),
+            SimpleWP(3, 3, 9, mainWeight = 0.7f, secondaryWeight = 0.2f),
+            SimpleWP(4, 4, 8, mainWeight = 0.6f, secondaryWeight = 0.3f),
+            SimpleWP(45, 5, 7, mainWeight = 0.6f, secondaryWeight = 0.3f),
+            SimpleWP(5, 6, 6, mainWeight = 0.5f, secondaryWeight = 0.4f),
+            SimpleWP(6, 7, 5, mainWeight = 0.4f, secondaryWeight = 0.5f),
+            SimpleWP(7, 8, 4, mainWeight = 0.3f, secondaryWeight = 0.6f),
+            SimpleWP(8, 9, 3, mainWeight = 0.2f, secondaryWeight = 0.7f),
+            SimpleWP(9, 10, 2, mainWeight = 0.1f, secondaryWeight = 0.8f),
+            SimpleWP(10, 11, 1, mainWeight = 0f, secondaryWeight = 0.9f)
         )
         val pq = DynamicComparisonPQ(pairs.length)
         pq.enqueueAll(pairs.iterator)

@@ -1,9 +1,10 @@
 package linkers.progressive
 
 import linkers.LinkerT
-import model.{IM, WeightedPairFactory}
+import model.{IM, weightedPairs}
 import model.entities.EntityT
 import model.structures.{ComparisonPQ, SpatialIndex}
+import model.weightedPairs.WeightedPairFactory
 import org.locationtech.jts.geom.Envelope
 import utils.configuration.Constants
 import utils.configuration.Constants.Relation
@@ -27,7 +28,6 @@ trait ProgressiveLinkerT extends LinkerT{
      * @param se target Spatial entity
      * @param index spatial index
      * @param partition current partition
-     * @param relation examining relation
      * @return all candidate geometries of se
      */
     def getAllCandidatesWithIndex(se: EntityT, index: SpatialIndex[EntityT], partition: Envelope): Seq[(Int, EntityT)] ={
