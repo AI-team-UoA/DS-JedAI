@@ -1,6 +1,5 @@
 package utils.readers
 
-import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.formatMapper.GeoJsonReader
 import org.apache.sedona.core.formatMapper.shapefileParser.ShapefileReader
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
@@ -16,7 +15,7 @@ import org.locationtech.jts.io.WKTReader
 import utils.configuration.Constants.FileTypes
 import utils.configuration.DatasetConfigurations
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 object Reader {
 
