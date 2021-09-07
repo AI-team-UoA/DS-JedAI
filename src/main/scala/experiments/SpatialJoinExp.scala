@@ -13,6 +13,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
+import utils.Utils
 import utils.configuration.ConfigurationParser
 import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
 import utils.configuration.Constants.GeometryApproximationENUM.GeometryApproximationENUM
@@ -87,8 +88,15 @@ object SpatialJoinExp {
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
         val linkers = DistributedInterlinking.initializeLinkers(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
         val matchingPairsRDD = DistributedInterlinking.relate(linkers, relation)
-        val totalMatches = matchingPairsRDD.count()
-        log.info("DS-JEDAI: " + relation.toString.toUpperCase() +": " + totalMatches)
+
+        // export results as RDF
+        if (output.isDefined) {
+            Utils.exportMatchingPairs(matchingPairsRDD, output.get)
+        }
+        else {
+            val totalMatches = matchingPairsRDD.count()
+            log.info("DS-JEDAI: " + relation.toString.toUpperCase() +": " + totalMatches)
+        }
 
         val matchingEndTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Interlinking Time: " + (matchingEndTime - matchingStartTime) / 1000.0)
