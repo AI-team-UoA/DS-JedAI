@@ -1,7 +1,7 @@
 package linkers.progressive
 
 import linkers.LinkerT
-import model.{IM, weightedPairs}
+import model.IM
 import model.entities.EntityT
 import model.structures.{ComparisonPQ, SpatialIndex}
 import model.weightedPairs.WeightedPairFactory
