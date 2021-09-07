@@ -5,11 +5,11 @@ import model.approximations.GeometryApproximationT
 import model.entities.segmented.{DecomposedEntity, IndexedDecomposedEntity}
 import org.joda.time.DateTime
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
-import org.locationtech.jts.geom.{Envelope, Geometry}
+import org.locationtech.jts.geom.Geometry
 import utils.configuration.Constants
 import utils.configuration.Constants.EntityTypeENUM
 import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
-import utils.geometryUtils.decompose.{DecomposerT, EnvelopeRefiner, GridDecomposer, RecursiveDecomposer}
+import utils.geometryUtils.decompose.{DecomposerT, GridDecomposer, RecursiveDecomposer}
 
 /**
  * GeometryToEntity transformer returns transformation functions that to map geometries into Entities
@@ -40,6 +40,14 @@ object GeometryToEntity {
                         geometry: Geometry => SpatialEntity(geometry.getUserData.asInstanceOf[String], geometry, approxTransformation)
                     case None =>
                         geometry: Geometry => SpatialEntity(geometry.getUserData.asInstanceOf[String], geometry)
+                }
+
+            case EntityTypeENUM.PREPARED_ENTITY =>
+                approxTransformationOpt match {
+                    case Some(approxTransformation) =>
+                        geometry: Geometry => PreparedEntity(geometry.getUserData.asInstanceOf[String], geometry, approxTransformation)
+                    case None =>
+                        geometry: Geometry => PreparedEntity(geometry.getUserData.asInstanceOf[String], geometry)
                 }
 
             case EntityTypeENUM.SPATIOTEMPORAL_ENTITY =>

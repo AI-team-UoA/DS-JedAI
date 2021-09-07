@@ -124,6 +124,7 @@ object Constants {
 		type EntityTypeENUM = Value
 		val SPATIAL_ENTITY: EntityTypeENUM.Value = Value("SPATIAL_ENTITY")
 		val SPATIOTEMPORAL_ENTITY: EntityTypeENUM.Value = Value("SPATIOTEMPORAL_ENTITY")
+		val PREPARED_ENTITY: EntityTypeENUM.Value = Value("PREPARED_ENTITY")
 		val DECOMPOSED_ENTITY: EntityTypeENUM.Value = Value("DECOMPOSED_ENTITY")
 		val INDEXED_DECOMPOSED_ENTITY: EntityTypeENUM.Value = Value("INDEXED_DECOMPOSED_ENTITY")
 		val DECOMPOSED_ENTITY_1D: EntityTypeENUM.Value = Value("DECOMPOSED_ENTITY_1D")
@@ -131,14 +132,6 @@ object Constants {
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
-
-//	object GeometryApproximationENUM extends Enumeration {
-//		type GeometryApproximationENUM = Value
-//		val FINEGRAINED_ENVELOPES: GeometryApproximationENUM.Value = Value("FINEGRAINED_ENVELOPES")
-//		val MBR: GeometryApproximationENUM.Value = Value("MBR")
-//
-//		def exists(s: String): Boolean = values.exists(_.toString == s)
-//	}
 
 	object GeometryApproximationENUM extends Enumeration {
 		type GeometryApproximationENUM = Value

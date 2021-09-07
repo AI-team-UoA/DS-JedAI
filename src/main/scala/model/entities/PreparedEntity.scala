@@ -1,6 +1,6 @@
 package model.entities
-import model.approximations.GeometryApproximationT
-import org.locationtech.jts.geom.{Envelope, Geometry}
+import model.approximations.{GeometryApproximationT, MBR}
+import org.locationtech.jts.geom.Geometry
 import org.locationtech.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
 import utils.configuration.Constants.Relation
 import utils.configuration.Constants.Relation.Relation
@@ -30,7 +30,16 @@ case class PreparedEntity(originalID: String, geometry: Geometry, approximation:
             case _ => false
         }
 
-    override def toString: String = s"PreparedEntity: $originalID, ${approximation.toString}"
+    override def toString: String = s"PreparedEntity($originalID,${preparedGeometry.toString} ${approximation.toString})"
+}
 
+object PreparedEntity {
 
+    def apply(originalID: String, geometry: Geometry): PreparedEntity = {
+        PreparedEntity(originalID, geometry, MBR(geometry.getEnvelopeInternal))
+    }
+
+    def apply(originalID: String, geometry: Geometry, approximationTransformer: Geometry => GeometryApproximationT): PreparedEntity = {
+        PreparedEntity(originalID, geometry, approximationTransformer(geometry))
+    }
 }
