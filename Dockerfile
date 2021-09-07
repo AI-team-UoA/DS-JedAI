@@ -12,18 +12,18 @@ RUN apt-get update -qq && \
      git --version
 
 # install scala
-RUN wget http://scala-lang.org/files/archive/scala-$SCALA_VERSION.deb && \
+RUN wget  --no-verbose http://scala-lang.org/files/archive/scala-$SCALA_VERSION.deb && \
     dpkg -i scala-$SCALA_VERSION.deb && \
-    apt-get update && \
-    apt-get install scala && \
+    apt-get update -qq && \
+    apt-get install -qq -y scala && \
     scala -version
 
 # install sbt
-RUN curl -L -o sbt-$SBT_VERSION.deb https://repo.scala-sbt.org/scalasbt/debian/sbt-$SBT_VERSION.deb && \
+RUN wget --no-verbose -o sbt-$SBT_VERSION.deb https://repo.scala-sbt.org/scalasbt/debian/sbt-$SBT_VERSION.deb && \
       dpkg -i sbt-$SBT_VERSION.deb && \
       rm sbt-$SBT_VERSION.deb && \
-      apt-get update && \
-      apt-get install sbt && \
+      apt-get update -qq && \
+      apt-get install -qq -y sbt && \
       sbt sbtVersion
 
 #Download the Spark binaries from the repo
