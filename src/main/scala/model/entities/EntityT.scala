@@ -43,7 +43,7 @@ trait EntityT extends Serializable {
         IM(this, se, im)
     }
 
-    override def toString: String = s"Entity(id: $originalID, geometry: ${geometry.toString}, approximation: ${approximation.toString})"
+    override def toString: String = s"Entity($originalID, ${geometry.toString}, ${approximation.toString})"
 
     def approximateIntersection(e: EntityT): Boolean = approximation.approximateIntersection(e.approximation)
 

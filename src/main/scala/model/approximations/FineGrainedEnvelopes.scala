@@ -141,7 +141,7 @@ case class FineGrainedEnvelopes(env: Envelope, envelopes: List[Envelope]) extend
         }.distinct
     }
 
-    override def toString: String = s"FineGrainedEnvelopes(#Envelopes: ${envelopes.length}, Envelope: ${envelopes.map(e => GeometryUtils.geomFactory.toGeometry(e)).mkString("\n")})"
+    override def toString: String = s"FineGrainedEnvelopes(${envelopes.length}, ${envelopes.map(e => GeometryUtils.geomFactory.toGeometry(e)).mkString("\n")})"
 }
 
 object FineGrainedEnvelopes{

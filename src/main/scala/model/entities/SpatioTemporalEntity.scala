@@ -25,6 +25,8 @@ case class SpatioTemporalEntity(originalID: String, geometry: Geometry, dateStr:
             case _ =>  super.approximateIntersection(se)
         }
     }
+    override def toString: String = s"SpatioTemporal($originalID, $dateStr, ${geometry.toString}, ${approximation.toString})"
+
 }
 
 object SpatioTemporalEntity{
