@@ -3,7 +3,6 @@ version := "0.1"
 scalaVersion := "2.11.12"
 val sparkVersion = "2.4.4"
 
-
 scalacOptions ++= Seq("-feature", "-language:reflectiveCalls")
 
 libraryDependencies ++= Seq(
@@ -37,11 +36,13 @@ libraryDependencies += "org.apache.commons" % "commons-math3" % "3.0"
 // https://mvnrepository.com/artifact/org.typelevel/cats-core
 libraryDependencies += "org.typelevel" %% "cats-core" % "2.0.0-RC3"
 
-
 // https://mvnrepository.com/artifact/org.scalatest/scalatest
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.7" % Test
 
 
+resolvers += "maven.aksw.snapshots" at "https://maven.aksw.org/repository/snapshots"
+resolvers += "maven.aksw.internal" at "https://maven.aksw.org/repository/internal"
+libraryDependencies += "org.hobbit" % "core" % "1.0.11"
 
 assemblyMergeStrategy in assembly := {
 	case PathList("META-INF", xs @ _*) => MergeStrategy.discard
