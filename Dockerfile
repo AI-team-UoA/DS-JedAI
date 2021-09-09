@@ -45,4 +45,4 @@ RUN git clone https://github.com/GiorgosMandi/DS-JedAI.git
 RUN cd DS-JedAI && sbt assembly
 
 CMD echo $SPARK_OPTIONS && \
-  /spark/bin/spark-submit  --master local[*]  $SPARK_OPTIONS --class experiments.GiantExp  DS-JedAI/target/scala-2.11/DS-JedAI-assembly-0.1.jar $GIANT_OPTIONS -conf /tmp/configuration.yaml
+  /spark/bin/spark-submit  --master local[*]  $SPARK_OPTIONS --class experiments.GiantSystemAdapter  DS-JedAI/target/scala-2.11/DS-JedAI-assembly-0.1.jar
