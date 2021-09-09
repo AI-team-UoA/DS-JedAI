@@ -1,4 +1,4 @@
-# DS-JedAI 
+# DS-JedAI   [<img src="https://img.shields.io/badge/dockerhub-images-important.svg?logo=dockerhub">](https://hub.docker.com/repository/docker/gmandi/ds-jedai)
 
 DS-JedAI (Distributed Spatial JedAI) is a system for Holistic Geospatial Interlinking for big geospatial data.
 In Holistic Geospatial Interlinking, we aim to discover all the topological relations between the geometries of two geospatial datasets, using the [DE-9IM](https://en.wikipedia.org/wiki/DE-9IM) topological model. DS-JedAI offers a novel batch algorithm for geospatial interlinking and several algorithms for progressive Geospatial Interlinking. All the algorithms have been parallelized based on the MapReduce Framework. 
