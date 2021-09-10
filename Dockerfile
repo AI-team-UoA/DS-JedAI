@@ -41,7 +41,7 @@ RUN wget --no-verbose https://archive.apache.org/dist/spark/spark-${SPARK_VERSIO
 #Expose the UI Port 4040
 #EXPOSE 4040
 
-RUN git clone https://github.com/GiorgosMandi/DS-JedAI.git
+RUN git clone --branch OAE21 https://github.com/GiorgosMandi/DS-JedAI.git
 RUN cd DS-JedAI && sbt assembly
 
 CMD echo $SPARK_OPTIONS && \
