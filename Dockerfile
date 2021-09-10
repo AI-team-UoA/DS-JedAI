@@ -7,7 +7,7 @@ ENV SCALA_VERSION=2.11.12
 ENV SBT_VERSION=1.3.10
 
 # todo enable HDFS support
-VOLUME /tmp
+#VOLUME /tmp
 
 # Install gnu, wget, java and git
 RUN apt-get update -qq && \
@@ -39,10 +39,10 @@ RUN wget --no-verbose https://archive.apache.org/dist/spark/spark-${SPARK_VERSIO
     /spark/bin/spark-submit --version
 
 #Expose the UI Port 4040
-EXPOSE 4040
+#EXPOSE 4040
 
 RUN git clone https://github.com/GiorgosMandi/DS-JedAI.git
 RUN cd DS-JedAI && sbt assembly
 
 CMD echo $SPARK_OPTIONS && \
-  /spark/bin/spark-submit  --master local[*]  $SPARK_OPTIONS --class experiments.GiantSystemAdapter  DS-JedAI/target/scala-2.11/DS-JedAI-assembly-0.1.jar
+  /spark/bin/spark-submit  --master local[*]  $SPARK_OPTIONS --class org.hobbit.core.run.ComponentStarter DS-JedAI/target/scala-2.11/dsJedai-assembly-0.1.jar  experiments.GiantSystemAdapter

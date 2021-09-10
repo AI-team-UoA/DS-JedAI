@@ -23,7 +23,7 @@ import utils.readers.{GridPartitioner, Reader}
 import java.nio.ByteBuffer
 import java.util.Calendar
 import scala.util.{Failure, Success, Try}
-
+import org.hobbit.core.run.ComponentStarter
 
 object GiantSystemAdapter extends AbstractSystemAdapter{
 
@@ -84,19 +84,19 @@ object GiantSystemAdapter extends AbstractSystemAdapter{
         // read the relation
         val taskRelationStr = RabbitMQUtils.readString(taskBuffer)
         val taskRelation = Relation.withName(taskRelationStr)
-        log.info(s"taskRelation ${taskRelation.toString.toUpperCase}")
+        log.info(s"DS-JEDAI: taskRelation ${taskRelation.toString.toUpperCase}")
 
         // read the target geometry
         val targetGeom = RabbitMQUtils.readString(taskBuffer)
-        log.info(s"targetGeom $targetGeom")
+        log.info(s"DS-JEDAI: targetGeom $targetGeom")
 
         // read namespace
         val namespace = RabbitMQUtils.readString(taskBuffer)
-        log.info(s"namespace $namespace")
+        log.info(s"DS-JEDAI: namespace $namespace")
 
         // read the file path
         val taskFormat = RabbitMQUtils.readString(taskBuffer)
-        log.info(s"Parsed task  $taskId. It took ${Calendar.getInstance().getTimeInMillis - startTime}ms.")
+        log.info(s"DS-JEDAI: Parsed task  $taskId. It took ${Calendar.getInstance().getTimeInMillis - startTime}ms.")
 
         val time = System.currentTimeMillis
 
@@ -116,11 +116,11 @@ object GiantSystemAdapter extends AbstractSystemAdapter{
                 val results = RabbitMQUtils.writeByteArrays(resultsArray)
                 val resultSentRequest = Try(sendResultToEvalStorage(taskId, results))
                 resultSentRequest match {
-                    case Success(_) => log.info("Results sent to evaluation storage.")
-                    case Failure(exception) => log.error(s"Exception while sending storage space cost to evaluation storage. $exception")
+                    case Success(_) => log.info("DS-JEDAI: Results sent to evaluation storage.")
+                    case Failure(exception) => log.error(s"DS-JEDAI: Exception while sending storage space cost to evaluation storage. $exception")
                 }
             case Failure(exception) =>
-            log.error(s"Exception while trying to receive data. Aborting. $exception")
+            log.error(s"DS-JEDAI: Exception while trying to receive data. Aborting. $exception")
         }
     }
 
@@ -170,9 +170,9 @@ object GiantSystemAdapter extends AbstractSystemAdapter{
     }
 
     override def close(): Unit = {
-        log.info("Closing System Adapter...")
+        log.info("DS-JEDAI: Closing System Adapter...")
         // Always close the super class after yours!
         super.close()
-        log.info("System Adapter closed successfully.")
+        log.info("DS-JEDAI: System Adapter closed successfully.")
     }
 }
