@@ -9,7 +9,6 @@ scalacOptions ++= Seq("-feature", "-language:reflectiveCalls")
 libraryDependencies ++= Seq(
 	"org.apache.spark" %%  "spark-core" % sparkVersion % Provided,
 	"org.apache.spark" %%  "spark-sql" % sparkVersion  % Provided
-//	"org.apache.spark" %% "spark-graphx" % sparkVersion % Provided
 )
 
 // https://mvnrepository.com/artifact/org.apache.sedona/sedona-core-2.4
@@ -49,37 +48,3 @@ assemblyMergeStrategy in assembly := {
 	case PathList("META-INF", xs @ _*) => MergeStrategy.discard
 	case x => MergeStrategy.first
 }
-
-
-
-// SANSA STACK
-//resolvers += "AKSW Maven Snapshots" at "https://maven.aksw.org/archiva/repository/snapshots"
-//resolvers += "jitpack" at "https://jitpack.io"
-//// https://mvnrepository.com/artifact/net.sansa-stack/sansa-rdf-spark
-//libraryDependencies += "net.sansa-stack" %% "sansa-rdf-spark" % "0.7.1" excludeAll(
-//	ExclusionRule("org.springframework"),
-//	ExclusionRule("org.apache.hadoop"),
-//	ExclusionRule("org.apache.spark"),
-//	ExclusionRule("org.scala-lang"),
-//	ExclusionRule("org.scalatest"),
-//	ExclusionRule("it.unimi.dsi"),
-//)
-//
-//// https://mvnrepository.com/artifact/net.sansa-stack/sansa-query-spark
-//libraryDependencies += "net.sansa-stack" %% "sansa-query-spark" % "0.7.1"  excludeAll(
-//	ExclusionRule("com.ibm.sparktc.sparkbench", "sparkbench"),
-//	ExclusionRule("net.sansa-stack"),//, "query-tests"),
-//	ExclusionRule("net.sansa-stack", "sansa-datalake-spark"),
-//	ExclusionRule("net.sansa-stack", "sansa-rdf-common"),
-//	ExclusionRule("org.springframework"),
-//	ExclusionRule("org.apache.hadoop"),
-//	ExclusionRule("org.apache.spark"),
-//	ExclusionRule("io.github.litmus-benchmark-suite"),
-//	ExclusionRule("org.scala-lang"),
-//	ExclusionRule("org.scalatest"),
-//	ExclusionRule("it.unibz.inf.ontop"),
-//	ExclusionRule("it.unimi.dsi"),
-//	ExclusionRule("org.aksw.jena-sparql-api"),
-//	ExclusionRule("it.unimi.dsi"),
-//	ExclusionRule("om.sun.xml.bind"),
-//)

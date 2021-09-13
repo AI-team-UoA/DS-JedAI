@@ -64,7 +64,7 @@ sealed trait ConfigurationT {
         else {
             getEntityType match {
                 case DECOMPOSED_ENTITY | DECOMPOSED_ENTITY_1D | INDEXED_DECOMPOSED_ENTITY_1D | INDEXED_DECOMPOSED_ENTITY_1D =>
-                    Some(configurations.getOrElse(InputConfigurations.CONF_DECOMPOSITION_THRESHOLD, "1").toDouble)
+                    Some(configurations.getOrElse(InputConfigurations.CONF_DECOMPOSITION_THRESHOLD, "8").toDouble)
                 case _ => None
             }
         }
