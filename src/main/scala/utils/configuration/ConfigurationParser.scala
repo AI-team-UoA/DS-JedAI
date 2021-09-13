@@ -32,12 +32,37 @@ class ConfigurationParser {
 		parseCommandLineArguments(args) match {
 			case Left(errors) 		=> Left(errors)
 			case Right(options) 	=>
-				val confPath = options(InputConfigurations.CONF_CONFIGURATIONS)
-				parseConfigurationFile(confPath) match {
-					case Left(errors) 		  => Left(errors)
-					case Right(configuration) =>
-						configuration.combine(options)
-						Right(configuration)
+
+				val confPathOpt = options.get(InputConfigurations.CONF_CONFIGURATIONS)
+				confPathOpt match {
+					// there is configuration file
+					case Some(confPath) =>
+						parseConfigurationFile(confPath) match {
+							case Left(errors) 		  => Left(errors)
+							case Right(configuration) =>
+								configuration.combine(options)
+								Right(configuration)
+						}
+					// there is no conf file so we check the CLI arguments
+					case None =>
+						val sourcePathOpt = options.get(InputConfigurations.CONF_SOURCE)
+						val targetPathOpt = options.get(InputConfigurations.CONF_TARGET)
+						val relationOpt = options.get(InputConfigurations.CONF_RELATION)
+
+						(sourcePathOpt, targetPathOpt, relationOpt) match {
+							// necessary CLI arguments were provided
+							case (Some(sourcePath), Some(targetPath), Some(relation)) =>
+								val geometryPredicate = options.getOrElse(InputConfigurations.CONF_GEOMETRY_PREDICATE, Constants.geometryPredicate)
+								val source = DatasetConfigurations(sourcePath, geometryPredicate)
+								val target = DatasetConfigurations(targetPath, geometryPredicate)
+								val configuration = Configuration(source, target, relation, options)
+								Right(configuration)
+
+							// No CLI arguments and no configuration file were provided
+							case _ =>
+								val error = ConfigurationErrorMessage("No Source or Target file was specified")
+								Left(error :: Nil)
+						}
 				}
 		}
 
@@ -62,7 +87,7 @@ class ConfigurationParser {
 	 * @param confPath path to yaml configuration file
 	 * @return either a list of errors or parsed Configuration
 	 */
-	def parseDirty(confPath:String): Either[List[ConfigurationErrorMessage], DirtyConfiguration] ={
+	def parseDirty(confPath: String): Either[List[ConfigurationErrorMessage], DirtyConfiguration] ={
 		val yamlStr = SparkContext.getOrCreate().textFile(confPath).collect().mkString("\n")
 		val conf = yamlStr.parseYaml.convertTo[DirtyConfiguration]
 		checkConfiguration(conf) match {
@@ -87,6 +112,14 @@ class ConfigurationParser {
 					nextOption(map ++ Map(InputConfigurations.CONF_CONFIGURATIONS -> value), tail)
 				case ("-p" | "-partitions") :: value :: tail =>
 					nextOption(map ++ Map(InputConfigurations.CONF_PARTITIONS -> value), tail)
+				case "-source" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_SOURCE -> value), tail)
+				case "-target" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_TARGET -> value), tail)
+				case "-relation" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_RELATION -> value), tail)
+				case "-geometryPredicate" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_GEOMETRY_PREDICATE -> value), tail)
 				case "-gt" :: value :: tail =>
 					nextOption(map ++ Map(InputConfigurations.CONF_GRID_TYPE -> value), tail)
 				case "-stats" :: tail =>
@@ -154,6 +187,7 @@ class ConfigurationParser {
 	def checkConfigurationPath(conf: Map[String, String]): Option[ConfigurationErrorMessage] =
 		conf.get(InputConfigurations.CONF_CONFIGURATIONS) match {
 			case Some(_) => None
+			case None if conf.contains(InputConfigurations.CONF_SOURCE) && conf.contains(InputConfigurations.CONF_TARGET) => None
 			case None => Some(ConfigurationErrorMessage(s"Path to configuration file is not provided"))
 		}
 
