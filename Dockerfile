@@ -6,6 +6,7 @@ ENV HADOOP_VERSION=2.7
 ENV SCALA_VERSION=2.11.12
 ENV SBT_VERSION=1.3.10
 
+# todo enable HDFS support
 VOLUME /tmp
 
 # Install gnu, wget, java and git
@@ -44,4 +45,4 @@ RUN git clone https://github.com/GiorgosMandi/DS-JedAI.git
 RUN cd DS-JedAI && sbt assembly
 
 CMD echo $SPARK_OPTIONS && \
-  /spark/bin/spark-submit  --master local[*]  $SPARK_OPTIONS --class experiments.GiantExp  DS-JedAI/target/scala-2.11/DS-JedAI-assembly-0.1.jar -conf /tmp/configuration.yaml
+  /spark/bin/spark-submit  --master local[*]  $SPARK_OPTIONS --class experiments.GiantExp  DS-JedAI/target/scala-2.11/DS-JedAI-assembly-0.1.jar $GIANT_OPTIONS -conf /tmp/configuration.yaml
