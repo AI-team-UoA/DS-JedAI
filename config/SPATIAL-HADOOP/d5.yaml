@@ -1,0 +1,17 @@
+source: 
+  path: "hdfs:///Projects/DSJedAI/Resources/data/ROADS.tsv"
+  realIdField: "1"
+  geometryField: "0"
+
+target:
+  path: "hdfs:///Projects/DSJedAI/Resources/data/EDGES.tsv"
+  realIdField: "5"
+  geometryField: "0"
+
+relation: "DE9IM"
+
+configurations:
+  thetaGranularity: "avg"
+  gridType: "QUADTREE"
+  partitions: "1000"
+

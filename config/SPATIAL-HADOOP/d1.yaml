@@ -1,0 +1,19 @@
+source: 
+  path: "hdfs:///Projects/DSJedAI/Resources/data/LINEARWATER.tsv"
+  realIdField: "2"
+  geometryField: "0"
+
+target:
+  path: "hdfs:///Projects/DSJedAI/Resources/data/AREAWATER.tsv"  
+  realIdField: "2"
+  geometryField: "0"
+
+relation: "DE9IM"
+
+configurations:
+  thetaGranularity: "avg"
+  gridType: "QUADTREE"
+  partitions: "400"
+  decompositionThreshold: "80" 
+
+

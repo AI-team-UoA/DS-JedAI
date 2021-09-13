@@ -1,0 +1,17 @@
+source: 
+  path: "hdfs:///Projects/DSJedAI/Resources/data/parks.tsv"
+  realIdField: "0"
+  geometryField: "1"
+
+target:
+  path: "hdfs:///Projects/DSJedAI/Resources/data/lakes.tsv"  
+  realIdField: "0"
+  geometryField: "1"
+
+relation: "DE9IM"
+
+configurations:
+  thetaGranularity: "avg"
+  gridType: "QUADTREE"
+  partitions: "500"
+  decompositionThreshold: "100"
