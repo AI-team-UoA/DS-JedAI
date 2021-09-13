@@ -6,7 +6,7 @@ package utils.configuration
 object Constants {
 
 	val defaultDatePattern = "yyyy-MM-dd HH:mm:ss"
-
+	val geometryPredicate = "<http://strdf.di.uoa.gr/ontology#hasGeometry>"
 
 	/**
 	 * Relations
@@ -94,6 +94,10 @@ object Constants {
 	object InputConfigurations extends Enumeration {
 		type YamlConfiguration = String
 		val CONF_CONFIGURATIONS = "configurations"
+		val CONF_SOURCE = "source"
+		val CONF_TARGET = "target"
+		val CONF_RELATION = "relation"
+		val CONF_GEOMETRY_PREDICATE = "geometryPredicate"
 		val CONF_PARTITIONS = "partitions"
 		val CONF_THETA_GRANULARITY = "thetaGranularity"
 		val CONF_PROGRESSIVE_ALG = "progressiveAlgorithm"
