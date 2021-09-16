@@ -52,7 +52,7 @@ object GiantExp {
         val partitions: Int = conf.getPartitions
         val gridType: GridType.GridType = conf.getGridType
         val relation = conf.getRelation
-        val printCount = conf.measureStatistic
+        val measureStats = conf.measureStatistic
         val output: Option[String] = conf.getOutputPath
         val entityTypeType: EntityTypeENUM = conf.getEntityType
         val decompositionT: Option[Double] = conf.getDecompositionThreshold
@@ -90,14 +90,15 @@ object GiantExp {
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
         val linkers = DistributedInterlinking.initializeLinkers(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
 
-//             print statistics
-//            val sourceCount = sourceSpatialRDD.rawSpatialRDD.count()
-//            val targetCount = targetSpatialRDD.rawSpatialRDD.count()
-//            log.info(s"DS-JEDAI: Source geometries: $sourceCount")
-//            log.info(s"DS-JEDAI: Target geometries: $targetCount")
-//            log.info(s"DS-JEDAI: Cartesian: ${sourceCount*targetCount}")
+        if (measureStats){
+            val sourceCount = sourceSpatialRDD.rawSpatialRDD.count()
+            val targetCount = targetSpatialRDD.rawSpatialRDD.count()
+            log.info(s"DS-JEDAI: Source geometries: $sourceCount")
+            log.info(s"DS-JEDAI: Target geometries: $targetCount")
+            log.info(s"DS-JEDAI: Cartesian: ${sourceCount*targetCount}")
 //            log.info(s"DS-JEDAI: Verifications: ${DistributedInterlinking.countVerifications(linkers)}")
 //            DistributedInterlinking.executionStats(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
+        }
 
         val imRDD = DistributedInterlinking.computeIM(linkers)
 
