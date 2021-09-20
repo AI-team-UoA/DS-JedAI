@@ -200,11 +200,12 @@ class DecompositionTest extends AnyWordSpec {
     "Envelope Decomposition" should {
         val geometries = polygons ++ geometryCollections
         val theta = TileGranularities(geometries.map(p => p.getEnvelopeInternal), geometries.length, ThetaOption.AVG_x2)
+
         "Produce smaller Envelopes" in {
             val refiner = EnvelopeRefiner(theta)
             assert(
                 geometries.forall { geom =>
-                    val envelopes: Seq[Geometry] = refiner.decomposeGeometry(geom).map(e => geomFactory.toGeometry(e))
+                    val envelopes: Seq[Geometry] = refiner.refine(geom, theta).map(e => geomFactory.toGeometry(e))
                     val env = geomFactory.toGeometry(geom.getEnvelopeInternal)
                     val unionEnv = UnaryUnionOp.union(envelopes.asJava)
                     val envelopesArea = unionEnv.getArea
