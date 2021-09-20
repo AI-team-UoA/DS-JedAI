@@ -86,33 +86,6 @@ class DecompositionTest extends AnyWordSpec {
         }
     }
 
-    "1D RecursiveDecomposition" should {
-        "produce segments of same area as the initial Polygon" in {
-            val theta = TileGranularities(polygons.map(p => p.getEnvelopeInternal), polygons.length, ThetaOption.AVG_x2)
-            val decomposer = RecursiveDecomposer(theta)
-            assert(
-                polygons.forall { p =>
-                    val segments: Seq[Geometry] = decomposer.decomposePolygon1D(p)
-                    val merged = segments.foldLeft(emptyPolygon)(_ union _)
-                    val diff = math.abs(merged.getArea - p.getArea)
-                    diff < delta
-                }
-            )
-        }
-        "produce segments of same area as the initial Polygon, despite inner holes" in {
-            val theta = TileGranularities(polygonsWithHoles.map(p => p.getEnvelopeInternal), polygons.length, ThetaOption.AVG_x2)
-            val decomposer = decompose.RecursiveDecomposer(theta)
-            assert(
-                polygonsWithHoles.forall { p =>
-                    val segments: Seq[Geometry] = decomposer.decomposePolygon1D(p)
-                    val merged = segments.foldLeft(emptyPolygon)(_ union _)
-                    val diff = math.abs(merged.getArea - p.getArea)
-                    diff < delta
-                }
-            )
-        }
-    }
-
 
     "2D GridDecomposition" should {
         "produce segments of same area as the initial Polygon" in {
@@ -192,37 +165,6 @@ class DecompositionTest extends AnyWordSpec {
 
             val tilesIntersection = index1.indices.intersect(index2.indices)
             assert(tilesIntersection.nonEmpty)
-        }
-    }
-
-    "1D GridDecomposition" should {
-        "produce segments of same area as the initial Polygon" in {
-            val theta = TileGranularities(polygons.map(p => p.getEnvelopeInternal), polygons.length, ThetaOption.AVG_x2)
-            val decomposer = GridDecomposer(theta)
-
-            assert(
-                polygons.forall { p =>
-                    val segments: Seq[Geometry] = decomposer.decomposePolygon1D(p)
-                    val merged = segments.foldLeft(emptyPolygon)(_ union _)
-                    val diff = math.abs(merged.getArea - p.getArea)
-                    diff < delta
-                }
-            )
-        }
-
-        "produce segments of same area as the initial Polygon, despite inner holes" in {
-            val geometries = polygonsWithHoles
-            val theta = TileGranularities(geometries.map(p => p.getEnvelopeInternal), geometries.length, ThetaOption.AVG_x2)
-            val decomposer = decompose.GridDecomposer(theta)
-
-            assert(
-                geometries.forall { p =>
-                    val segments: Seq[Geometry] = decomposer.decomposePolygon1D(p)
-                    val merged = segments.foldLeft(emptyPolygon)(_ union _)
-                    val diff = math.abs(merged.getArea - p.getArea)
-                    diff < delta
-                }
-            )
         }
     }
 

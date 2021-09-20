@@ -24,52 +24,13 @@ case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geom
      * @param geometry geometry
      * @return a list of geometries
      */
-    def decomposeGeometry(geometry: Geometry)(implicit oneDimension: Boolean=false) : Seq[Geometry] = {
+    def decomposeGeometry(geometry: Geometry): Seq[Geometry] = {
         geometry match {
-            case polygon: Polygon => if (oneDimension) decomposePolygon1D(polygon) else decomposePolygon(polygon)
+            case polygon: Polygon => decomposePolygon(polygon)
             case line: LineString => decomposeLineString(line)
             case gc: GeometryCollection => flattenCollection(gc).flatMap(g => decomposeGeometry(g))
             case _ => Seq(geometry)
         }
-    }
-
-
-    def decomposePolygon1D(polygon: Polygon): Seq[Geometry] ={
-        def split(polygon: Polygon): Seq[Geometry] = {
-            val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
-            // find blades based on which to split
-
-            val env = polygon.getEnvelopeInternal
-            val blades =
-                if (env.getWidth > env.getHeight) {
-                    // cut vertically
-                    val verticalBlades = getVerticalBlades(polygon.getEnvelopeInternal, theta.x)
-                        .flatMap(b => combineBladeWithInteriorRings(polygon, b, innerRings, isHorizontal = false))
-                    val blades = verticalBlades ++ innerRings
-                    if (blades.nonEmpty) new UnaryUnionOp(blades.asJava).union() else geometryFactory.createEmpty(2)
-                } else {
-                    // cut horizontally
-                    val horizontalBlades = getHorizontalBlades(polygon.getEnvelopeInternal, theta.y)
-                        .flatMap(b => combineBladeWithInteriorRings(polygon, b, innerRings, isHorizontal = true))
-                    val blades = horizontalBlades ++ innerRings
-                    if (blades.nonEmpty) new UnaryUnionOp(blades.asJava).union() else geometryFactory.createEmpty(2)
-                }
-
-            val polygonWithBlades = polygon.getExteriorRing.union(blades)
-            val polygonizer = new Polygonizer()
-            polygonizer.add(polygonWithBlades)
-            val segments = polygonizer.getPolygons.asScala.map(p => p.asInstanceOf[Polygon])
-
-            // filter the polygons that cover holes
-            segments
-                .filter(p => polygon.contains(p.getInteriorPoint))
-                .map(p => GeometryUtils.reducePrecision(p))
-                .toSeq
-        }
-
-        val env = polygon.getEnvelopeInternal
-        if (env.getWidth > theta.x || env.getHeight > theta.y) split(polygon)
-        else Seq(polygon)
     }
 
 

@@ -15,8 +15,7 @@ trait DecomposerT[T] {
     val xYEpsilon: (Double, Double) =  (epsilon, 0d)
 
     def decomposePolygon(polygon: Polygon): Seq[T]
-    def decomposePolygon1D(polygon: Polygon): Seq[T]
     def decomposeLineString(line: LineString): Seq[T]
-    def decomposeGeometry(geometry: Geometry)(implicit oneDimension: Boolean=false) : Seq[T]
+    def decomposeGeometry(geometry: Geometry) : Seq[T]
     def combineBladeWithInteriorRings(polygon: Polygon, blade: LineString, innerRings: Seq[Geometry], isHorizontal: Boolean): Seq[LineString]
 }

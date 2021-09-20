@@ -11,9 +11,9 @@ import collection.JavaConverters._
 
 case class RecursiveDecomposer(theta: TileGranularities) extends DecomposerT[Geometry] {
 
-    def decomposeGeometry(geometry: Geometry)(implicit oneDimension: Boolean=false): Seq[Geometry] = {
+    def decomposeGeometry(geometry: Geometry): Seq[Geometry] = {
         geometry match {
-            case polygon: Polygon => if(oneDimension) decomposePolygon1D(polygon) else decomposePolygon(polygon)
+            case polygon: Polygon => decomposePolygon(polygon)
             case line: LineString => decomposeLineString(line)
             case gc: GeometryCollection => flattenCollection(gc).flatMap(g => decomposeGeometry(g))
             case _ => Seq(geometry)
@@ -183,72 +183,6 @@ case class RecursiveDecomposer(theta: TileGranularities) extends DecomposerT[Geo
         }
         // apply
         recursiveSplit(List(polygon))
-    }
-
-
-    /**
-     * Split polygons into smaller polygons considering only one dimension.
-     *  Splitting is determined by the tile granularity.
-     *  Either the width or the height of the produced polygons will not exceed the threshold
-     *  Always split on the larget dimension (width or height) of the initial polygon
-     *
-     * @param polygon       input polygon
-     * @return              a seq of smaller polygons
-     */
-    def decomposePolygon1D(polygon: Polygon): Seq[Geometry] = {
-
-        /**
-         * Recursively, split the polygons into sub-polygons. The procedure is repeated
-         * until the width or height of the produced polygons do not exceed predefined thresholds.
-         *
-         * @param polygons      a list of Polygons
-         * @param accumulator   the list of sub-polygons produced in the previous recursion
-         * @param splitHorizontally split horizontally otherwise vertically
-         * @param splitCondition the condition based on which we split (based on width or height)
-         * @return A list of sub-polygons
-         */
-        @tailrec
-        def recursiveSplit(polygons: Seq[Polygon], accumulator: Seq[Polygon], splitHorizontally: Boolean, splitCondition: Envelope => Boolean): Seq[Polygon] = {
-
-            val (bigPolygons, restPolygons) = polygons.partition(p => splitCondition(p.getEnvelopeInternal))
-            if (bigPolygons.nonEmpty) {
-                val newPolygons = bigPolygons.flatMap{ polygon =>
-                    val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
-                    val blades = if (splitHorizontally) getHorizontalBlade(polygon) else getVerticalBlade(polygon)
-                    val adjustedBlades = combineBladeWithInteriorRings(polygon, blades, innerRings, isHorizontal=false)
-                    split(polygon,  adjustedBlades)
-                }
-                recursiveSplit(newPolygons, restPolygons ++ accumulator, splitHorizontally, splitCondition)
-            }
-            else
-                restPolygons ++ accumulator
-        }
-
-        /**
-         * Split a polygon using the input blade
-         *
-         * @param polygon input polygon
-         * @param blade line segments divide the polygon
-         * @return a Seq of sub-polygons
-         */
-        def split(polygon: Polygon, blade: Seq[LineString]): Seq[Polygon] ={
-            val exteriorRing = polygon.getExteriorRing
-            val interiorRings = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
-
-            val polygonizer = new Polygonizer()
-            val innerGeom: Seq[Geometry] = blade ++ interiorRings
-            val union = new UnaryUnionOp(innerGeom.asJava).union()
-            polygonizer.add(exteriorRing.union(union))
-            val newPolygons = polygonizer.getPolygons.asScala.map(p => p.asInstanceOf[Polygon])
-            newPolygons.filter(p => polygon.contains(p.getInteriorPoint)).toSeq
-        }
-
-        // apply
-        val env = polygon.getEnvelopeInternal
-        val splitHorizontally = env.getHeight > env.getWidth
-        val splitCondition = if (env.getHeight > env.getWidth) (e: Envelope) => e.getHeight > theta.y
-                             else (e: Envelope) => e.getWidth > theta.x
-        recursiveSplit(List(polygon), Nil, splitHorizontally, splitCondition)
     }
 
 

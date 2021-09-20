@@ -80,10 +80,6 @@ object GeometryToEntity {
                 val segmentationF: Geometry => Seq[Geometry] = decomposer.decomposeGeometry
                 geometry: Geometry =>  DecomposedEntity(geometry.getUserData.asInstanceOf[String], geometry, segmentationF)
 
-            case EntityTypeENUM.DECOMPOSED_ENTITY_1D =>
-                val decomposer: DecomposerT[Geometry] = RecursiveDecomposer(decompositionThetaOpt.get)
-                val segmentationF: Geometry => Seq[Geometry] = g =>  decomposer.decomposeGeometry(g)(oneDimension = true)
-                geometry: Geometry =>  DecomposedEntity(geometry.getUserData.asInstanceOf[String], geometry, segmentationF)
         }
     }
 }

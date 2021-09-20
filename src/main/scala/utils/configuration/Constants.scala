@@ -131,9 +131,6 @@ object Constants {
 		val PREPARED_ENTITY: EntityTypeENUM.Value = Value("PREPARED_ENTITY")
 		val DECOMPOSED_ENTITY: EntityTypeENUM.Value = Value("DECOMPOSED_ENTITY")
 		val INDEXED_DECOMPOSED_ENTITY: EntityTypeENUM.Value = Value("INDEXED_DECOMPOSED_ENTITY")
-		val DECOMPOSED_ENTITY_1D: EntityTypeENUM.Value = Value("DECOMPOSED_ENTITY_1D")
-		val INDEXED_DECOMPOSED_ENTITY_1D: EntityTypeENUM.Value = Value("INDEXED_DECOMPOSED_ENTITY_1D")
-
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
 

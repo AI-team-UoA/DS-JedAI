@@ -1,7 +1,7 @@
 package utils.configuration
 
 import org.joda.time.format.DateTimeFormat
-import utils.configuration.Constants.EntityTypeENUM.{DECOMPOSED_ENTITY, DECOMPOSED_ENTITY_1D, EntityTypeENUM, INDEXED_DECOMPOSED_ENTITY_1D}
+import utils.configuration.Constants.EntityTypeENUM.{DECOMPOSED_ENTITY, EntityTypeENUM}
 import utils.configuration.Constants.FileTypes.FileTypes
 import utils.configuration.Constants.GeometryApproximationENUM.GeometryApproximationENUM
 import utils.configuration.Constants.GridType.GridType
@@ -63,7 +63,7 @@ sealed trait ConfigurationT {
             configurations.get(InputConfigurations.CONF_DECOMPOSITION_THRESHOLD).map(_.toDouble)
         else {
             getEntityType match {
-                case DECOMPOSED_ENTITY | DECOMPOSED_ENTITY_1D | INDEXED_DECOMPOSED_ENTITY_1D | INDEXED_DECOMPOSED_ENTITY_1D =>
+                case DECOMPOSED_ENTITY =>
                     Some(configurations.getOrElse(InputConfigurations.CONF_DECOMPOSITION_THRESHOLD, "1").toDouble)
                 case _ => None
             }
