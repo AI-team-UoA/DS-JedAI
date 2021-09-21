@@ -1,5 +1,5 @@
 import model.structures.{DynamicComparisonPQ, StaticComparisonPQ}
-import model.weightedPairs.{CompositeWP, HybridWP, SimpleWP}
+import model.weightedPairs.{CompositeWP, HybridWP, SimpleWP, ThinMultiCompositePair}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should._
 
@@ -9,16 +9,16 @@ class WeightedPairTest extends AnyFunSuite with Matchers  {
     test("models.WeightedPair - MainWP with StaticComparisonPQ") {
        val pairs = List(
            SimpleWP(1, 1, 11, mainWeight = 0.9f),
-           SimpleWP(2, 2, 10, mainWeight = 0.8f, secondaryWeight = 0.1f),
-           SimpleWP(3, 3, 9, mainWeight = 0.7f, secondaryWeight = 0.2f),
-           SimpleWP(4, 4, 8, mainWeight = 0.6f, secondaryWeight = 0.3f),
-           SimpleWP(45, 5, 7, mainWeight = 0.6f, secondaryWeight = 0.3f),
-           SimpleWP(5, 6, 6, mainWeight = 0.5f, secondaryWeight = 0.4f),
-           SimpleWP(6, 7, 5, mainWeight = 0.4f, secondaryWeight = 0.5f),
-           SimpleWP(7, 8, 4, mainWeight = 0.3f, secondaryWeight = 0.6f),
-           SimpleWP(8, 9, 3, mainWeight = 0.2f, secondaryWeight = 0.7f),
-           SimpleWP(9, 10, 2, mainWeight = 0.1f, secondaryWeight = 0.8f),
-           SimpleWP(10, 11, 1, mainWeight = 0f, secondaryWeight = 0.9f)
+           SimpleWP(2, 2, 10, mainWeight = 0.8f),
+           SimpleWP(3, 3, 9, mainWeight = 0.7f),
+           SimpleWP(4, 4, 8, mainWeight = 0.6f),
+           SimpleWP(45, 5, 7, mainWeight = 0.6f),
+           SimpleWP(5, 6, 6, mainWeight = 0.5f),
+           SimpleWP(6, 7, 5, mainWeight = 0.4f),
+           SimpleWP(7, 8, 4, mainWeight = 0.3f),
+           SimpleWP(8, 9, 3, mainWeight = 0.2f),
+           SimpleWP(9, 10, 2, mainWeight = 0.1f),
+           SimpleWP(10, 11, 1, mainWeight = 0f)
        )
         val pq = StaticComparisonPQ(pairs.length)
         pq.enqueueAll(pairs.iterator)
@@ -80,19 +80,35 @@ class WeightedPairTest extends AnyFunSuite with Matchers  {
     }
 
 
+    test("models.ThinMultiCompositePair - ThinMultiCompositePair with StaticComparisonPQ") {
+        val pairs = List(
+            ThinMultiCompositePair(1, 1, 5, 0.1f, 0.5f, 0.2f),
+            ThinMultiCompositePair(2, 2, 4, 0.1f, 0.4f, 0.3f),
+            ThinMultiCompositePair(3, 3, 3, 0.05f, 0.5f, 0.5f),
+            ThinMultiCompositePair(4, 4, 2, 0.05f, 0.5f, 0.6f),
+            ThinMultiCompositePair(5, 5, 1, 0.3f, 0.5f, 0.4f)
+        )
+        val pq = StaticComparisonPQ(pairs.length)
+        pq.enqueueAll(pairs.iterator)
+
+        val correctResults = List(5, 1, 2, 4, 3)
+        val results = pq.dequeueAll.map(_.entityId1).toList
+        results shouldBe correctResults
+    }
+
     test("models.WeightedPair - MainWP with DynamicComparisonPQ") {
         val pairs = List(
             SimpleWP(1, 1, 11, mainWeight = 0.9f),
-            SimpleWP(2, 2, 10, mainWeight = 0.8f, secondaryWeight = 0.1f),
-            SimpleWP(3, 3, 9, mainWeight = 0.7f, secondaryWeight = 0.2f),
-            SimpleWP(4, 4, 8, mainWeight = 0.6f, secondaryWeight = 0.3f),
-            SimpleWP(45, 5, 7, mainWeight = 0.6f, secondaryWeight = 0.3f),
-            SimpleWP(5, 6, 6, mainWeight = 0.5f, secondaryWeight = 0.4f),
-            SimpleWP(6, 7, 5, mainWeight = 0.4f, secondaryWeight = 0.5f),
-            SimpleWP(7, 8, 4, mainWeight = 0.3f, secondaryWeight = 0.6f),
-            SimpleWP(8, 9, 3, mainWeight = 0.2f, secondaryWeight = 0.7f),
-            SimpleWP(9, 10, 2, mainWeight = 0.1f, secondaryWeight = 0.8f),
-            SimpleWP(10, 11, 1, mainWeight = 0f, secondaryWeight = 0.9f)
+            SimpleWP(2, 2, 10, mainWeight = 0.8f),
+            SimpleWP(3, 3, 9, mainWeight = 0.7f),
+            SimpleWP(4, 4, 8, mainWeight = 0.6f),
+            SimpleWP(45, 5, 7, mainWeight = 0.6f),
+            SimpleWP(5, 6, 6, mainWeight = 0.5f),
+            SimpleWP(6, 7, 5, mainWeight = 0.4f),
+            SimpleWP(7, 8, 4, mainWeight = 0.3f),
+            SimpleWP(8, 9, 3, mainWeight = 0.2f),
+            SimpleWP(9, 10, 2, mainWeight = 0.1f),
+            SimpleWP(10, 11, 1, mainWeight = 0f)
         )
         val pq = DynamicComparisonPQ(pairs.length)
         pq.enqueueAll(pairs.iterator)

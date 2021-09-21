@@ -9,9 +9,8 @@ import utils.configuration.Constants.{SIMPLE, WeightingScheme}
  * @param entityId1 id of source entity
  * @param entityId2 id of target entity
  * @param mainWeight main weight
- * @param secondaryWeight secondary weight
  */
-case class SimpleWP(counter: Int, entityId1: Int, entityId2: Int, mainWeight: Float, secondaryWeight: Float = 0f) extends WeightedPairT {
+case class SimpleWP(counter: Int, entityId1: Int, entityId2: Int, mainWeight: Float) extends WeightedPairT {
 
     val typeWP: WeightingScheme = SIMPLE
 
@@ -26,4 +25,10 @@ case class SimpleWP(counter: Int, entityId1: Int, entityId2: Int, mainWeight: Fl
             else mwp.counter - counter
         }
     }
+
+    def getSecondaryWeight: Float = 0f
+
+    def getLastWeight: Float = 0f
+
+
 }

@@ -8,12 +8,11 @@ trait WeightedPairT extends Serializable with Comparable[WeightedPairT] {
     val entityId1: Int
     val entityId2: Int
     val mainWeight: Float
-    val secondaryWeight: Float
     val typeWP: WeightingScheme
 
     var relatedMatches: Int = 0
 
-    override def toString: String = s"${typeWP.value} WP s : $entityId1 t : $entityId2 main weight : $getMainWeight secondary weight : $getSecondaryWeight"
+    override def toString: String = s"${typeWP.value} WP s: $entityId1 t: $entityId2 main weight: $getMainWeight secondary weight: $getSecondaryWeight"
 
     /**
      * Returns the weight between two geometries. Higher weights indicate to
@@ -21,7 +20,9 @@ trait WeightedPairT extends Serializable with Comparable[WeightedPairT] {
      */
     def getMainWeight: Float = mainWeight * (1 + relatedMatches)
 
-    def getSecondaryWeight: Float = secondaryWeight * (1 + relatedMatches)
+    def getSecondaryWeight: Float
+
+    def getLastWeight: Float
 
     def incrementRelatedMatches(): Unit = relatedMatches += 1
 

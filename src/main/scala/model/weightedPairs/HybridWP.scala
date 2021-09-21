@@ -37,4 +37,9 @@ case class HybridWP(counter: Int, entityId1: Int, entityId2: Int, mainWeight: Fl
             else hwp.counter - counter
         }
     }
+
+    def getSecondaryWeight: Float = secondaryWeight * (1 + relatedMatches)
+
+    def getLastWeight: Float = 0f
+
 }

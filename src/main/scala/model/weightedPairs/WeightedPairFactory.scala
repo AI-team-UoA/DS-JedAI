@@ -3,8 +3,8 @@ package model.weightedPairs
 import model.TileGranularities
 import model.entities.EntityT
 import org.apache.commons.math3.stat.inference.ChiSquareTest
-import utils.configuration.Constants.WeightingFunction.WeightingFunction
-import utils.configuration.Constants.{COMPOSITE, HYBRID, SIMPLE, WeightingFunction, WeightingScheme}
+import utils.configuration.Constants.WeightingFunction.{MBRO, WeightingFunction}
+import utils.configuration.Constants.{COMPOSITE, HYBRID, SIMPLE, THIN_MULTI_COMPOSITE, WeightingFunction, WeightingScheme}
 
 import scala.math.{ceil, floor, max, min}
 
@@ -45,6 +45,12 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
                 val mw = getMainWeight(s, t)
                 val sw = getSecondaryWeight(s, t)
                 HybridWP(counter, sIndex, tIndex, mw, sw)
+
+            case THIN_MULTI_COMPOSITE =>
+                val mw = jaccardSimilarity(s, t)
+                val sw = commonFrequency(s, t)
+                val lw = minimumBoundingRectangleOverlap(s, t)
+                ThinMultiCompositePair(counter, sIndex, tIndex, mw, sw, lw)
         }
     }
 

@@ -153,6 +153,8 @@ object Constants {
 		val TOPK: ProgressiveAlgorithm.Value = Value("TOPK")
 		val RECIPROCAL_TOPK: ProgressiveAlgorithm.Value = Value("RECIPROCAL_TOPK")
 		val RANDOM: ProgressiveAlgorithm.Value = Value("RANDOM")
+		val EARLY_STOPPING: ProgressiveAlgorithm.Value = Value("EARLY_STOPPING")
+
 
 		def exists(s: String): Boolean = values.exists(_.toString == s)
 	}
@@ -161,12 +163,13 @@ object Constants {
 	case object SIMPLE extends WeightingScheme {val value = "SIMPLE"}
 	case object COMPOSITE extends WeightingScheme {val value = "COMPOSITE"}
 	case object HYBRID extends WeightingScheme {val value = "HYBRID"}
-
+	case object THIN_MULTI_COMPOSITE extends WeightingScheme {val value = "THIN_MULTI_COMPOSITE"}
 	def WeightingSchemeFactory(ws: String): WeightingScheme ={
 		ws.toLowerCase() match {
 			case "simple" => SIMPLE
 			case "composite" => COMPOSITE
 			case "hybrid" => HYBRID
+			case "ThinMultiCompositePair" => THIN_MULTI_COMPOSITE
 			case _ => SIMPLE
 		}
 	}

@@ -14,7 +14,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
 import utils.configuration.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.configuration.Constants.WeightingFunction.WeightingFunction
-import utils.configuration.Constants.{EntityTypeENUM, GridType, Relation}
+import utils.configuration.Constants.{EntityTypeENUM, GridType, ProgressiveAlgorithm, Relation}
 import utils.configuration.{ConfigurationParser, Constants}
 import utils.readers.{GridPartitioner, Reader}
 
@@ -52,7 +52,7 @@ object ProgressiveExp {
         val mainWF: WeightingFunction = conf.getMainWF
         val secondaryWF: Option[WeightingFunction] = conf.getSecondaryWF
         val ws: Constants.WeightingScheme = conf.getWS
-        val pa: ProgressiveAlgorithm = conf.getProgressiveAlgorithm
+        val pa: ProgressiveAlgorithm = ProgressiveAlgorithm.EARLY_STOPPING //TODO  conf.getProgressiveAlgorithm
         val timeExp: Boolean = conf.measureStatistic
         val relation = conf.getRelation
 
@@ -83,7 +83,7 @@ object ProgressiveExp {
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
         val linkers = DistributedProgressiveInterlinking.initializeProgressiveLinkers(sourceRDD, targetRDD,
-                            partitionBorders, theta, pa, partitioner, sourceCount, budget, mainWF, secondaryWF, ws)
+                        partitionBorders, theta, pa, partitioner, sourceCount, budget, mainWF, secondaryWF, ws)
         if(timeExp){
             //invoke load of target
             targetRDD.count()

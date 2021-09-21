@@ -60,6 +60,8 @@ object DistributedProgressiveInterlinking {
                     ReciprocalTopK(sourceP.toArray, targetP, theta, partition, mainWF, secondaryWF, budget, sourceCount, ws, totalBlocks)
                 case ProgressiveAlgorithm.DYNAMIC_PROGRESSIVE_GIANT =>
                     DynamicProgressiveGIAnt(sourceP.toArray, targetP, theta, partition, mainWF, secondaryWF, budget, sourceCount, ws, totalBlocks)
+                case ProgressiveAlgorithm.EARLY_STOPPING =>
+                    EarlyStopping(sourceP.toArray, targetP, theta, partition,budget, sourceCount, totalBlocks)
                 case ProgressiveAlgorithm.PROGRESSIVE_GIANT | _ =>
                     ProgressiveGIAnt(sourceP.toArray, targetP, theta, partition, mainWF, secondaryWF, budget, sourceCount, ws, totalBlocks)
             }
