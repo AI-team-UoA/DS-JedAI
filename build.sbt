@@ -1,4 +1,4 @@
-organization := "org.ai.uoa"
+organization := "ai.di.uoa"
 name := "dsJedai"
 version := "1.1"
 scalaVersion := "2.11.12"
