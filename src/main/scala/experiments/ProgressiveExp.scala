@@ -14,7 +14,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
 import utils.configuration.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.configuration.Constants.WeightingFunction.WeightingFunction
-import utils.configuration.Constants.{EntityTypeENUM, GridType, ProgressiveAlgorithm, Relation}
+import utils.configuration.Constants._
 import utils.configuration.{ConfigurationParser, Constants}
 import utils.readers.{GridPartitioner, Reader}
 
@@ -49,18 +49,37 @@ object ProgressiveExp {
         val partitions: Int = conf.getPartitions
         val gridType: GridType.GridType = conf.getGridType
         val budget: Int = conf.getBudget
-        val mainWF: WeightingFunction = conf.getMainWF
-        val secondaryWF: Option[WeightingFunction] = conf.getSecondaryWF
-        val ws: Constants.WeightingScheme = conf.getWS
-        val pa: ProgressiveAlgorithm = ProgressiveAlgorithm.EARLY_STOPPING //TODO  conf.getProgressiveAlgorithm
+        val progressiveAlg: ProgressiveAlgorithm =  conf.getProgressiveAlgorithm
+
+        val weightingScheme: Constants.WeightingScheme =
+            if (progressiveAlg == ProgressiveAlgorithm.EARLY_STOPPING) Constants.THIN_MULTI_COMPOSITE
+            else conf.getWS
+
+        val mainWF: WeightingFunction =
+            if (progressiveAlg == ProgressiveAlgorithm.EARLY_STOPPING) WeightingFunction.JS
+            else conf.getMainWF
+
+        val secondaryWF: Option[WeightingFunction] =
+            if (progressiveAlg == ProgressiveAlgorithm.EARLY_STOPPING) Some(WeightingFunction.JS)
+            else conf.getSecondaryWF
+
         val timeExp: Boolean = conf.measureStatistic
         val relation = conf.getRelation
 
-        log.info(s"DS-JEDAI: Weighting Scheme: ${ws.value}")
+        val batchSize = conf.getBatchSize
+        val violations = conf.getViolations
+        val precisionLimit = conf.getPrecisionLimit
+        log.info(s"DS-JEDAI: Progressive Algorithm: ${progressiveAlg.toString}")
+        log.info(s"DS-JEDAI: Weighting Scheme: ${weightingScheme.value}")
         log.info(s"DS-JEDAI: Input Budget: $budget")
         log.info(s"DS-JEDAI: Main Weighting Function: ${mainWF.toString}")
         if (secondaryWF.isDefined) log.info(s"DS-JEDAI: Secondary Weighting Function: ${secondaryWF.get.toString}")
-        log.info(s"DS-JEDAI: Progressive Algorithm: ${pa.toString}")
+        if (progressiveAlg == ProgressiveAlgorithm.EARLY_STOPPING) {
+            log.info(s"DS-JEDAI: Last Weighting Function: MBRO")
+            log.info(s"DS-JEDAI: BATCH SIZE: $batchSize")
+            log.info(s"DS-JEDAI: PRECISION LIMIT: $precisionLimit")
+            log.info(s"DS-JEDAI: VIOLATIONS: $violations")
+        }
 
         val startTime = Calendar.getInstance().getTimeInMillis
 
@@ -83,7 +102,8 @@ object ProgressiveExp {
 
         val matchingStartTime = Calendar.getInstance().getTimeInMillis
         val linkers = DistributedProgressiveInterlinking.initializeProgressiveLinkers(sourceRDD, targetRDD,
-                        partitionBorders, theta, pa, partitioner, sourceCount, budget, mainWF, secondaryWF, ws)
+                        partitionBorders, theta, partitioner, progressiveAlg, budget, sourceCount, weightingScheme,
+                        mainWF, secondaryWF, batchSize, violations, precisionLimit)
         if(timeExp){
             //invoke load of target
             targetRDD.count()

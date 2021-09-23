@@ -4,6 +4,8 @@ import net.jcazevedo.moultingyaml.{DefaultYamlProtocol, _}
 import org.apache.spark.SparkContext
 import utils.configuration.Constants.{InputConfigurations, ProgressiveAlgorithm, ThetaOption, WeightingFunction, _}
 
+import scala.util.{Failure, Try}
+
 /**
  * Yaml parsers
  */
@@ -146,6 +148,14 @@ class ConfigurationParser {
 					nextOption(map ++ Map(InputConfigurations.CONF_QUALIFYING_PAIRS -> value), tail)
 				case "-dcmpT" :: value :: tail =>
 					nextOption(map ++ Map(InputConfigurations.CONF_DECOMPOSITION_THRESHOLD -> value), tail)
+
+				case "-batchSize" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_BATCH_SIZE -> value), tail)
+				case "-violations" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_VIOLATIONS -> value), tail)
+				case "-precisionLimit" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_PRECISION_LIMIT -> value), tail)
+
 				case key :: tail =>
 					nextOption(Map(InputConfigurations.CONF_UNRECOGNIZED -> key), tail)
 			}
@@ -231,6 +241,17 @@ class ConfigurationParser {
 					Some(ConfigurationErrorMessage(s"Geometry Approximation Type '$value' is not supported"))
 				case InputConfigurations.CONF_DECOMPOSITION_THRESHOLD if !(value forall Character.isDigit) =>
 					Some(ConfigurationErrorMessage("Not valid value for threshold"))
+				case InputConfigurations.CONF_BATCH_SIZE if !(value forall Character.isDigit) =>
+					Some(ConfigurationErrorMessage("Not valid value for batch size"))
+				case InputConfigurations.CONF_VIOLATIONS if !(value forall Character.isDigit) =>
+					Some(ConfigurationErrorMessage("Not valid value for violations"))
+				case InputConfigurations.CONF_PRECISION_LIMIT  =>
+					Try(value.toDouble) match {
+						case Failure(_) => Some(ConfigurationErrorMessage("Not valid value for precision limit"))
+						case _ => None
+					}
+
+
 				case InputConfigurations.CONF_UNRECOGNIZED =>
 					Some(ConfigurationErrorMessage(s"Unrecognized argument '$value'"))
 				case _ => None

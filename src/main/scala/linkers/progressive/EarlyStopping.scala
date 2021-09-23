@@ -11,9 +11,16 @@ import utils.configuration.Constants.WeightingFunction.{CF, WeightingFunction}
 
 import scala.annotation.tailrec
 
-case class EarlyStopping (source: Array[EntityT], target: Iterable[EntityT], tileGranularities: TileGranularities,
-                          partitionBorder: Envelope, budget: Int, totalSourceEntities: Long, totalBlocks: Double,
-                          batchSize: Int=100, maxViolations: Int=4, precisionLevel: Float=0.18f)
+case class EarlyStopping (source: Array[EntityT],
+                          target: Iterable[EntityT],
+                          tileGranularities: TileGranularities,
+                          partitionBorder: Envelope,
+                          budget: Int,
+                          totalSourceEntities: Long,
+                          totalBlocks: Double,
+                          batchSize: Int=100,
+                          maxViolations: Int=4,
+                          precisionLevel: Float=0.18f)
     extends ProgressiveLinkerT {
 
     // ignored

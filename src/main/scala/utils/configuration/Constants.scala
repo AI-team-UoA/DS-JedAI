@@ -93,6 +93,7 @@ object Constants {
 	 */
 	object InputConfigurations extends Enumeration {
 		type YamlConfiguration = String
+
 		val CONF_CONFIGURATIONS = "configurations"
 		val CONF_SOURCE = "source"
 		val CONF_TARGET = "target"
@@ -100,20 +101,29 @@ object Constants {
 		val CONF_GEOMETRY_PREDICATE = "geometryPredicate"
 		val CONF_PARTITIONS = "partitions"
 		val CONF_THETA_GRANULARITY = "thetaGranularity"
+		val CONF_GRID_TYPE = "gridType"
+		val CONF_OUTPUT = "outputPath"
+		val CONF_STATISTICS = "stats"
+		val CONF_UNRECOGNIZED = "unrecognized"
+
+		// ENTITY TYPES / APPROXIMATIONS
+		val CONF_ENTITY_TYPE = "entityType"
+		val CONF_DECOMPOSITION_THRESHOLD = "decompositionThreshold"
+		val CONF_GEOMETRY_APPROXIMATION_TYPE = "geometryApproximationType"
+
+		// PROGRESSIVE METHODS
 		val CONF_PROGRESSIVE_ALG = "progressiveAlgorithm"
+		val CONF_BUDGET = "budget"
+		val CONF_WS = "ws"
 		val CONF_MAIN_WF = "mainWF"
 		val CONF_SECONDARY_WF = "secondaryWF"
-		val CONF_BUDGET = "budget"
-		val CONF_GRID_TYPE = "gridType"
-		val CONF_WS = "ws"
-		val CONF_OUTPUT = "outputPath"
-		val CONF_ENTITY_TYPE = "entityType"
-		val CONF_GEOMETRY_APPROXIMATION_TYPE = "geometryApproximationType"
-		val CONF_STATISTICS = "stats"
 		val CONF_TOTAL_VERIFICATIONS = "totalVerifications"
 		val CONF_QUALIFYING_PAIRS = "qualifyingPairs"
-		val CONF_DECOMPOSITION_THRESHOLD = "decompositionThreshold"
-		val CONF_UNRECOGNIZED = "unrecognized"
+
+		// EARLY STOPPING
+		val CONF_BATCH_SIZE = "batchSize"
+		val CONF_PRECISION_LIMIT = "precisionLimit"
+		val CONF_VIOLATIONS = "violations"
 	}
 
 	object GridType extends Enumeration{

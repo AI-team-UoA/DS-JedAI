@@ -41,10 +41,18 @@ object DistributedProgressiveInterlinking {
      */
     def initializeProgressiveLinkers(source: RDD[(Int, EntityT)], target: RDD[(Int, EntityT)],
                                      partitionBorders: Array[Envelope],
-                                     theta: TileGranularities, progressiveAlgorithm: ProgressiveAlgorithm,
-                                     gridPartitioner: GridPartitioner, sourceCount: Long,
-                                     budget: Int = 0, mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction],
-                                     ws: Constants.WeightingScheme ): RDD[ProgressiveLinkerT] = {
+                                     theta: TileGranularities,
+                                     gridPartitioner: GridPartitioner,
+                                     progressiveAlgorithm: ProgressiveAlgorithm,
+                                     budget: Int = 0,
+                                     sourceCount: Long,
+                                     ws: Constants.WeightingScheme,
+                                     mainWF: WeightingFunction,
+                                     secondaryWF: Option[WeightingFunction],
+                                     batchSize: Int=100,
+                                     maxViolations: Int=4,
+                                     precisionLevel: Float=0.18f
+                                      ): RDD[ProgressiveLinkerT] = {
 
         val totalBlocks = gridPartitioner.computeTotalBlocks(theta)
         val joinedRDD: RDD[(Int, (Iterable[EntityT], Iterable[EntityT]))] = source.cogroup(target, gridPartitioner.hashPartitioner)
@@ -53,17 +61,23 @@ object DistributedProgressiveInterlinking {
 
             progressiveAlgorithm match {
                 case ProgressiveAlgorithm.RANDOM =>
-                    RandomScheduling(sourceP.toArray, targetP, theta, partition, mainWF, secondaryWF, budget, sourceCount, ws, totalBlocks)
+                    RandomScheduling(sourceP.toArray, targetP, theta, partition, mainWF, secondaryWF, budget, sourceCount,
+                        ws, totalBlocks)
                 case ProgressiveAlgorithm.TOPK =>
-                    TopKPairs(sourceP.toArray, targetP, theta, partition, mainWF, secondaryWF, budget, sourceCount, ws, totalBlocks)
+                    TopKPairs(sourceP.toArray, targetP, theta, partition, mainWF, secondaryWF, budget, sourceCount, ws,
+                        totalBlocks)
                 case ProgressiveAlgorithm.RECIPROCAL_TOPK =>
-                    ReciprocalTopK(sourceP.toArray, targetP, theta, partition, mainWF, secondaryWF, budget, sourceCount, ws, totalBlocks)
+                    ReciprocalTopK(sourceP.toArray, targetP, theta, partition, mainWF, secondaryWF, budget, sourceCount, ws,
+                        totalBlocks)
                 case ProgressiveAlgorithm.DYNAMIC_PROGRESSIVE_GIANT =>
-                    DynamicProgressiveGIAnt(sourceP.toArray, targetP, theta, partition, mainWF, secondaryWF, budget, sourceCount, ws, totalBlocks)
+                    DynamicProgressiveGIAnt(sourceP.toArray, targetP, theta, partition, mainWF, secondaryWF, budget,
+                        sourceCount, ws, totalBlocks)
                 case ProgressiveAlgorithm.EARLY_STOPPING =>
-                    EarlyStopping(sourceP.toArray, targetP, theta, partition,budget, sourceCount, totalBlocks)
+                    EarlyStopping(sourceP.toArray, targetP, theta, partition, budget, sourceCount, totalBlocks, batchSize,
+                        maxViolations, precisionLevel)
                 case ProgressiveAlgorithm.PROGRESSIVE_GIANT | _ =>
-                    ProgressiveGIAnt(sourceP.toArray, targetP, theta, partition, mainWF, secondaryWF, budget, sourceCount, ws, totalBlocks)
+                    ProgressiveGIAnt(sourceP.toArray, targetP, theta, partition, mainWF, secondaryWF, budget, sourceCount,
+                        ws, totalBlocks)
             }
         }
     }

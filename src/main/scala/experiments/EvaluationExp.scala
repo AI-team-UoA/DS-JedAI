@@ -125,7 +125,7 @@ object EvaluationExp {
                      pa: ProgressiveAlgorithm, wf: (WeightingFunction, Option[WeightingFunction]), ws: Constants.WeightingScheme, n: Int = 10): Unit = {
 
         val linkers = DistributedProgressiveInterlinking.initializeProgressiveLinkers(source, target,
-            partitionBorders, theta, pa, partitioner, sourceCount, budget, wf._1, wf._2, ws)
+            partitionBorders, theta, partitioner, pa, budget, sourceCount, ws, wf._1, wf._2)
         val results = DistributedProgressiveInterlinking.evaluate(linkers, relation, n, totalRelations, takeBudget)
 
         results.zip(takeBudget).foreach { case ((pgr, qp, verifications, (verificationSteps, qualifiedPairsSteps)), b) =>

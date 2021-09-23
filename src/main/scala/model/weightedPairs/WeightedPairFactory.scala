@@ -48,7 +48,7 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
 
             case THIN_MULTI_COMPOSITE =>
                 val mw = jaccardSimilarity(s, t)
-                val sw = commonFrequency(s, t)
+                val sw = coOccurenceFrequency(s, t)
                 val lw = minimumBoundingRectangleOverlap(s, t)
                 ThinMultiCompositePair(counter, sIndex, tIndex, mw, sw, lw)
         }
@@ -66,7 +66,7 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
             case WeightingFunction.ISP => inversePointSum(s, t)
             case WeightingFunction.JS => jaccardSimilarity(s, t)
             case WeightingFunction.PEARSON_X2 => pearsonsX2(s, t)
-            case WeightingFunction.CF | _ => commonFrequency(s, t)
+            case WeightingFunction.CF | _ => coOccurenceFrequency(s, t)
         }
     }
 
@@ -77,7 +77,7 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
         (min(ceil(s.getMaxX/tileGranularities.x), ceil(t.getMaxX/tileGranularities.x)).toInt - max(floor(s.getMinX/tileGranularities.x),floor(t.getMinX/tileGranularities.x)).toInt + 1) *
             (min(ceil(s.getMaxY/tileGranularities.y), ceil(t.getMaxY/tileGranularities.y)).toInt - max(floor(s.getMinY/tileGranularities.y), floor(t.getMinY/tileGranularities.y)).toInt + 1)
 
-    def commonFrequency(s: EntityT, t: EntityT): Float = getCommonBlocks(s, t).toFloat
+    def coOccurenceFrequency(s: EntityT, t: EntityT): Float = getCommonBlocks(s, t).toFloat
 
     def jaccardSimilarity(s: EntityT, t: EntityT): Float ={
         val sBlocks = getNumOfBlocks(s)

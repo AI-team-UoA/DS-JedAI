@@ -68,8 +68,15 @@ sealed trait ConfigurationT {
                 case _ => None
             }
         }
+
     def getApproximationType: Option[GeometryApproximationENUM] =
         configurations.get(InputConfigurations.CONF_GEOMETRY_APPROXIMATION_TYPE).map(ga => GeometryApproximationENUM.withName(ga))
+
+    def getBatchSize: Int =  configurations.getOrElse(InputConfigurations.CONF_BATCH_SIZE, "10000").toInt
+
+    def getViolations: Int =  configurations.getOrElse(InputConfigurations.CONF_VIOLATIONS, "3").toInt
+
+    def getPrecisionLimit: Float =  configurations.getOrElse(InputConfigurations.CONF_PRECISION_LIMIT, "0.1f").toFloat
 
 }
 
