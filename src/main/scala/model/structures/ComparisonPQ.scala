@@ -19,9 +19,12 @@ sealed trait ComparisonPQ {
 
     def enqueueAll(items: Iterator[WeightedPairT]): Unit = items.foreach(wp => enqueue(wp))
 
-    def take(n: Int): Iterator[WeightedPairT] = Iterator.continually{ dequeueHead() }.take(n)
+    def take(n: Int): Iterator[WeightedPairT] = {
+        val size = math.max(pq.size(), n)
+        Iterator.continually{ dequeueHead() }.take(size)
+    }
 
-    def dequeueAll: Iterator[WeightedPairT] = take(maxSize.toInt)
+    def dequeueAll: Iterator[WeightedPairT] = take(pq.size())
 
     def clear(): Unit = pq.clear()
 

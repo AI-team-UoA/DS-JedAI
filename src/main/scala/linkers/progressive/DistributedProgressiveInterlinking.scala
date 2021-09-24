@@ -195,11 +195,9 @@ object DistributedProgressiveInterlinking {
         budgets.map { b =>
             // compute AUC prioritizing the comparisons based on their weight
             val collectedPairs = pairs.take(b)
-
             var qp: Int = 0
             var progressiveQP: Double = 0
             val verifications: Int = collectedPairs.length
-
             val verificationSteps = ListBuffer[Int]()
             val qualifiedPairsSteps = ListBuffer[Int]()
             val step = math.ceil(verifications / n)

@@ -44,6 +44,7 @@ case class EarlyStoppingLinker(source: Array[EntityT],
                 val candidates = getAllCandidatesWithIndex(t, sourceIndex, partitionBorder)
                 candidates.foreach { case (i, s) =>
                     val wp = weightedPairFactory.createWeightedPair(counter, s, i, t, j)
+
                     pq.enqueue(wp)
                     counter += 1
                 }

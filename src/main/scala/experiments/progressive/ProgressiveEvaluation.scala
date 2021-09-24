@@ -23,7 +23,7 @@ import utils.readers.{GridPartitioner, Reader}
 /**
  * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
  */
-object EvaluationExp {
+object ProgressiveEvaluation {
 
 	private val log: Logger = LogManager.getRootLogger
 	log.setLevel(Level.INFO)
