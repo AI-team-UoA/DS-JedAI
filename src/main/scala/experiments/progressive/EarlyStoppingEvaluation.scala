@@ -23,12 +23,11 @@ import utils.readers.{GridPartitioner, Reader}
  */
 object EarlyStoppingEvaluation {
 
-
 	private val log: Logger = LogManager.getRootLogger
 	log.setLevel(Level.INFO)
 
 	// execution configuration
-	val defaultBudget: Int = 500000000
+	val defaultBudget: Int = 300000000
 	val takeBudget: Seq[Int] = Seq(300000000)
 	val relation: Relation = Relation.DE9IM
 
@@ -88,9 +87,8 @@ object EarlyStoppingEvaluation {
 
 		val sourceCount = sourceSpatialRDD.rawSpatialRDD.count()
 		val targetCount = targetSpatialRDD.rawSpatialRDD.count()
-		val precision = totalQP / (sourceCount*targetCount)
+		val precision =(math floor(totalQP / (sourceCount*targetCount))  * 1000) / 1000
 		log.info(s"-\t-\t-\t$totalQP\t$totalVerifications\t1.0\t$precision")
-
 
 		for (violations <- VIOLATIONS; precisionLimit <- PRECISION_LIMITS; batchSize <- BATCH_SIZES)
 			printResults(sourceRDD, targetRDD, theta, partitionBorder, approximateSourceCount, partitioner,
@@ -111,8 +109,9 @@ object EarlyStoppingEvaluation {
 
 		results.zip(takeBudget).foreach { case ((_, qp, verifications, _), b) =>
 			val qualifiedPairsWithinBudget = if (totalQualifiedPairs < verifications) totalQualifiedPairs else verifications
-			val recall = qp.toDouble / qualifiedPairsWithinBudget.toDouble
-			val precision = qp.toDouble / verifications.toDouble
+			val recall = (math floor(qp.toDouble / qualifiedPairsWithinBudget.toDouble)  * 1000) / 1000
+			val precision =(math floor(qp.toDouble / verifications.toDouble)  * 1000) / 1000
+
 			log.info(s"$batchSize\t$precisionLimit\t$violation\t$qp\t$verifications\t$recall\t$precision")
 		}
 	}
