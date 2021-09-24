@@ -26,7 +26,6 @@ case class DynamicProgressiveGIAnt(source: Array[EntityT], target: Iterable[Enti
         val localBudget = math.ceil(budget*source.length.toDouble/totalSourceEntities.toDouble).toLong
         val pq: DynamicComparisonPQ = DynamicComparisonPQ(localBudget)
         var counter = 0
-        val targetAr = target.toArray
         // weight and put the comparisons in a PQ
         targetAr
             .indices
@@ -42,16 +41,14 @@ case class DynamicProgressiveGIAnt(source: Array[EntityT], target: Iterable[Enti
         pq
     }
 
-
-    override def computeDE9IM(pq: ComparisonPQ, source: Array[EntityT], target: Array[EntityT]): Iterator[IM] = {
+    override def computeDE9IM(pq: ComparisonPQ): Iterator[IM] = {
         val sourceCandidates: Map[Int, List[WeightedPairT]] = pq.iterator().map(wp => (wp.entityId1, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
         val targetCandidates: Map[Int, List[WeightedPairT]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
-
         if (!pq.isEmpty)
             Iterator.continually {
                 val wp = pq.dequeueHead()
                 val s = source(wp.entityId1)
-                val t = target(wp.entityId2)
+                val t = targetAr(wp.entityId2)
                 val im = s.getIntersectionMatrix(t)
                 val isRelated = im.relate
                 if (isRelated) {

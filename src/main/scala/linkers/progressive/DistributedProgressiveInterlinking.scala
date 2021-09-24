@@ -2,8 +2,6 @@ package linkers.progressive
 
 import cats.implicits._
 import model.entities.EntityT
-import model.structures.DynamicComparisonPQ
-import model.weightedPairs.WeightedPairT
 import model.{IM, TileGranularities}
 import org.apache.spark.rdd.RDD
 import org.locationtech.jts.geom.Envelope
@@ -73,7 +71,7 @@ object DistributedProgressiveInterlinking {
                     DynamicProgressiveGIAnt(sourceP.toArray, targetP, theta, partition, mainWF, secondaryWF, budget,
                         sourceCount, ws, totalBlocks)
                 case ProgressiveAlgorithm.EARLY_STOPPING =>
-                    EarlyStopping(sourceP.toArray, targetP, theta, partition, budget, sourceCount, totalBlocks, batchSize,
+                    EarlyStoppingLinker(sourceP.toArray, targetP, theta, partition, budget, sourceCount, totalBlocks, batchSize,
                         maxViolations, precisionLevel)
                 case ProgressiveAlgorithm.PROGRESSIVE_GIANT | _ =>
                     ProgressiveGIAnt(sourceP.toArray, targetP, theta, partition, mainWF, secondaryWF, budget, sourceCount,
@@ -147,83 +145,81 @@ object DistributedProgressiveInterlinking {
         // invoke execution
         countAllRelations(progressiveLinkersRDD)
         val matchingTime = (Calendar.getInstance().getTimeInMillis - matchingTimeStart) / 1000.0
-
         // the verification time is the matching time - the scheduling time
         val verificationTime = matchingTime - schedulingTime
 
         (schedulingTime, verificationTime, schedulingTime+verificationTime)
     }
 
+// TODO comment
+    def evaluate(progressiveAlgorithm: ProgressiveAlgorithm, progressiveLinkersRDD: RDD[ProgressiveLinkerT], relation: Relation, n: Int = 10,
+                 totalQualifiedPairs: Long, takeBudget: Seq[Int]
+                ): Seq[(Double, Int, Int, (List[Int], List[Int]))]={
+        progressiveAlgorithm match {
+            case  ProgressiveAlgorithm.EARLY_STOPPING =>
+                nonProgressiveEvaluate(progressiveLinkersRDD, relation, n, totalQualifiedPairs, takeBudget)
+            case _ =>
+                progressiveEvaluate(progressiveLinkersRDD, relation, n, totalQualifiedPairs, takeBudget)
+        }
+
+    }
 
     /**
      * Compute PGR - first weight and perform the comparisons in each partition,
      * then collect them in descending order and compute the progressive True Positives.
      *
      * @param relation the examined relation
-     * @return (PGR, total interlinked Geometries (TP), total comparisons)
+     * @return (PGR, total interlinked Geometries (TP), total verifications, List[Verifications], List[TP])
      */
-    def evaluate(progressiveLinkersRDD: RDD[ProgressiveLinkerT], relation: Relation, n: Int = 10,
-                 totalQualifiedPairs: Double, takeBudget: Seq[Int]
-                         ): Seq[(Double, Long, Long, (List[Int], List[Int]))]={
-
+    def progressiveEvaluate(progressiveLinkersRDD: RDD[ProgressiveLinkerT], relation: Relation, n: Int = 10,
+                 totalQualifiedPairs: Long, takeBudget: Seq[Int]
+                         ): Seq[(Double, Int, Int, (List[Int], List[Int]))]={
         // computes weighted the weighted comparisons
-        val matches: RDD[(WeightedPairT, Boolean)] = progressiveLinkersRDD
-            .flatMap { linker =>
-                val targetAr = linker.target.toArray
+        val matches: RDD[Boolean] = progressiveLinkersRDD.flatMap { linker => linker.computeDE9IM(linker.prioritize(relation)).map(_.relate) }
+        val sortedPairs = matches.takeOrdered(takeBudget.max)
+        evaluatePairs(sortedPairs, takeBudget, n, totalQualifiedPairs)
+    }
 
-                val pq: DynamicComparisonPQ = linker.prioritize(relation).asInstanceOf[DynamicComparisonPQ]
-                val sourceCandidates: Map[Int, List[WeightedPairT]] = pq.iterator().map(wp => (wp.entityId1, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
-                val targetCandidates: Map[Int, List[WeightedPairT]] = pq.iterator().map(wp => (wp.entityId2, wp)).toList.groupBy(_._1).mapValues(_.map(_._2))
-                if (!pq.isEmpty)
-                    Iterator.continually{
-                        val wp = pq.dequeueHead()
-                        val s = linker.source(wp.entityId1)
-                        val t = targetAr(wp.entityId2)
-                        val isRelated = relation match {
-                            case Relation.DE9IM => s.getIntersectionMatrix(t).relate
-                            case _ => s.relate(t, relation)
-                        }
-                        if (isRelated){
-                            sourceCandidates.getOrElse(wp.entityId1, List()).foreach(wp => pq.dynamicUpdate(wp))
-                            targetCandidates.getOrElse(wp.entityId2, List()).foreach(wp => pq.dynamicUpdate(wp))
-                        }
-                        (wp, isRelated)
-                    }.takeWhile(_ => !pq.isEmpty)
-                else Iterator()
-            }
+    def nonProgressiveEvaluate(progressiveLinkersRDD: RDD[ProgressiveLinkerT], relation: Relation, n: Int = 10,
+                               totalQualifiedPairs: Long, takeBudget: Seq[Int]
+                           ): Seq[(Double, Int, Int, (List[Int], List[Int]))]={
+        // computes weighted the weighted comparisons
+        val matches: RDD[Boolean] = progressiveLinkersRDD
+            .flatMap { linker => linker.computeDE9IM(linker.prioritize(relation)).map(_.relate)}
+        val collectedPairs = matches.take(takeBudget.max)
+        evaluatePairs(collectedPairs, takeBudget, n, totalQualifiedPairs)
+    }
 
-        val results = ListBuffer[(Double, Long, Long, (List[Int], List[Int]))]()
-        val sorted = matches.takeOrdered(takeBudget.max)
-        for(b <- takeBudget){
+    def evaluatePairs(pairs: Seq[Boolean], budgets: Seq[Int], n: Int, totalQualifiedPairs: Long
+                     ):  Seq[(Double, Int, Int, (List[Int], List[Int]))]= {
+        budgets.map { b =>
             // compute AUC prioritizing the comparisons based on their weight
-            val sortedPairs = sorted.take(b)
-            val verifications = sortedPairs.length
-            val step = math.ceil(verifications/n)
+            val collectedPairs = pairs.take(b)
 
+            var qp: Int = 0
             var progressiveQP: Double = 0
-            var qp = 0
+            val verifications: Int = collectedPairs.length
+
             val verificationSteps = ListBuffer[Int]()
             val qualifiedPairsSteps = ListBuffer[Int]()
+            val step = math.ceil(verifications / n)
 
-            sortedPairs
-                .map(_._2)
+            collectedPairs
                 .zipWithIndex
-                .foreach{
-                    case (r, i) =>
-                        if (r) qp += 1
-                        progressiveQP += qp
-                        if (i % step == 0){
-                            qualifiedPairsSteps += qp
-                            verificationSteps += i
-                        }
+                .foreach { case (r, i) =>
+                    if (r) qp += 1
+                    progressiveQP += qp
+                    if (i % step == 0) {
+                        qualifiedPairsSteps += qp
+                        verificationSteps += i
+                    }
                 }
             qualifiedPairsSteps += qp
             verificationSteps += verifications
             val qualifiedPairsWithinBudget = if (totalQualifiedPairs < verifications) totalQualifiedPairs else verifications
-            val pgr = (progressiveQP/qualifiedPairsWithinBudget)/verifications.toDouble
-            results += ((pgr, qp, verifications, (verificationSteps.toList, qualifiedPairsSteps.toList)))
+            val pgr = (progressiveQP / qualifiedPairsWithinBudget) / verifications.toDouble
+            (pgr, qp, verifications, (verificationSteps.toList, qualifiedPairsSteps.toList))
         }
-        results
     }
 
     val accumulate: Iterator[IM] => (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = imIterator => {

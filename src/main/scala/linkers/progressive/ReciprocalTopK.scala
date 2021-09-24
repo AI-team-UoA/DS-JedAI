@@ -25,7 +25,6 @@ case class ReciprocalTopK(source: Array[EntityT], target: Iterable[EntityT],
      */
     def prioritize(relation: Relation):  StaticComparisonPQ = {
         val localBudget = math.ceil(budget*source.length.toDouble/totalSourceEntities.toDouble).toLong
-        val targetAr = target.toArray
 
         val sourceK = (math.ceil(localBudget / source.length).toInt + 1) * 2 // +1 to avoid k=0
         val targetK = (math.ceil(localBudget / targetAr.length).toInt + 1) * 2 // +1 to avoid k=0

@@ -24,7 +24,6 @@ case class TopKPairs(source: Array[EntityT], target: Iterable[EntityT],
      */
     def prioritize(relation: Relation): StaticComparisonPQ = {
         val localBudget = math.ceil(budget*source.length.toDouble/totalSourceEntities.toDouble).toLong
-        val targetAr = target.toArray
         // the budget is divided based on the number of entities
         val k = (math.ceil(localBudget / (source.length + targetAr.length)).toInt + 1) * 2 // +1 to avoid k=0
         val sourcePQ: Array[StaticComparisonPQ] = new Array(source.length)

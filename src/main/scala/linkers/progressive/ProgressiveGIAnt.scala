@@ -23,7 +23,6 @@ case class ProgressiveGIAnt(source: Array[EntityT], target: Iterable[EntityT],
      * @return a PQ with the top comparisons
      */
     def prioritize(relation: Relation): ComparisonPQ ={
-        val targetAr = target.toArray
         val localBudget = math.ceil(budget*source.length.toDouble/totalSourceEntities.toDouble).toLong
         val pq: StaticComparisonPQ = StaticComparisonPQ(localBudget)
         var counter = 0

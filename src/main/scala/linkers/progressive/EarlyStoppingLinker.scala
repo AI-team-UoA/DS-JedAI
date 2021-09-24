@@ -11,16 +11,16 @@ import utils.configuration.Constants.WeightingFunction.{CF, WeightingFunction}
 
 import scala.annotation.tailrec
 
-case class EarlyStopping (source: Array[EntityT],
-                          target: Iterable[EntityT],
-                          tileGranularities: TileGranularities,
-                          partitionBorder: Envelope,
-                          budget: Int,
-                          totalSourceEntities: Long,
-                          totalBlocks: Double,
-                          batchSize: Int=100,
-                          maxViolations: Int=4,
-                          precisionLevel: Float=0.18f)
+case class EarlyStoppingLinker(source: Array[EntityT],
+                               target: Iterable[EntityT],
+                               tileGranularities: TileGranularities,
+                               partitionBorder: Envelope,
+                               budget: Int,
+                               totalSourceEntities: Long,
+                               totalBlocks: Double,
+                               batchSize: Int=100,
+                               maxViolations: Int=4,
+                               precisionLevel: Float=0.18f)
     extends ProgressiveLinkerT {
 
     // ignored
@@ -51,7 +51,7 @@ case class EarlyStopping (source: Array[EntityT],
         pq
     }
 
-    override def computeDE9IM(pq: ComparisonPQ, source: Array[EntityT], target: Array[EntityT]): Iterator[IM] ={
+    override def computeDE9IM(pq: ComparisonPQ): Iterator[IM] ={
 
         @tailrec
         def earlyStopping(pairs: Iterator[WeightedPairT], batchMatches: Int, violations: Int, qp: Int, verifications: Int,
@@ -60,7 +60,7 @@ case class EarlyStopping (source: Array[EntityT],
                 val wp = pairs.next()
                 val tail = pairs
                 val s = source(wp.entityId1)
-                val t = target(wp.entityId2)
+                val t = targetAr(wp.entityId2)
                 val im = s.getIntersectionMatrix(t)
                 val acc_ = im :: acc
 
