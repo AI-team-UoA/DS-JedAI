@@ -72,8 +72,8 @@ object EarlyStoppingEvaluation {
 		val targetRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(targetSpatialRDD, geometry2entity)
 		sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
 		val partitionBorder = partitioner.getPartitionsBorders(theta)
-		log.info("\n")
 		log.info(s"DS-JEDAI: Source was loaded into ${sourceRDD.getNumPartitions} partitions")
+		log.info("\n")
 
 		// to compute recall and precision we need overall results
 		val (totalVerifications, totalQP) =

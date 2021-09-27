@@ -73,8 +73,10 @@ case class EarlyStoppingLinker(source: Array[EntityT],
                     val violations_ = if (batchMatches_ < minimumMatches_) violations+1 else 0
                     if (violations_ == maxViolations)
                         acc_
-                    else
+                    else {
+                        // block completed, new block starts
                         earlyStopping(tail, 0, violations_, qp_, verifications_, minimumMatches_, acc_)
+                    }
                 }
                 else {
                     earlyStopping(tail, batchMatches_, violations, qp_, verifications_, minimumMatches, acc_)

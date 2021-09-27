@@ -151,7 +151,16 @@ object DistributedProgressiveInterlinking {
         (schedulingTime, verificationTime, schedulingTime+verificationTime)
     }
 
-// TODO comment
+    /**
+     * evaluate progressive algorithms
+     * @param progressiveAlgorithm  specified progressive algorithm
+     * @param progressiveLinkersRDD linkers
+     * @param relation              target relation
+     * @param n                     size of accumulated progressive results
+     * @param totalQualifiedPairs   total qualified pairs
+     * @param takeBudget            budget
+     * @return                   (PGR, total interlinked Geometries (TP), total verifications, List[Verifications], List[TP])
+     */
     def evaluate(progressiveAlgorithm: ProgressiveAlgorithm, progressiveLinkersRDD: RDD[ProgressiveLinkerT], relation: Relation, n: Int = 10,
                  totalQualifiedPairs: Long, takeBudget: Seq[Int]
                 ): Seq[(Double, Int, Int, (List[Int], List[Int]))]={
@@ -165,11 +174,16 @@ object DistributedProgressiveInterlinking {
     }
 
     /**
+     * Evaluation of progressive algorithms. The order of verifications matters
      * Compute PGR - first weight and perform the comparisons in each partition,
      * then collect them in descending order and compute the progressive True Positives.
      *
-     * @param relation the examined relation
-     * @return (PGR, total interlinked Geometries (TP), total verifications, List[Verifications], List[TP])
+     * @param progressiveLinkersRDD linkers
+     * @param relation              target relation
+     * @param n                     size of accumulated progressive results
+     * @param totalQualifiedPairs   total qualified pairs
+     * @param takeBudget            budget
+     * @return                   (PGR, total interlinked Geometries (TP), total verifications, List[Verifications], List[TP])
      */
     def progressiveEvaluate(progressiveLinkersRDD: RDD[ProgressiveLinkerT], relation: Relation, n: Int = 10,
                  totalQualifiedPairs: Long, takeBudget: Seq[Int]
@@ -180,6 +194,18 @@ object DistributedProgressiveInterlinking {
         evaluatePairs(sortedPairs, takeBudget, n, totalQualifiedPairs)
     }
 
+    /**
+     * Evaluation of progressive algorithms. The order of verifications does not matters.
+     * Compute PGR - first weight and perform the comparisons in each partition,
+     * then collect them in descending order and compute the progressive True Positives.
+     *
+     * @param progressiveLinkersRDD linkers
+     * @param relation              target relation
+     * @param n                     size of accumulated progressive results
+     * @param totalQualifiedPairs   total qualified pairs
+     * @param takeBudget            budget
+     * @return                   (PGR, total interlinked Geometries (TP), total verifications, List[Verifications], List[TP])
+     */
     def nonProgressiveEvaluate(progressiveLinkersRDD: RDD[ProgressiveLinkerT], relation: Relation, n: Int = 10,
                                totalQualifiedPairs: Long, takeBudget: Seq[Int]
                            ): Seq[(Double, Int, Int, (List[Int], List[Int]))]={
@@ -190,6 +216,16 @@ object DistributedProgressiveInterlinking {
         evaluatePairs(collectedPairs, takeBudget, n, totalQualifiedPairs)
     }
 
+    /**
+     * Execute the verifications while computing the Progressive Recall (PGR)
+     * and the other metrics.
+     *
+     * @param pairs                 collected verification pairs
+     * @param budgets               budgets
+     * @param n                     size of accumulated progressive results
+     * @param totalQualifiedPairs   total qualified pairs
+     * @return                   (PGR, total interlinked Geometries (TP), total verifications, List[Verifications], List[TP])
+     */
     def evaluatePairs(pairs: Seq[Boolean], budgets: Seq[Int], n: Int, totalQualifiedPairs: Long
                      ):  Seq[(Double, Int, Int, (List[Int], List[Int]))]= {
         budgets.map { b =>
