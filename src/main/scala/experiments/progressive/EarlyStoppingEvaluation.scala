@@ -1,5 +1,6 @@
 package experiments.progressive
 
+import experiments.progressive.EarlyStoppingEvaluation.evaluate
 import linkers.DistributedInterlinking
 import linkers.progressive.DistributedProgressiveInterlinking
 import model.TileGranularities
@@ -90,15 +91,27 @@ object EarlyStoppingEvaluation {
 		val precision =(math floor(totalQP / (sourceCount*targetCount))  * 1000) / 1000
 		log.info(s"-\t-\t-\t$totalQP\t$totalVerifications\t1.0\t$precision")
 
-		for (violations <- VIOLATIONS; precisionLimit <- PRECISION_LIMITS; batchSize <- BATCH_SIZES)
-			printResults(sourceRDD, targetRDD, theta, partitionBorder, approximateSourceCount, partitioner,
-				totalQP, violations, precisionLimit, batchSize )
+		val bestBatchSize = BATCH_SIZES.map{ batchSize =>
+			val precision = evaluate(sourceRDD, targetRDD, theta, partitionBorder, approximateSourceCount, partitioner,
+				totalQP, VIOLATIONS.head, PRECISION_LIMITS.head, batchSize )
+			(precision, batchSize)
+		}.maxBy(_._1)._2
+
+		val bestPrecisionLimit = PRECISION_LIMITS.map{ precisionLimit =>
+			val precision = evaluate(sourceRDD, targetRDD, theta, partitionBorder, approximateSourceCount, partitioner,
+				totalQP, VIOLATIONS.head, precisionLimit, bestBatchSize )
+			(precision, precisionLimit)
+		}.maxBy(_._1)._2
+
+		for (violations <- VIOLATIONS)
+			evaluate(sourceRDD, targetRDD, theta, partitionBorder, approximateSourceCount, partitioner,
+				totalQP, violations, bestPrecisionLimit, bestBatchSize)
 	}
 
 
-	def printResults(source: RDD[(Int, EntityT)], target: RDD[(Int, EntityT)],
-					 theta: TileGranularities, partitionBorders: Array[Envelope], sourceCount: Long,
-					 partitioner: GridPartitioner, totalQualifiedPairs: Int, violation: Int, precisionLimit: Float, batchSize: Int ): Unit = {
+	def evaluate(source: RDD[(Int, EntityT)], target: RDD[(Int, EntityT)],
+				 theta: TileGranularities, partitionBorders: Array[Envelope], sourceCount: Long,
+				 partitioner: GridPartitioner, totalQualifiedPairs: Int, violation: Int, precisionLimit: Float, batchSize: Int ): Double = {
 
 		val linkers = DistributedProgressiveInterlinking.initializeProgressiveLinkers(source, target,
 			partitionBorders, theta, partitioner, ProgressiveAlgorithm.EARLY_STOPPING, defaultBudget, sourceCount,
@@ -106,13 +119,12 @@ object EarlyStoppingEvaluation {
 			maxViolations=violation, precisionLevel=precisionLimit)
 		val results = DistributedProgressiveInterlinking.evaluate(ProgressiveAlgorithm.EARLY_STOPPING, linkers, relation,
 			totalQualifiedPairs = totalQualifiedPairs, takeBudget=takeBudget)
+		val (_, qp, verifications, _) = results.head
 
-		results.zip(takeBudget).foreach { case ((_, qp, verifications, _), b) =>
-			val qualifiedPairsWithinBudget = if (totalQualifiedPairs < verifications) totalQualifiedPairs else verifications
-			val recall = (math floor(qp.toDouble / qualifiedPairsWithinBudget.toDouble)  * 1000) / 1000
-			val precision =(math floor(qp.toDouble / verifications.toDouble)  * 1000) / 1000
-
-			log.info(s"$batchSize\t$precisionLimit\t$violation\t$qp\t$verifications\t$recall\t$precision")
-		}
+		val qualifiedPairsWithinBudget = if (totalQualifiedPairs < verifications) totalQualifiedPairs else verifications
+		val recall = (math floor(qp.toDouble / qualifiedPairsWithinBudget.toDouble)  * 1000) / 1000
+		val precision =(math floor(qp.toDouble / verifications.toDouble)  * 1000) / 1000
+		log.info(s"$batchSize\t$precisionLimit\t$violation\t$qp\t$verifications\t$recall\t$precision")
+		precision
 	}
 }
