@@ -82,8 +82,8 @@ object Utils extends Serializable {
 	def exportMatchingPairs(matchingPairsRDD: RDD[(String, String)], path:String): Unit ={
 		matchingPairsRDD.mapPartitions { pairIterator =>
 			val sb = new StringBuilder()
-			pairIterator.foreach{case (s, t) => sb.append(s"$s\t$t\n")}
+			pairIterator.foreach{case (s, t) => sb.append(s"$s\t$t\t1.0\n")}
 			Iterator(sb.toString())
-		}.coalesce(numPartitions= 1).saveAsTextFile(path)
+		}.coalesce(numPartitions=1).saveAsTextFile(path)
 	}
 }
