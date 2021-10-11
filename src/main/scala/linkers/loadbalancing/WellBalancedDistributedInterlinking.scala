@@ -1,14 +1,16 @@
-package linkers
+package linkers.loadbalancing
 
 import linkers.DistributedInterlinking.log
+import linkers.LinkerT
+import model.IM
 import model.entities.segmented.DecomposedEntity
 import model.entities.{EntityT, SpatialEntity}
-import model.IM
 import model.structures.IndicesPrefixTrie
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 import org.locationtech.jts.operation.union.UnaryUnionOp
+import utils.configuration.Constants.Relation
 
 import java.util.Calendar
 import scala.collection.JavaConverters._
@@ -123,7 +125,7 @@ object WellBalancedDistributedInterlinking {
                         accMap
                     }
 
-                val verifications = segmentsIndex.flatMap{
+                segmentsIndex.flatMap{
                     case (segmentIndices, entitiesBatches) =>
                         entitiesBatches.map { batch =>
                             val targetSegments = segmentIndices.map(i => t.segments(i)).asJava
@@ -131,7 +133,6 @@ object WellBalancedDistributedInterlinking {
                             SpatialEntity(t.originalID, partialTarget, t.approximation) :: batch.toList
                         }
                     }
-                verifications
             }
             .repartition(linkersRDD.getNumPartitions)
         simpleVerificationsRDD.union(overloadedImRDD)

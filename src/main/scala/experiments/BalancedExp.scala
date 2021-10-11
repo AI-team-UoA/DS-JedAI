@@ -1,9 +1,10 @@
 package experiments
 
-import linkers.{DistributedInterlinking, WellBalancedDistributedInterlinking}
+import linkers.DistributedInterlinking
+import linkers.loadbalancing.WellBalancedDistributedInterlinking
 import model.TileGranularities
 import model.approximations.{GeometryApproximationT, GeometryToApproximation}
-import model.entities.{EntityT, GeometryToEntity}
+import model.entities.{EntityT, GeometryToEntity, SpatialEntity}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
 import org.apache.sedona.core.spatialRDD.SpatialRDD
@@ -16,13 +17,13 @@ import org.locationtech.jts.geom.Geometry
 import utils.configuration.ConfigurationParser
 import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
 import utils.configuration.Constants.GeometryApproximationENUM.GeometryApproximationENUM
-import utils.configuration.Constants.GridType
+import utils.configuration.Constants.{EntityTypeENUM, GridType}
 import utils.readers.{GridPartitioner, Reader}
 
 import java.util.Calendar
 
 
-object BalancingExp {
+object BalancedExp {
 
     def main(args: Array[String]): Unit = {
         Logger.getLogger("org").setLevel(Level.ERROR)
@@ -77,7 +78,7 @@ object BalancingExp {
         val approximationTransformerOpt: Option[Geometry => GeometryApproximationT] = GeometryToApproximation.getTransformer(approximationTypeOpt, decompositionTheta.getOrElse(theta))
         // set Entity type
         val sourceTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(entityTypeType, decompositionTheta, conf.source.datePattern, approximationTransformerOpt)
-        val targetTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(entityTypeType, decompositionTheta, conf.target.datePattern, approximationTransformerOpt)
+        val targetTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(EntityTypeENUM.DECOMPOSED_ENTITY, decompositionTheta, conf.target.datePattern, approximationTransformerOpt)
 
         val sourceRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(sourceSpatialRDD, sourceTransformer)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
@@ -86,12 +87,10 @@ object BalancingExp {
 
         val partitionBorders = partitioner.getPartitionsBorders(theta)
 
-
         if (!measureTime){
             val linkers = DistributedInterlinking.initializeLinkers(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
-            val verificationsRDD = WellBalancedDistributedInterlinking.batchedSegmentedVerificationRedistribution(linkers)
+            val verificationsRDD = WellBalancedDistributedInterlinking.segmentedRedistribution(linkers)
             val imRDD = WellBalancedDistributedInterlinking.executeVerifications(verificationsRDD)
-
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
             totalOverlaps, totalTouches, totalWithin, verifications, qp) = DistributedInterlinking.accumulateIM(imRDD)
 

@@ -1,6 +1,5 @@
 package experiments.progressive
 
-import experiments.progressive.EarlyStoppingEvaluation.evaluate
 import linkers.DistributedInterlinking
 import linkers.progressive.DistributedProgressiveInterlinking
 import model.TileGranularities
@@ -20,7 +19,7 @@ import utils.configuration.Constants._
 import utils.readers.{GridPartitioner, Reader}
 
 /**
- * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ * @author George Mandilaras (NKUA)
  */
 object EarlyStoppingEvaluation {
 

@@ -122,8 +122,6 @@ case class RecursiveDecomposer(theta: TileGranularities) extends DecomposerT[Geo
      */
     def decomposePolygon(polygon: Polygon): Seq[Geometry] = {
 
-
-
         val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
 
         /**
