@@ -96,13 +96,12 @@ trait GridDecomposerT[T] extends DecomposerT[T] {
 
     /**
      * Combine the vertical/horizontal blades with the interior rings of a polygon
-     * @param polygon       polygon
      * @param blade         blades
      * @param innerRings    interior rings of polygon
      * @param isHorizontal  blades are horizontal otherwise vertical
      * @return            a list of lineStrings adjusted to inner rings
      */
-    def combineBladeWithInteriorRings(polygon: Polygon, blade: LineString, innerRings: Seq[Geometry], isHorizontal: Boolean): Seq[LineString] = {
+    def combineBladeWithInteriorRings(blade: LineString, innerRings: Seq[Geometry], isHorizontal: Boolean): Seq[LineString] = {
 
         // epsilon is a small value to add in the segments so to slightly intersect thus not result to dangling lines
         val (xEpsilon, yEpsilon) = if (isHorizontal) xYEpsilon else xYEpsilon.swap

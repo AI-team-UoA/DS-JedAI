@@ -21,24 +21,19 @@ case class RecursiveDecomposer(theta: TileGranularities) extends DecomposerT[Geo
     }
 
 
-    def getVerticalBlade(geom: Geometry): LineString = {
-        val env = geom.getEnvelopeInternal
-        val x = geom match {
-            case p: Polygon => p.getCentroid.getX
-            case _ => (env.getMaxX + env.getMinX)/2
-        }
+    def getVerticalBlade(geom: Geometry): LineString = getVerticalBlade(geom.getEnvelopeInternal)
+
+    def getHorizontalBlade(geom: Geometry): LineString = getHorizontalBlade(geom.getEnvelopeInternal)
+
+    def getVerticalBlade(env: Envelope): LineString = {
+        val x = (env.getMaxX + env.getMinX)/2
         val start = new Coordinate(x, env.getMinY-epsilon)
         val end = new Coordinate(x, env.getMaxY+epsilon)
         geometryFactory.createLineString(Array(start, end))
     }
 
-
-    def getHorizontalBlade(geom: Geometry): LineString = {
-        val env = geom.getEnvelopeInternal
-        val y = geom match {
-            case p: Polygon => p.getCentroid.getY
-            case _ => (env.getMaxY + env.getMinY)/2
-        }
+    def getHorizontalBlade(env: Envelope): LineString = {
+        val y = (env.getMaxY + env.getMinY)/2
         val start = new Coordinate(env.getMinX-epsilon, y)
         val end = new Coordinate(env.getMaxX+epsilon, y)
         geometryFactory.createLineString(Array(start, end))
@@ -56,13 +51,12 @@ case class RecursiveDecomposer(theta: TileGranularities) extends DecomposerT[Geo
      *              \_________ |_______/
      *                         |
      *
-     * @param polygon input polygon
      * @param blade the blade to combine with the inner holes
      * @param innerRings the inner holes as a sequence of inner lineRings
      * @param isHorizontal the requested blade is horizontal otherwise it will be vertical
      * @return
      */
-    def combineBladeWithInteriorRings(polygon: Polygon, blade: LineString, innerRings: Seq[Geometry], isHorizontal: Boolean): Seq[LineString] = {
+    def combineBladeWithInteriorRings(blade: LineString, innerRings: Seq[Geometry], isHorizontal: Boolean): List[LineString] = {
 
         // ordering of the coordinates, to define max and min
         implicit val ordering: Ordering[Coordinate] = Ordering.by[Coordinate, Double](c => if (isHorizontal) c.x else c.y)
@@ -75,8 +69,11 @@ case class RecursiveDecomposer(theta: TileGranularities) extends DecomposerT[Geo
         val end = blade.getCoordinateN(1)
 
         // define the cross condition based on line's orientation
-        val crossCondition: Envelope => Boolean = if (isHorizontal) env => start.y >= env.getMinY && start.y <= env.getMaxY
-                                                    else env => start.x >= env.getMinX && start.x <= env.getMaxX
+        val crossCondition: Envelope => Boolean = env =>
+            if (isHorizontal)
+                (start.y >= env.getMinY && end.y <= env.getMaxY) && (start.x < env.getMinX && end.x > env.getMaxX)
+            else
+                (start.x >= env.getMinX && end.x <= env.getMaxX) && (start.y < env.getMinY && end.y > env.getMaxY)
 
         // sort inner rings envelope by y
         // find the ones that intersect with the line
@@ -84,7 +81,6 @@ case class RecursiveDecomposer(theta: TileGranularities) extends DecomposerT[Geo
         //   - sort them and get the first and the last,
         //   - create line segments that do not overlap the inner ring
         var checkpoint = start
-        val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
         val segments = innerRings
             .map(ir => (ir, ir.getEnvelopeInternal))
             .filter{ case (_, env) => crossCondition(env)}
@@ -126,63 +122,76 @@ case class RecursiveDecomposer(theta: TileGranularities) extends DecomposerT[Geo
      */
     def decomposePolygon(polygon: Polygon): Seq[Geometry] = {
 
+
+
+        val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
+
         /**
-         * Recursively, split the polygons into sub-polygons. The procedure is repeated
-         * until the width and height of the produced polygons do not exceed predefined thresholds.
+         * Detect the bing envelopes and for each one create the splitting blades.
+         * Repeat recursively with the produced envelopes after the split
          *
-         * @param polygons      a list of Polygons
-         * @param accumulator   the list of sub-polygons produced in the previous recursion
-         * @return A list of sub-polygons
+         * @param envelopes List of envelopes
+         * @param accBlades returned blades
+         * @return linestring
          */
         @tailrec
-        def recursiveSplit(polygons: Seq[Polygon], accumulator: Seq[Polygon] = Nil): Seq[Polygon] = {
-            val (bigPolygons, smallPolygons) = polygons.partition(p => p.getEnvelopeInternal.getWidth > theta.x || p.getEnvelopeInternal.getHeight > theta.y)
-            val (widePolygons, nonWide) = bigPolygons.partition(p => p.getEnvelopeInternal.getWidth > theta.x)
-            val (tallPolygons, nonTall) = bigPolygons.partition(p => p.getEnvelopeInternal.getHeight > theta.y)
-            if (widePolygons.nonEmpty) {
-                val newPolygons = widePolygons.flatMap{ polygon =>
-                    val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
-                    val verticalBlade = getVerticalBlade(polygon)
-                    val blades = combineBladeWithInteriorRings(polygon, verticalBlade, innerRings, isHorizontal=false)
-                    split(polygon,  blades)
+        def getBlades(envelopes: List[Envelope], accBlades: List[LineString]): List[LineString] = {
+            val (bigEnvelopes, _) = envelopes.partition(env => env.getWidth > theta.x || env.getHeight > theta.y)
+            val (wideEnvs, _) = bigEnvelopes.partition(p => p.getWidth > theta.x)
+            val (tallEnvs, _) = bigEnvelopes.partition(p => p.getHeight > theta.y)
+            if (wideEnvs.nonEmpty) {
+                // find the vertical blades
+                val verticalBlades: List[LineString] = wideEnvs.flatMap{ env =>
+                    val verticalBlade = getVerticalBlade(env)
+                    combineBladeWithInteriorRings(verticalBlade, innerRings, isHorizontal=false)
                 }
-                recursiveSplit(newPolygons ++ nonWide, smallPolygons ++ accumulator )
+                // find the envelopes, left and right from the blades
+                val newEnvelopes = wideEnvs.flatMap{env =>
+                    val meanX = (env.getMaxX + env.getMinX)/2
+                    val leftEnv = new Envelope(env.getMinX, meanX, env.getMinY, env.getMaxY)
+                    val rightEnv= new Envelope(meanX, env.getMaxX, env.getMinY, env.getMaxY)
+                    leftEnv :: rightEnv :: Nil
+                }
+                getBlades(newEnvelopes, verticalBlades ++ accBlades )
             }
-            else if (tallPolygons.nonEmpty) {
-                val newPolygons = tallPolygons.flatMap{ polygon =>
-                    val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
-                    val horizontalBlade = getHorizontalBlade(polygon)
-                    val blades = combineBladeWithInteriorRings(polygon, horizontalBlade, innerRings, isHorizontal=true)
-                    split(polygon,  blades)
+            else if (tallEnvs.nonEmpty) {
+                // find the horizontal blades
+                val horizontalBlades = tallEnvs.flatMap { env =>
+                    val horizontalBlade = getHorizontalBlade(env)
+                    combineBladeWithInteriorRings(horizontalBlade, innerRings, isHorizontal = true)
                 }
-                recursiveSplit(newPolygons ++ nonTall, smallPolygons ++ accumulator)
+                // find the envelopes, top and bottom from the blades
+                val newEnvelopes = wideEnvs.flatMap{env =>
+                    val meanY = (env.getMaxY + env.getMinY)/2
+                    val bottomEnv = new Envelope(env.getMinX, env.getMaxX, env.getMinY, meanY)
+                    val topEnv= new Envelope(env.getMinX, env.getMaxX, meanY, env.getMaxY)
+                    bottomEnv :: topEnv :: Nil
+                }
+                getBlades(newEnvelopes, horizontalBlades ++ accBlades )
             }
             else
-                smallPolygons ++ accumulator
+                accBlades
         }
 
         /**
          * Split a polygon using the input blade
          *
          * @param polygon input polygon
-         * @param blade line segments divide the polygon
+         * @param blades line segments that divide the polygon
          * @return a Seq of sub-polygons
          */
-        def split(polygon: Polygon, blade: Seq[LineString]): Seq[Polygon] ={
+        def split(polygon: Polygon, blades: Seq[LineString]): Seq[Polygon] ={
             val exteriorRing = polygon.getExteriorRing
-            val interiorRings = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
-
-            val polygonizer = new Polygonizer()
-            val innerGeom: Seq[Geometry] = blade ++ interiorRings
+            val innerGeom: Seq[Geometry] = blades ++ innerRings
             val union = new UnaryUnionOp(innerGeom.asJava).union()
-
+            val polygonizer = new Polygonizer()
             polygonizer.add(exteriorRing.union(union))
-
             val newPolygons = polygonizer.getPolygons.asScala.map(p => p.asInstanceOf[Polygon])
             newPolygons.filter(p => polygon.contains(p.getInteriorPoint)).toSeq
         }
-        // apply
-        recursiveSplit(List(polygon))
+
+        val blades = getBlades(polygon.getEnvelopeInternal:: Nil, Nil)
+        if (blades.nonEmpty) split(polygon, blades) else List(polygon)
     }
 
 

@@ -17,5 +17,5 @@ trait DecomposerT[T] {
     def decomposePolygon(polygon: Polygon): Seq[T]
     def decomposeLineString(line: LineString): Seq[T]
     def decomposeGeometry(geometry: Geometry) : Seq[T]
-    def combineBladeWithInteriorRings(polygon: Polygon, blade: LineString, innerRings: Seq[Geometry], isHorizontal: Boolean): Seq[LineString]
+    def combineBladeWithInteriorRings(blade: LineString, innerRings: Seq[Geometry], isHorizontal: Boolean): Seq[LineString]
 }
