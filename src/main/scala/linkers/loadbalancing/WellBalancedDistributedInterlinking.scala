@@ -134,6 +134,8 @@ object WellBalancedDistributedInterlinking {
                         }
                     }
             }
+
+            // TODO Find which geometries fail in touch relation
             .repartition(linkersRDD.getNumPartitions)
         simpleVerificationsRDD.union(overloadedImRDD)
     }
