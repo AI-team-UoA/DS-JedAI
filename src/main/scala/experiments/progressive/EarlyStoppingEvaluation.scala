@@ -32,8 +32,8 @@ object EarlyStoppingEvaluation {
 	val relation: Relation = Relation.DE9IM
 
 	val BATCH_SIZES: Seq[Int] = Seq(500)
-	val PRECISION_LIMITS: Seq[Float] = Seq(0.1f, 0.12f, 0.15f, 0.18f, 0.2f)
-	val VIOLATIONS: Seq[Int] = Seq(2, 3, 4, 5)
+	val PRECISION_LIMITS: Seq[Float] = Seq(0.2f)
+	val VIOLATIONS: Seq[Int] = Seq(3, 4, 5)
 
 	def main(args: Array[String]): Unit = {
 		Logger.getLogger("org").setLevel(Level.ERROR)
