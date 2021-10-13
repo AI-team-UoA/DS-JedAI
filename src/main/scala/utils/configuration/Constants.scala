@@ -1,7 +1,7 @@
 package utils.configuration
 
 /**
- * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ * @author George Mandilaras (NKUA)
  */
 object Constants {
 

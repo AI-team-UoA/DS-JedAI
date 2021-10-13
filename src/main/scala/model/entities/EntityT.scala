@@ -1,6 +1,6 @@
 package model.entities
 
-import model.IM
+import model.{IM, TileGranularities}
 import model.approximations.GeometryApproximationT
 import org.locationtech.jts.geom.{Envelope, Geometry}
 import utils.configuration.Constants.Relation.Relation
@@ -8,7 +8,7 @@ import utils.configuration.Constants.Relation.Relation
 import scala.language.implicitConversions
 
 /**
- * @author George Mandilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ * @author George Mandilaras (NKUA)
  */
 
 trait EntityT extends Serializable {
@@ -16,6 +16,7 @@ trait EntityT extends Serializable {
     val originalID: String
     val geometry: Geometry
     val approximation: GeometryApproximationT
+    val tileGranularities: TileGranularities
 
     def getEnvelopeInternal(): Envelope = approximation.getEnvelopeInternal()
 

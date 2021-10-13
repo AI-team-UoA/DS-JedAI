@@ -21,7 +21,7 @@ import utils.readers.{GridPartitioner, Reader}
 import java.util.Calendar
 
 /**
- * @author George MAndilaras < gmandi@di.uoa.gr > (National and Kapodistrian University of Athens)
+ * @author George Mandilaras (NKUA)
  */
 object ProgressiveExp {
 
