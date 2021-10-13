@@ -23,12 +23,13 @@ object GeometryToEntity {
     /**
      * Return a function that maps a geometry to the requested type of entity
      * @param entityType requested type of entity
+     * @param theta tile granularities
      * @param decompositionThetaOpt decomposition threshold in order it is a decomposed entity
      * @param datePattern date pattern in case is a temporal entity
      * @param approxTransformationOpt transformation function for transforming a Geometry to a Geometry Approximation
      * @return a function that maps a geometry to the requested type of entity
      */
-    def getTransformer(entityType: EntityTypeENUM, decompositionThetaOpt: Option[TileGranularities],
+    def getTransformer(entityType: EntityTypeENUM, theta: TileGranularities, decompositionThetaOpt: Option[TileGranularities],
                        datePattern: Option[String] = None, approxTransformationOpt: Option[Geometry => GeometryApproximationT]=None)
     : Geometry => EntityT ={
 
@@ -37,17 +38,17 @@ object GeometryToEntity {
             case EntityTypeENUM.SPATIAL_ENTITY =>
                 approxTransformationOpt match {
                     case Some(approxTransformation) =>
-                        geometry: Geometry => SpatialEntity(geometry.getUserData.asInstanceOf[String], geometry, approxTransformation)
+                        geometry: Geometry => SpatialEntity(geometry.getUserData.asInstanceOf[String], geometry, theta, approxTransformation)
                     case None =>
-                        geometry: Geometry => SpatialEntity(geometry.getUserData.asInstanceOf[String], geometry)
+                        geometry: Geometry => SpatialEntity(geometry.getUserData.asInstanceOf[String], geometry, theta)
                 }
 
             case EntityTypeENUM.PREPARED_ENTITY =>
                 approxTransformationOpt match {
                     case Some(approxTransformation) =>
-                        geometry: Geometry => PreparedEntity(geometry.getUserData.asInstanceOf[String], geometry, approxTransformation)
+                        geometry: Geometry => PreparedEntity(geometry.getUserData.asInstanceOf[String], geometry, theta, approxTransformation)
                     case None =>
-                        geometry: Geometry => PreparedEntity(geometry.getUserData.asInstanceOf[String], geometry)
+                        geometry: Geometry => PreparedEntity(geometry.getUserData.asInstanceOf[String], geometry, theta)
                 }
 
             case EntityTypeENUM.SPATIOTEMPORAL_ENTITY =>
@@ -64,9 +65,9 @@ object GeometryToEntity {
 
                     approxTransformationOpt match {
                         case Some(approxTransformation) =>
-                                SpatioTemporalEntity(realID, geometry, dateInDefaultPattern, approxTransformation)
+                            SpatioTemporalEntity(realID, geometry, theta, dateInDefaultPattern, approxTransformation)
                         case None =>
-                            SpatioTemporalEntity(realID, geometry, dateInDefaultPattern)
+                            SpatioTemporalEntity(realID, geometry, theta, dateInDefaultPattern)
                     }
                 }
 
@@ -78,7 +79,7 @@ object GeometryToEntity {
             case EntityTypeENUM.DECOMPOSED_ENTITY =>
                 val decomposer: DecomposerT[Geometry] = RecursiveDecomposer(decompositionThetaOpt.get)
                 val segmentationF: Geometry => Seq[Geometry] = decomposer.decomposeGeometry
-                geometry: Geometry =>  DecomposedEntity(geometry.getUserData.asInstanceOf[String], geometry, segmentationF)
+                geometry: Geometry =>  DecomposedEntity(geometry.getUserData.asInstanceOf[String], geometry, theta, segmentationF)
 
         }
     }

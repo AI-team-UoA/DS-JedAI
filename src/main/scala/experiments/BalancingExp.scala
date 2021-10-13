@@ -76,8 +76,8 @@ object BalancingExp {
         val approximationTypeOpt: Option[GeometryApproximationENUM] = conf.getApproximationType
         val approximationTransformerOpt: Option[Geometry => GeometryApproximationT] = GeometryToApproximation.getTransformer(approximationTypeOpt, decompositionTheta.getOrElse(theta))
         // set Entity type
-        val sourceTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(entityTypeType, decompositionTheta, conf.source.datePattern, approximationTransformerOpt)
-        val targetTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(entityTypeType, decompositionTheta, conf.target.datePattern, approximationTransformerOpt)
+        val sourceTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(entityTypeType, theta, decompositionTheta, conf.source.datePattern, approximationTransformerOpt)
+        val targetTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(entityTypeType, theta, decompositionTheta, conf.target.datePattern, approximationTransformerOpt)
 
         val sourceRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(sourceSpatialRDD, sourceTransformer)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
@@ -89,7 +89,7 @@ object BalancingExp {
 
         if (!measureTime){
             val linkers = DistributedInterlinking.initializeLinkers(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
-            val verificationsRDD = WellBalancedDistributedInterlinking.batchedSegmentedVerificationRedistribution(linkers)
+            val verificationsRDD = WellBalancedDistributedInterlinking.batchedSegmentedVerificationRedistribution(linkers, theta)
             val imRDD = WellBalancedDistributedInterlinking.executeVerifications(verificationsRDD)
 
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,
@@ -117,7 +117,7 @@ object BalancingExp {
         else {
             //DistributedInterlinking.executionStats(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
             val linkers = DistributedInterlinking.initializeLinkers(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
-            WellBalancedDistributedInterlinking.timeBatchedSegmentedVerificationRedistribution(linkers)
+            WellBalancedDistributedInterlinking.timeBatchedSegmentedVerificationRedistribution(linkers, theta)
         }
 
         // TODO Remove

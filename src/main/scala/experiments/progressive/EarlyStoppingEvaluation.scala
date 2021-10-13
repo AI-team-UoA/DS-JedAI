@@ -4,6 +4,7 @@ import experiments.progressive.EarlyStoppingEvaluation.evaluate
 import linkers.DistributedInterlinking
 import linkers.progressive.DistributedProgressiveInterlinking
 import model.TileGranularities
+import model.approximations.{GeometryApproximationT, GeometryToApproximation}
 import model.entities.{EntityT, GeometryToEntity}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
@@ -68,7 +69,9 @@ object EarlyStoppingEvaluation {
 		val approximateSourceCount = partitioner.approximateCount
 		val theta = TileGranularities(sourceSpatialRDD.rawSpatialRDD.rdd.map(_.getEnvelopeInternal), approximateSourceCount, conf.getTheta)
 		// spatial partition
-		val geometry2entity: Geometry => EntityT = GeometryToEntity.getTransformer(EntityTypeENUM.SPATIAL_ENTITY, None, None)
+		// TODO decomposition threshold is set to default
+		val approximationTransformerOpt: Option[Geometry => GeometryApproximationT] = GeometryToApproximation.getTransformer(Some(GeometryApproximationENUM.FINEGRAINED_ENVELOPES), theta*8)
+		val geometry2entity: Geometry => EntityT = GeometryToEntity.getTransformer(EntityTypeENUM.SPATIAL_ENTITY, theta, None, None)
 		val sourceRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(sourceSpatialRDD, geometry2entity)
 		val targetRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(targetSpatialRDD, geometry2entity)
 		sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)

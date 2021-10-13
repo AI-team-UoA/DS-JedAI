@@ -75,8 +75,8 @@ object SpatialJoinExp {
         val approximationTypeOpt: Option[GeometryApproximationENUM] = conf.getApproximationType
         val approximationTransformerOpt: Option[Geometry => GeometryApproximationT] = GeometryToApproximation.getTransformer(approximationTypeOpt, decompositionTheta.getOrElse(theta))
         // set Entity type
-        val sourceTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(EntityTypeENUM.PREPARED_ENTITY, decompositionTheta, conf.source.datePattern, approximationTransformerOpt)
-        val targetTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(entityTypeType, decompositionTheta, conf.target.datePattern, approximationTransformerOpt)
+        val sourceTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(EntityTypeENUM.PREPARED_ENTITY, theta, decompositionTheta, conf.source.datePattern, approximationTransformerOpt)
+        val targetTransformer: Geometry => EntityT = GeometryToEntity.getTransformer(entityTypeType, theta, decompositionTheta, conf.target.datePattern, approximationTransformerOpt)
 
         val sourceRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(sourceSpatialRDD, sourceTransformer)
         sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)

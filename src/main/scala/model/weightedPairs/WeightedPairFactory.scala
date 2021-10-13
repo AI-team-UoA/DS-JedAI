@@ -3,10 +3,8 @@ package model.weightedPairs
 import model.TileGranularities
 import model.entities.EntityT
 import org.apache.commons.math3.stat.inference.ChiSquareTest
-import utils.configuration.Constants.WeightingFunction.{MBRO, WeightingFunction}
-import utils.configuration.Constants.{COMPOSITE, HYBRID, SIMPLE, THIN_MULTI_COMPOSITE, WeightingFunction, WeightingScheme}
-
-import scala.math.{ceil, floor, max, min}
+import utils.configuration.Constants.WeightingFunction.WeightingFunction
+import utils.configuration.Constants._
 
 
 case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction],
@@ -70,12 +68,12 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
         }
     }
 
-    def getNumOfBlocks(e: EntityT): Int =
-        (ceil(e.getMaxX/tileGranularities.x).toInt - floor(e.getMinX/tileGranularities.x).toInt + 1) * (ceil(e.getMaxY/tileGranularities.y).toInt - floor(e.getMinY/tileGranularities.y).toInt + 1)
+    def getNumOfBlocks(e: EntityT): Int = e.overlappingTiles.size
+       // (ceil(e.getMaxX/tileGranularities.x).toInt - floor(e.getMinX/tileGranularities.x).toInt + 1) * (ceil(e.getMaxY/tileGranularities.y).toInt - floor(e.getMinY/tileGranularities.y).toInt + 1)
 
-    def getCommonBlocks(s: EntityT, t: EntityT): Int =
-        (min(ceil(s.getMaxX/tileGranularities.x), ceil(t.getMaxX/tileGranularities.x)).toInt - max(floor(s.getMinX/tileGranularities.x),floor(t.getMinX/tileGranularities.x)).toInt + 1) *
-            (min(ceil(s.getMaxY/tileGranularities.y), ceil(t.getMaxY/tileGranularities.y)).toInt - max(floor(s.getMinY/tileGranularities.y), floor(t.getMinY/tileGranularities.y)).toInt + 1)
+    def getCommonBlocks(s: EntityT, t: EntityT): Int = s.overlappingTiles.intersect(t.overlappingTiles).size
+//        (min(ceil(s.getMaxX/tileGranularities.x), ceil(t.getMaxX/tileGranularities.x)).toInt - max(floor(s.getMinX/tileGranularities.x),floor(t.getMinX/tileGranularities.x)).toInt + 1) *
+//            (min(ceil(s.getMaxY/tileGranularities.y), ceil(t.getMaxY/tileGranularities.y)).toInt - max(floor(s.getMinY/tileGranularities.y), floor(t.getMinY/tileGranularities.y)).toInt + 1)
 
     def coOccurenceFrequency(s: EntityT, t: EntityT): Float = getCommonBlocks(s, t).toFloat
 

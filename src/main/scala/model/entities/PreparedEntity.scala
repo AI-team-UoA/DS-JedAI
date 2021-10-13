@@ -1,11 +1,12 @@
 package model.entities
+import model.TileGranularities
 import model.approximations.{GeometryApproximationT, MBR}
 import org.locationtech.jts.geom.Geometry
 import org.locationtech.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
 import utils.configuration.Constants.Relation
 import utils.configuration.Constants.Relation.Relation
 
-case class PreparedEntity(originalID: String, geometry: Geometry, approximation: GeometryApproximationT) extends EntityT {
+case class PreparedEntity(originalID: String, geometry: Geometry, theta: TileGranularities, approximation: GeometryApproximationT) extends EntityT {
     val preparedGeometry: PreparedGeometry = PreparedGeometryFactory.prepare(geometry)
 
     /**
@@ -35,11 +36,11 @@ case class PreparedEntity(originalID: String, geometry: Geometry, approximation:
 
 object PreparedEntity {
 
-    def apply(originalID: String, geometry: Geometry): PreparedEntity = {
-        PreparedEntity(originalID, geometry, MBR(geometry.getEnvelopeInternal))
+    def apply(originalID: String, geometry: Geometry, theta: TileGranularities): PreparedEntity = {
+        PreparedEntity(originalID, geometry, theta, MBR(geometry.getEnvelopeInternal))
     }
 
-    def apply(originalID: String, geometry: Geometry, approximationTransformer: Geometry => GeometryApproximationT): PreparedEntity = {
-        PreparedEntity(originalID, geometry, approximationTransformer(geometry))
+    def apply(originalID: String, geometry: Geometry, theta: TileGranularities, approximationTransformer: Geometry => GeometryApproximationT): PreparedEntity = {
+        PreparedEntity(originalID, geometry, theta, approximationTransformer(geometry))
     }
 }

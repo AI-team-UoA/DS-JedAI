@@ -1,6 +1,6 @@
 package model.entities.segmented
 
-import model.IM
+import model.{IM, TileGranularities}
 import model.approximations.FineGrainedEnvelopes
 import model.entities.EntityT
 import org.locationtech.jts.geom.Geometry
@@ -8,15 +8,15 @@ import org.locationtech.jts.operation.union.UnaryUnionOp
 
 import scala.collection.JavaConverters._
 
-case class DecomposedEntity(originalID: String, geometry: Geometry, approximation: FineGrainedEnvelopes,
+case class DecomposedEntity(originalID: String, geometry: Geometry, theta: TileGranularities, approximation: FineGrainedEnvelopes,
                             segments: IndexedSeq[Geometry]) extends SegmentedEntityT[Geometry] {
 
     def findIntersectingSegments(e: EntityT): Seq[(Geometry, Geometry)] ={
         e match {
-            case DecomposedEntity(_,_,tApproximation,tSegments) =>
+            case DecomposedEntity(_,_,_, tApproximation,tSegments) =>
                 approximation.findIntersectingEnvelopesIndices(tApproximation)
                     .map{case (i, j) => (segments(i), tSegments(j)) }
-            case IndexedDecomposedEntity(_,_,tApproximation,tSegments, _) =>
+            case IndexedDecomposedEntity(_,_,_,tApproximation,tSegments, _) =>
                 approximation.findIntersectingEnvelopesIndices(tApproximation)
                     .map{case (i, j) => (segments(i), tSegments(j)) }
             case _ =>
@@ -52,15 +52,15 @@ case class DecomposedEntity(originalID: String, geometry: Geometry, approximatio
 
 object DecomposedEntity {
 
-    def apply(e: EntityT, decompose: Geometry => Seq[Geometry]): DecomposedEntity ={
+    def apply(e: EntityT, theta: TileGranularities, decompose: Geometry => Seq[Geometry]): DecomposedEntity ={
         val segments = decompose(e.geometry)
         val approximation = FineGrainedEnvelopes(e.geometry, segments)
-        DecomposedEntity(e.originalID, e.geometry, approximation, segments.toIndexedSeq)
+        DecomposedEntity(e.originalID, e.geometry, theta, approximation, segments.toIndexedSeq)
     }
 
-    def apply(originalID: String, geom: Geometry, decompose: Geometry => Seq[Geometry]): DecomposedEntity ={
+    def apply(originalID: String, geom: Geometry, theta: TileGranularities, decompose: Geometry => Seq[Geometry]): DecomposedEntity ={
         val segments = decompose(geom)
         val approximation = FineGrainedEnvelopes(geom, segments)
-        DecomposedEntity(originalID, geom, approximation, segments.toIndexedSeq)
+        DecomposedEntity(originalID, geom, theta, approximation, segments.toIndexedSeq)
     }
 }

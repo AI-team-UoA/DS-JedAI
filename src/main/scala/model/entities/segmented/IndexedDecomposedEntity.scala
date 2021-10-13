@@ -5,14 +5,13 @@ import model.entities.EntityT
 import model.structures.SpatialIndex
 import model.{IM, TileGranularities, structures}
 import org.locationtech.jts.geom.{Geometry, IntersectionMatrix}
-import utils.configuration.Constants.Relation
 import utils.geometryUtils.EnvelopeOp
 import utils.geometryUtils.EnvelopeOp.EnvelopeIntersectionTypes
 import utils.geometryUtils.EnvelopeOp.EnvelopeIntersectionTypes.EnvelopeIntersectionTypes
 
 import scala.annotation.tailrec
 
-case class IndexedDecomposedEntity(originalID: String, geometry: Geometry, approximation: FineGrainedEnvelopes,
+case class IndexedDecomposedEntity(originalID: String, geometry: Geometry, theta: TileGranularities, approximation: FineGrainedEnvelopes,
                                    segments: IndexedSeq[Geometry], index: SpatialIndex[Geometry]) extends SegmentedEntityT[Geometry] {
 
     def getTileIndices: Set[(Int, Int)] = index.indices
@@ -24,7 +23,7 @@ case class IndexedDecomposedEntity(originalID: String, geometry: Geometry, appro
 
     override def approximateIntersection(e: EntityT): Boolean = {
          e match {
-            case IndexedDecomposedEntity(_, _, _, _, targetIndex) =>
+            case IndexedDecomposedEntity(_, _, _, _, _, targetIndex) =>
                 val envelopeIntersection: Boolean = approximation.getEnvelopeInternal().intersects(e.getEnvelopeInternal())
                 envelopeIntersection && index.indices.intersect(targetIndex.indices).nonEmpty
             case _ =>
@@ -116,13 +115,13 @@ object IndexedDecomposedEntity{
         val segments = decompose(e.geometry).toArray
         val index = structures.SpatialIndex(segments, theta)
         val approximation = FineGrainedEnvelopes(e.geometry, segments)
-        IndexedDecomposedEntity(e.originalID, e.geometry, approximation, segments, index)
+        IndexedDecomposedEntity(e.originalID, e.geometry, theta, approximation, segments, index)
     }
 
     def apply(id: String, geometry: Geometry, theta: TileGranularities, decompose: Geometry => Seq[Geometry]): IndexedDecomposedEntity = {
         val segments = decompose(geometry).toArray
         val index = structures.SpatialIndex(segments, theta)
         val approximation = FineGrainedEnvelopes(geometry, segments)
-        IndexedDecomposedEntity(id, geometry, approximation, segments, index)
+        IndexedDecomposedEntity(id, geometry, theta, approximation, segments, index)
     }
 }

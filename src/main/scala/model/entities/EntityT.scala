@@ -16,7 +16,7 @@ trait EntityT extends Serializable {
     val originalID: String
     val geometry: Geometry
     val approximation: GeometryApproximationT
-    val tileGranularities: TileGranularities
+    val theta: TileGranularities
 
     def getEnvelopeInternal(): Envelope = approximation.getEnvelopeInternal()
 
@@ -24,6 +24,8 @@ trait EntityT extends Serializable {
     def getMaxX: Double = approximation.getMaxX
     def getMinY: Double = approximation.getMinY
     def getMaxY: Double = approximation.getMaxY
+
+    lazy val overlappingTiles: Set[(Int, Int)] = approximation.getOverlappingTiles(theta).toSet
 
 
     /**

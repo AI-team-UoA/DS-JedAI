@@ -3,7 +3,7 @@ package linkers
 import linkers.DistributedInterlinking.log
 import model.entities.segmented.DecomposedEntity
 import model.entities.{EntityT, SpatialEntity}
-import model.IM
+import model.{IM, TileGranularities}
 import model.structures.IndicesPrefixTrie
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
@@ -86,7 +86,7 @@ object WellBalancedDistributedInterlinking {
     }
 
 
-    def segmentsVerificationRedistribution(linkersRDD: RDD[LinkerT]): RDD[List[EntityT]] ={
+    def segmentsVerificationRedistribution(linkersRDD: RDD[LinkerT], theta: TileGranularities): RDD[List[EntityT]] ={
 
         val (simpleVerificationsRDD, expensiveVerificationsRDD) = partitionVerifications(linkersRDD)
 
@@ -105,7 +105,7 @@ object WellBalancedDistributedInterlinking {
                 flattenNodes.map{ case (targetSegmentIndices, sourceEntities) =>
                     val targetSegments = targetSegmentIndices.map(i => t.segments(i)).asJava
                     val partialTarget = new UnaryUnionOp(targetSegments).union()
-                    SpatialEntity(t.originalID, partialTarget, t.approximation) :: sourceEntities
+                    SpatialEntity(t.originalID, partialTarget, theta, t.approximation) :: sourceEntities
                 }
             }
             .repartition(linkersRDD.getNumPartitions)
@@ -114,7 +114,7 @@ object WellBalancedDistributedInterlinking {
     }
 
 
-    def batchedSegmentedVerificationRedistribution(linkersRDD: RDD[LinkerT]): RDD[List[EntityT]] ={
+    def batchedSegmentedVerificationRedistribution(linkersRDD: RDD[LinkerT], theta:TileGranularities): RDD[List[EntityT]] ={
 
         val (simpleVerificationsRDD, expensiveVerificationsRDD) = partitionVerifications(linkersRDD)
 
@@ -134,7 +134,7 @@ object WellBalancedDistributedInterlinking {
                 flattenNodes.map{ case (targetSegmentIndices, sourceEntities) =>
                     val targetSegments = targetSegmentIndices.map(i => t.segments(i)).asJava
                     val partialTarget = new UnaryUnionOp(targetSegments).union()
-                    SpatialEntity(t.originalID, partialTarget, t.approximation) :: sourceEntities
+                    SpatialEntity(t.originalID, partialTarget, theta, t.approximation) :: sourceEntities
                 }
             }
             .repartition(linkersRDD.getNumPartitions)
@@ -191,11 +191,10 @@ object WellBalancedDistributedInterlinking {
         log.info()
         log.info("Verification Cost")
         logTime(simpleTimeRDD.union(expensiveTimeRDD))
-
     }
 
 
-    def timeSegmentsVerificationRedistribution(linkersRDD: RDD[LinkerT]): Unit ={
+    def timeSegmentsVerificationRedistribution(linkersRDD: RDD[LinkerT], theta:TileGranularities): Unit ={
 
         val (simpleVerificationsRDD, expensiveVerificationsRDD) = partitionVerifications(linkersRDD)
 
@@ -228,7 +227,7 @@ object WellBalancedDistributedInterlinking {
                 flattenNodes.map{ case (targetSegmentIndices, sourceEntities) =>
                     val targetSegments = targetSegmentIndices.map(i => t.segments(i)).asJava
                     val partialTarget = new UnaryUnionOp(targetSegments).union()
-                    SpatialEntity(t.originalID, partialTarget, t.approximation) :: sourceEntities
+                    SpatialEntity(t.originalID, partialTarget, theta, t.approximation) :: sourceEntities
                 }
             }
             .repartition(linkersRDD.getNumPartitions)
@@ -250,7 +249,7 @@ object WellBalancedDistributedInterlinking {
     }
 
 
-    def timeBatchedSegmentedVerificationRedistribution(linkersRDD: RDD[LinkerT]): Unit ={
+    def timeBatchedSegmentedVerificationRedistribution(linkersRDD: RDD[LinkerT], theta:TileGranularities): Unit ={
 
         val (simpleVerificationsRDD, expensiveVerificationsRDD) = partitionVerifications(linkersRDD)
 
@@ -284,7 +283,7 @@ object WellBalancedDistributedInterlinking {
                 flattenNodes.map{ case (targetSegmentIndices, sourceEntities) =>
                     val targetSegments = targetSegmentIndices.map(i => t.segments(i)).asJava
                     val partialTarget = new UnaryUnionOp(targetSegments).union()
-                    SpatialEntity(t.originalID, partialTarget, t.approximation) :: sourceEntities
+                    SpatialEntity(t.originalID, partialTarget, theta, t.approximation) :: sourceEntities
                 }
             }
             .repartition(linkersRDD.getNumPartitions)

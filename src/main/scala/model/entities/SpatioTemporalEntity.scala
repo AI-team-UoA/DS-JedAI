@@ -1,12 +1,13 @@
 package model.entities
 
+import model.TileGranularities
 import model.approximations.{GeometryApproximationT, MBR}
 import org.joda.time.format.DateTimeFormat
 import org.joda.time.{DateTime, Days}
 import org.locationtech.jts.geom.Geometry
 import utils.configuration.Constants
 
-case class SpatioTemporalEntity(originalID: String, geometry: Geometry, dateStr: String, approximation: GeometryApproximationT)  extends EntityT {
+case class SpatioTemporalEntity(originalID: String, geometry: Geometry, theta: TileGranularities, dateStr: String, approximation: GeometryApproximationT)  extends EntityT {
 
     lazy val dateTime: DateTime = {
         val formatter = DateTimeFormat.forPattern(Constants.defaultDatePattern)
@@ -31,10 +32,10 @@ case class SpatioTemporalEntity(originalID: String, geometry: Geometry, dateStr:
 
 object SpatioTemporalEntity{
 
-    def apply(originalID: String, geometry: Geometry, dateStr: String): SpatioTemporalEntity =
-        SpatioTemporalEntity(originalID, geometry, dateStr, MBR(geometry.getEnvelopeInternal))
+    def apply(originalID: String, geometry: Geometry, theta: TileGranularities, dateStr: String): SpatioTemporalEntity =
+        SpatioTemporalEntity(originalID, geometry, theta, dateStr, MBR(geometry.getEnvelopeInternal))
 
-    def apply(originalID: String, geometry: Geometry, dateStr: String, approximationTransformer: Geometry => GeometryApproximationT): SpatioTemporalEntity = {
-        SpatioTemporalEntity(originalID, geometry, dateStr, approximationTransformer(geometry))
+    def apply(originalID: String, geometry: Geometry, theta: TileGranularities, dateStr: String, approximationTransformer: Geometry => GeometryApproximationT): SpatioTemporalEntity = {
+        SpatioTemporalEntity(originalID, geometry, theta, dateStr, approximationTransformer(geometry))
     }
 }
