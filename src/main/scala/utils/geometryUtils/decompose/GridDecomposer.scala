@@ -47,9 +47,9 @@ case class GridDecomposer(theta: TileGranularities) extends GridDecomposerT[Geom
                 val innerRings: Seq[Geometry] = (0 until polygon.getNumInteriorRing).map(i => polygon.getInteriorRingN(i))
                 // find blades based on which to split
                 val horizontalBlades = getHorizontalBlades(polygon.getEnvelopeInternal, theta.y)
-                    .flatMap(b => combineBladeWithInteriorRings(polygon, b, innerRings, isHorizontal = true))
+                    .flatMap(b => combineBladeWithInteriorRings(b, innerRings, isHorizontal = true))
                 val verticalBlades = getVerticalBlades(polygon.getEnvelopeInternal, theta.x)
-                    .flatMap(b => combineBladeWithInteriorRings(polygon, b, innerRings, isHorizontal = false))
+                    .flatMap(b => combineBladeWithInteriorRings(b, innerRings, isHorizontal = false))
 
                 val blades: Seq[Geometry] = verticalBlades ++ horizontalBlades ++ innerRings
                 if (blades.nonEmpty) new UnaryUnionOp(blades.asJava).union() else geometryFactory.createEmpty(2)

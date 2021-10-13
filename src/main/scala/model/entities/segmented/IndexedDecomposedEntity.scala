@@ -107,6 +107,8 @@ case class IndexedDecomposedEntity(originalID: String, geometry: Geometry, theta
              case e: EntityT => super.getIntersectionMatrix(e)
          }
      }
+    override def toString: String = s"IndexedDecomposedEntity($originalID, ${geometry.toString}, ${approximation.toString})"
+
 }
 
 

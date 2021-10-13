@@ -48,6 +48,10 @@ case class DecomposedEntity(originalID: String, geometry: Geometry, theta: TileG
             } else geometry.relate(e.geometry)
         IM(this, e, im)
     }
+
+
+    override def toString: String = s"DecomposedEntity($originalID, ${geometry.toString}, ${approximation.toString})"
+
 }
 
 object DecomposedEntity {

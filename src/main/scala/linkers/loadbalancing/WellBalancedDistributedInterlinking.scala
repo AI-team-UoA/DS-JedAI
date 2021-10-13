@@ -1,6 +1,8 @@
-package linkers
+package linkers.loadbalancing
 
 import linkers.DistributedInterlinking.log
+import linkers.LinkerT
+import model.IM
 import model.entities.segmented.DecomposedEntity
 import model.entities.{EntityT, SpatialEntity}
 import model.{IM, TileGranularities}
@@ -9,11 +11,16 @@ import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 import org.locationtech.jts.operation.union.UnaryUnionOp
+import utils.configuration.Constants.Relation
 
 import java.util.Calendar
 import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 object WellBalancedDistributedInterlinking {
+    val MAX_SIZE = 256
+
 
     /**
      *  Partition verifications into two groups, skew and cheap
@@ -26,7 +33,7 @@ object WellBalancedDistributedInterlinking {
      */
     def partitionVerifications(linkersRDD: RDD[LinkerT], threshold: Double=3d): (RDD[List[EntityT]], RDD[List[EntityT]]) ={
 
-        // verifications accompanied of targets id
+        // verifications accompanied by targets id
         val verificationsRDD: RDD[(List[EntityT], String)] = linkersRDD.flatMap { linker =>
             val verifications = linker.getVerifications
             verifications.map(entities => (entities, entities.head.originalID))
@@ -87,34 +94,7 @@ object WellBalancedDistributedInterlinking {
 
 
     def segmentsVerificationRedistribution(linkersRDD: RDD[LinkerT], theta: TileGranularities): RDD[List[EntityT]] ={
-
-        val (simpleVerificationsRDD, expensiveVerificationsRDD) = partitionVerifications(linkersRDD)
-
-        val overloadedImRDD = expensiveVerificationsRDD
-            .flatMap { entities =>
-                val t = entities.head.asInstanceOf[DecomposedEntity]
-                val sourceEntities = entities.tail
-
-                // build trie to find which segments need to be verified with the same source geometries
-                val trie = IndicesPrefixTrie(t, sourceEntities)
-
-                // extract from trie the verifications
-                // create new entity using the segment as its geometry but maintaining its initial envelope
-                // if a source entity needs to be verified with multiple segments, we unite them into a single geometry
-                val flattenNodes = trie.getFlattenNodes
-                flattenNodes.map{ case (targetSegmentIndices, sourceEntities) =>
-                    val targetSegments = targetSegmentIndices.map(i => t.segments(i)).asJava
-                    val partialTarget = new UnaryUnionOp(targetSegments).union()
-                    SpatialEntity(t.originalID, partialTarget, theta, t.approximation) :: sourceEntities
-                }
-            }
-            .repartition(linkersRDD.getNumPartitions)
-
-        simpleVerificationsRDD.union(overloadedImRDD)
-    }
-
-
-    def batchedSegmentedVerificationRedistribution(linkersRDD: RDD[LinkerT], theta:TileGranularities): RDD[List[EntityT]] ={
+    def batchedSegmentedVerificationRedistribution(linkersRDD: RDD[LinkerT]): RDD[List[EntityT]] ={
 
         val (simpleVerificationsRDD, expensiveVerificationsRDD) = partitionVerifications(linkersRDD)
 
@@ -137,6 +117,53 @@ object WellBalancedDistributedInterlinking {
                     SpatialEntity(t.originalID, partialTarget, theta, t.approximation) :: sourceEntities
                 }
             }
+            .repartition(linkersRDD.getNumPartitions)
+        simpleVerificationsRDD.union(overloadedImRDD)
+    }
+
+
+
+    def segmentedRedistribution(linkersRDD: RDD[LinkerT], theta: TileGranularities): RDD[List[EntityT]] ={
+
+        val (simpleVerificationsRDD, expensiveVerificationsRDD) = partitionVerifications(linkersRDD)
+
+        val overloadedImRDD = expensiveVerificationsRDD
+            .flatMap { entities =>
+                val t = entities.head.asInstanceOf[DecomposedEntity]
+                val sourceEntities = entities.tail
+
+                val intersectingTargetSegments: Seq[(EntityT, Seq[Int])] = sourceEntities.map(se => (se, t.findIntersectingSegmentsIndices(se).map(_._1)))
+
+                val segmentsIndex: mutable.Map[Set[Int], List[ListBuffer[EntityT]]] = intersectingTargetSegments
+                    .map{ case (se, segmentIndex) => (segmentIndex.toSet, se)}
+                    .foldLeft(mutable.HashMap.empty[Set[Int], List[ListBuffer[EntityT]]].withDefaultValue(Nil)){ case (accMap, t @ (segmentIndices, entity)) =>
+                        accMap.get(segmentIndices) match {
+                            case Some(batches) =>
+                                val lastBatch: ListBuffer[EntityT] = batches.last
+                                if (lastBatch.length < MAX_SIZE) {
+                                    lastBatch.append(entity)
+                                }
+                                else {
+                                    val newBatch = ListBuffer(entity)
+                                    accMap.update(segmentIndices, newBatch :: batches)
+                                }
+                            case None =>
+                                accMap.update(segmentIndices, ListBuffer(entity) :: Nil)
+                        }
+                        accMap
+                    }
+
+                segmentsIndex.flatMap{
+                    case (segmentIndices, entitiesBatches) =>
+                        entitiesBatches.map { batch =>
+                            val targetSegments = segmentIndices.map(i => t.segments(i)).asJava
+                            val partialTarget = new UnaryUnionOp(targetSegments).union()
+                            SpatialEntity(t.originalID, partialTarget, theta, t.approximation) :: batch.toList
+                        }
+                    }
+            }
+
+            // TODO Find which geometries fail in touch relation
             .repartition(linkersRDD.getNumPartitions)
         simpleVerificationsRDD.union(overloadedImRDD)
     }
@@ -191,6 +218,7 @@ object WellBalancedDistributedInterlinking {
         log.info()
         log.info("Verification Cost")
         logTime(simpleTimeRDD.union(expensiveTimeRDD))
+
     }
 
 

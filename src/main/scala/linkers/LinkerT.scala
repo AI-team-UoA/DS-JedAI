@@ -49,8 +49,10 @@ trait LinkerT {
      * @param partition the partition the comparisons belong to
      * @return true if comparison is necessary
      */
-    def filterVerifications(s: EntityT, t: EntityT, block: (Int, Int), partition: Envelope): Boolean =
-        s.approximateIntersection(t) && referencePointFiltering(s, t, block, partition)
+    def filterVerifications(s: EntityT, t: EntityT, block: (Int, Int), partition: Envelope): Boolean = {
+        // in RF technique target is given first as it might have a more fine-grained approximation
+        s.approximateIntersection(t) && referencePointFiltering(t, s, block, partition)
+    }
 
     /**
      * get all the non-redundant verifications
