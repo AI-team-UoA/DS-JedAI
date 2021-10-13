@@ -90,7 +90,7 @@ object BalancedExp {
 
         if (!measureTime){
             val linkers = DistributedInterlinking.initializeLinkers(sourceRDD, targetRDD, partitionBorders, theta, partitioner)
-            val verificationsRDD = WellBalancedDistributedInterlinking.batchedSegmentedVerificationRedistribution(linkers, theta)
+            val verificationsRDD = WellBalancedDistributedInterlinking.segmentedRedistribution(linkers, theta)
             val imRDD = WellBalancedDistributedInterlinking.executeVerifications(verificationsRDD)
 
             val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,

@@ -94,8 +94,6 @@ object WellBalancedDistributedInterlinking {
 
 
     def segmentsVerificationRedistribution(linkersRDD: RDD[LinkerT], theta: TileGranularities): RDD[List[EntityT]] ={
-    def batchedSegmentedVerificationRedistribution(linkersRDD: RDD[LinkerT]): RDD[List[EntityT]] ={
-
         val (simpleVerificationsRDD, expensiveVerificationsRDD) = partitionVerifications(linkersRDD)
 
         val overloadedImRDD = expensiveVerificationsRDD
