@@ -2,6 +2,7 @@ package experiments.progressive
 
 import linkers.progressive.DistributedProgressiveInterlinking
 import model.TileGranularities
+import model.approximations.{GeometryApproximationT, GeometryToApproximation}
 import model.entities.{EntityT, GeometryToEntity}
 import org.apache.log4j.{Level, LogManager, Logger}
 import org.apache.sedona.core.serde.SedonaKryoRegistrator
@@ -12,6 +13,8 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Geometry
+import utils.configuration.Constants.EntityTypeENUM.EntityTypeENUM
+import utils.configuration.Constants.GeometryApproximationENUM.GeometryApproximationENUM
 import utils.configuration.Constants.ProgressiveAlgorithm.ProgressiveAlgorithm
 import utils.configuration.Constants.WeightingFunction.WeightingFunction
 import utils.configuration.Constants._
@@ -53,6 +56,11 @@ object ProgressiveExp {
 		val gridType: GridType.GridType = conf.getGridType
 		val budget: Int = conf.getBudget
 		val progressiveAlg: ProgressiveAlgorithm = conf.getProgressiveAlgorithm
+		val entityTypeType: EntityTypeENUM = conf.getEntityType
+		val approximationTypeOpt: Option[GeometryApproximationENUM] = conf.getApproximationType
+		val decompositionT: Option[Double] = conf.getDecompositionThreshold
+		log.info(s"Entity Type: $entityTypeType")
+		if(decompositionT.isDefined) log.info(s"Decomposition Threshold: ${decompositionT.get} ")
 
 		val weightingScheme: Constants.WeightingScheme =
 			if (progressiveAlg == ProgressiveAlgorithm.EARLY_STOPPING) Constants.THIN_MULTI_COMPOSITE
@@ -94,7 +102,9 @@ object ProgressiveExp {
 		val theta = TileGranularities(sourceSpatialRDD.rawSpatialRDD.rdd.map(_.getEnvelopeInternal), approximateSourceCount, conf.getTheta)
 
 		// spatial partition
-		val geometry2entity: Geometry => EntityT = GeometryToEntity.getTransformer(EntityTypeENUM.SPATIAL_ENTITY, theta, None, None)
+		val decompositionTheta = decompositionT.map(dt => theta*dt)
+		val approximationTransformerOpt: Option[Geometry => GeometryApproximationT] = GeometryToApproximation.getTransformer(approximationTypeOpt, decompositionTheta.getOrElse(theta))
+		val geometry2entity: Geometry => EntityT = GeometryToEntity.getTransformer(EntityTypeENUM.SPATIAL_ENTITY, theta, decompositionTheta, None, approximationTransformerOpt)
 		val sourceRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(sourceSpatialRDD, geometry2entity)
 		val targetRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(targetSpatialRDD, geometry2entity)
 		sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)
