@@ -3,10 +3,10 @@ package model.approximations
 import model.TileGranularities
 import org.locationtech.jts.geom.{Envelope, Geometry}
 import utils.configuration.Constants.Relation
-import utils.geometryUtils.GeometryUtils
+import utils.geometryUtils.{EnvelopeOp, GeometryUtils}
 
 import scala.annotation.tailrec
-import scala.math.{max, min}
+import scala.math.{ceil, floor, max, min}
 
 case class FineGrainedEnvelopes(env: Envelope, envelopes: List[Envelope]) extends GeometryApproximationT{
 
@@ -140,6 +140,21 @@ case class FineGrainedEnvelopes(env: Envelope, envelopes: List[Envelope]) extend
                 for (x <- x1 to x2; y <- y1 to y2) yield (x, y)
         }.distinct
     }
+
+    override def getNumOfOverlappingTiles(theta: TileGranularities): Int = envelopes.map(getNumOfEnvelopesTiles(_, theta)).sum
+
+    override def getNumOfCommonTiles(apx: GeometryApproximationT, theta: TileGranularities): Int =
+        envelopes.map(env => getNumOfEnvelopesCommonTiles(env, apx, theta)).sum
+
+    private def getNumOfEnvelopesTiles(env: Envelope, theta: TileGranularities): Int =
+        (ceil(env.getMaxX/theta.x).toInt - floor(env.getMinX/theta.x).toInt) * (ceil(env.getMaxY/theta.y).toInt - floor(env.getMinY/theta.y).toInt)
+
+    private def getNumOfEnvelopesCommonTiles(env: Envelope, aprx: GeometryApproximationT, theta: TileGranularities): Int =
+        aprx.getEnvelopes.map(targetEnv => getNumOfEnvelopesCommonTiles(env, targetEnv, theta)).sum
+
+    private def getNumOfEnvelopesCommonTiles(env1: Envelope, env2: Envelope, theta: TileGranularities): Int =
+        (min(ceil(env1.getMaxX/theta.x), ceil(env2.getMaxX/theta.x)).toInt - max(floor(env1.getMinX/theta.x),floor(env2.getMinX/theta.x)).toInt) *
+            (min(ceil(env1.getMaxY/theta.y), ceil(env2.getMaxY/theta.y)).toInt - max(floor(env1.getMinY/theta.y), floor(env2.getMinY/theta.y)).toInt)
 
     override def toString: String = s"FineGrainedEnvelopes(${envelopes.length}, ${envelopes.map(e => GeometryUtils.geomFactory.toGeometry(e)).mkString("\n")})"
 }

@@ -25,8 +25,6 @@ trait EntityT extends Serializable {
     def getMinY: Double = approximation.getMinY
     def getMaxY: Double = approximation.getMaxY
 
-    lazy val overlappingTiles: Set[(Int, Int)] = approximation.getOverlappingTiles(theta).toSet
-
 
     /**
      * Find the relation with another SpatialEntity
@@ -45,6 +43,12 @@ trait EntityT extends Serializable {
         val im = geometry.relate(se.geometry)
         IM(this, se, im)
     }
+
+    def getOverlappingTiles(theta: TileGranularities): Seq[(Int, Int)] = approximation.getOverlappingTiles(theta)
+
+    def getNumOfOverlappingTiles(theta: TileGranularities):Int = approximation.getNumOfOverlappingTiles(theta)
+
+    def getNumOfCommonTiles(e: EntityT, theta: TileGranularities):Int = approximation.getNumOfCommonTiles(e.approximation, theta)
 
     override def toString: String = s"Entity($originalID, ${geometry.toString}, ${approximation.toString})"
 

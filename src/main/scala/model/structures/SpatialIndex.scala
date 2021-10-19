@@ -23,7 +23,7 @@ case class SpatialIndex[T <: {def getEnvelopeInternal(): Envelope}](entities: Ar
     def index(t: T): Seq[(Int, Int)] = {
         t match {
             case t: EntityT =>
-                t.approximation.getOverlappingTiles(theta)
+                t.getOverlappingTiles(theta)
             case _ =>
                 val env = t.getEnvelopeInternal()
                 indexEnvelope(env)

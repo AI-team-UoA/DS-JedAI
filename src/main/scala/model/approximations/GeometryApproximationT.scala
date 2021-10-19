@@ -7,7 +7,7 @@ import utils.configuration.Constants.Relation.Relation
 import utils.geometryUtils.{EnvelopeOp, GeometryUtils}
 
 import scala.math.BigDecimal.RoundingMode
-import scala.math.{max, min}
+import scala.math.{ceil, floor, max, min}
 
 trait GeometryApproximationT {
     val epsilon: Double = 1e-8
@@ -52,6 +52,13 @@ trait GeometryApproximationT {
             for (x <- x1 until x2; y <- y1 until y2) yield (x, y)
         }
     }
+
+    def getNumOfOverlappingTiles(theta: TileGranularities):Int =
+        (ceil(getMaxX/theta.x).toInt - floor(getMinX/theta.x).toInt + 1) * (ceil(getMaxY/theta.y).toInt - floor(getMinY/theta.y).toInt + 1)
+
+    def getNumOfCommonTiles(apx: GeometryApproximationT, theta: TileGranularities):Int =
+            (min(ceil(getMaxX/theta.x), ceil(apx.getMaxX/theta.x)).toInt - max(floor(getMinX/theta.x),floor(apx.getMinX/theta.x)).toInt + 1) *
+                (min(ceil(getMaxY/theta.y), ceil(apx.getMaxY/theta.y)).toInt - max(floor(getMinY/theta.y), floor(apx.getMinY/theta.y)).toInt + 1)
 
     def adjustEnvelope(env: Envelope, theta: TileGranularities): (Int, Int, Int, Int) ={
         val minX = env.getMinX

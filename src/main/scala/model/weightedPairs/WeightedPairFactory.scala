@@ -8,7 +8,7 @@ import utils.configuration.Constants._
 
 
 case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction],
-                               weightingScheme: WeightingScheme, tileGranularities:TileGranularities, totalBlocks: Double) {
+                               weightingScheme: WeightingScheme, theta: TileGranularities, totalBlocks: Double) {
 
     /**
      * compute the main weight of a pair of entities
@@ -46,7 +46,7 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
 
             case THIN_MULTI_COMPOSITE =>
                 val mw = jaccardSimilarity(s, t)
-                val sw = coOccurenceFrequency(s, t)
+                val sw = coOccurrenceFrequency(s, t)
                 val lw = minimumBoundingRectangleOverlap(s, t)
                 ThinMultiCompositePair(counter, sIndex, tIndex, mw, sw, lw)
         }
@@ -64,30 +64,27 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
             case WeightingFunction.ISP => inversePointSum(s, t)
             case WeightingFunction.JS => jaccardSimilarity(s, t)
             case WeightingFunction.PEARSON_X2 => pearsonsX2(s, t)
-            case WeightingFunction.CF | _ => coOccurenceFrequency(s, t)
+            case WeightingFunction.CF | _ => coOccurrenceFrequency(s, t)
         }
     }
 
-    def getNumOfBlocks(e: EntityT): Int = e.overlappingTiles.size
-       // (ceil(e.getMaxX/tileGranularities.x).toInt - floor(e.getMinX/tileGranularities.x).toInt + 1) * (ceil(e.getMaxY/tileGranularities.y).toInt - floor(e.getMinY/tileGranularities.y).toInt + 1)
+    def getNumOfOverlappingTiles(e: EntityT): Int = e.getNumOfOverlappingTiles(theta)
 
-    def getCommonBlocks(s: EntityT, t: EntityT): Int = s.overlappingTiles.intersect(t.overlappingTiles).size
-//        (min(ceil(s.getMaxX/tileGranularities.x), ceil(t.getMaxX/tileGranularities.x)).toInt - max(floor(s.getMinX/tileGranularities.x),floor(t.getMinX/tileGranularities.x)).toInt + 1) *
-//            (min(ceil(s.getMaxY/tileGranularities.y), ceil(t.getMaxY/tileGranularities.y)).toInt - max(floor(s.getMinY/tileGranularities.y), floor(t.getMinY/tileGranularities.y)).toInt + 1)
+    def getNumOfCommonTiles(s: EntityT, t: EntityT): Int = s.getNumOfCommonTiles(t, theta)
 
-    def coOccurenceFrequency(s: EntityT, t: EntityT): Float = getCommonBlocks(s, t).toFloat
+    def coOccurrenceFrequency(s: EntityT, t: EntityT): Float = getNumOfCommonTiles(s, t).toFloat
 
     def jaccardSimilarity(s: EntityT, t: EntityT): Float ={
-        val sBlocks = getNumOfBlocks(s)
-        val tBlocks = getNumOfBlocks(t)
-        val cb = getCommonBlocks(s, t)
+        val sBlocks = getNumOfOverlappingTiles(s)
+        val tBlocks = getNumOfOverlappingTiles(t)
+        val cb = getNumOfCommonTiles(s, t)
         cb / (sBlocks + tBlocks - cb)
     }
 
     def pearsonsX2(s: EntityT, t: EntityT): Float ={
-        val sBlocks = getNumOfBlocks(s)
-        val tBlocks = getNumOfBlocks(t)
-        val cb = getCommonBlocks(s, t)
+        val sBlocks = getNumOfOverlappingTiles(s)
+        val tBlocks = getNumOfOverlappingTiles(t)
+        val cb = getNumOfCommonTiles(s, t)
         val v1: Array[Long] = Array[Long](cb, (tBlocks - cb).toLong)
         val v2: Array[Long] = Array[Long]((sBlocks - cb).toLong, (totalBlocks - (v1(0) + v1(1) + (sBlocks - cb))).toLong)
         val chiTest = new ChiSquareTest()
