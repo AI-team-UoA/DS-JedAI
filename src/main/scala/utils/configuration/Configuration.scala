@@ -85,6 +85,7 @@ sealed trait ConfigurationT {
         log.info(s"DS-JEDAI: Entity Type: $getEntityType")
         log.info(s"DS-JEDAI: Geometry Approximation: ${getApproximationType.getOrElse(GeometryApproximationENUM.MBR)}")
         getDecompositionThreshold.foreach(dcmpT => log.info(s"DS-JEDAI: Decomposition Threshold: $dcmpT"))
+        getOutputPath.foreach(path => log.info(s"DS-JEDAI: Export Path: $path"))
     }
 
 

@@ -56,7 +56,6 @@ object SpatialJoinExp {
         val decompositionT: Option[Double] = conf.getDecompositionThreshold
         val startTime = Calendar.getInstance().getTimeInMillis
 
-
         // load datasets
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
         val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
@@ -86,13 +85,10 @@ object SpatialJoinExp {
         val matchingPairsRDD = DistributedInterlinking.relate(linkers, relation)
 
         // export results as RDF
-        if (output.isDefined) {
-            Utils.exportMatchingPairs(matchingPairsRDD, output.get)
-        }
-        else {
-            val totalMatches = matchingPairsRDD.count()
-            log.info("DS-JEDAI: " + relation.toString.toUpperCase() +": " + totalMatches)
-        }
+        if (output.isDefined)
+            Utils.exportNTRIPLES(matchingPairsRDD, output.get)
+        else
+            log.info("DS-JEDAI: " + relation.toString.toUpperCase() +": " + matchingPairsRDD.count())
 
         val matchingEndTime = Calendar.getInstance().getTimeInMillis
         log.info("DS-JEDAI: Interlinking Time: " + (matchingEndTime - matchingStartTime) / 1000.0)

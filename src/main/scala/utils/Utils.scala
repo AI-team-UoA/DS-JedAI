@@ -86,4 +86,14 @@ object Utils extends Serializable {
 			Iterator(sb.toString())
 		}.coalesce(numPartitions=1).saveAsTextFile(path)
 	}
+
+
+	def exportNTRIPLES(rdd: RDD[(String, String)], path:String): Unit ={
+		val predicate = "<http://earthanalytics.eu/fs/ontology/belongsToAdministrativeUnit>"
+		rdd.mapPartitions { pairIterator =>
+			val sb = new StringBuilder()
+			pairIterator.foreach { case (sbj, obj) => sb.append(sbj + " " + predicate + " " + obj + " .\n")}
+			Iterator(sb.toString())
+		}.saveAsTextFile(path)
+	}
 }
