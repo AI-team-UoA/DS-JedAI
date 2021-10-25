@@ -6,6 +6,8 @@ import org.apache.commons.math3.stat.inference.ChiSquareTest
 import utils.configuration.Constants.WeightingFunction.WeightingFunction
 import utils.configuration.Constants._
 
+import scala.util.Try
+
 
 case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[WeightingFunction],
                                weightingScheme: WeightingScheme, theta: TileGranularities, totalBlocks: Double) {
@@ -52,6 +54,16 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
         }
     }
 
+    def safeDivision(x: Int, y: Int): Float = Try(x/y).toOption match {
+        case Some(z) => z
+        case None => 0f
+    }
+
+    def safeDivision(x: Double, y: Double): Float = Try(x/y).toOption match {
+        case Some(z) => z.toFloat
+        case None => 0f
+    }
+
     /**
      * Weight a pair
      * @param s Spatial entity
@@ -78,7 +90,7 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
         val sBlocks = getNumOfOverlappingTiles(s)
         val tBlocks = getNumOfOverlappingTiles(t)
         val cb = getNumOfCommonTiles(s, t)
-        cb / (sBlocks + tBlocks - cb)
+        safeDivision(cb, sBlocks + tBlocks - cb)
     }
 
     def pearsonsX2(s: EntityT, t: EntityT): Float ={
@@ -93,9 +105,9 @@ case class WeightedPairFactory(mainWF: WeightingFunction, secondaryWF: Option[We
 
     def minimumBoundingRectangleOverlap(s: EntityT, t: EntityT): Float ={
         val intersectionArea = s.getIntersectingInterior(t).getArea
-        val w = intersectionArea / (s.approximation.getArea + t.approximation.getArea - intersectionArea)
-        if (!w.isNaN) w.toFloat else 0f
+        val w = safeDivision(intersectionArea, s.approximation.getArea + t.approximation.getArea - intersectionArea)
+        if (!w.isNaN) w else 0f
     }
 
-    def inversePointSum(s: EntityT, t: EntityT): Float = 1f / (s.geometry.getNumPoints + t.geometry.getNumPoints)
+    def inversePointSum(s: EntityT, t: EntityT): Float = safeDivision(1f, s.geometry.getNumPoints + t.geometry.getNumPoints)
 }

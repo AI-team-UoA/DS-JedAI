@@ -107,7 +107,6 @@ object ProgressiveExp {
 		if (timeExp) {
 			//invoke load of target
 			targetRDD.count()
-
 			val times = DistributedProgressiveInterlinking.time(linkers)
 			val schedulingTime = times._1
 			val verificationTime = times._2
@@ -138,10 +137,9 @@ object ProgressiveExp {
 			log.info("DS-JEDAI: WITHIN: " + totalWithin)
 			log.info("DS-JEDAI: Total Relations Discovered: " + totalRelations)
 		}
-
 		else {
 			val totalMatches = DistributedProgressiveInterlinking.relate(linkers, relation)
-			log.info("DS-JEDAI: " + relation.toString + ": " + totalMatches)
+			log.info("DS-JEDAI: " + relation.toString + ": " + totalMatches.count())
 		}
 
 		val matchingEndTime = Calendar.getInstance().getTimeInMillis
