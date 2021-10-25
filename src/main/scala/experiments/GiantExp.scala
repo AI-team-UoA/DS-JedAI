@@ -37,7 +37,6 @@ object GiantExp {
 
         val sc = new SparkContext(sparkConf)
         val spark: SparkSession = SparkSession.builder().getOrCreate()
-        log.info(s"G.I. Algorithm: GIA.nt")
 
         val parser = new ConfigurationParser()
         val configurationOpt = parser.parse(args) match {
@@ -48,20 +47,14 @@ object GiantExp {
             case Right(configuration) => Some(configuration)
         }
         val conf = configurationOpt.get
-
+        conf.print(log)
         val partitions: Int = conf.getPartitions
         val gridType: GridType.GridType = conf.getGridType
-        val relation = conf.getRelation
         val measureStats = conf.measureStatistic
         val output: Option[String] = conf.getOutputPath
         val entityTypeType: EntityTypeENUM = conf.getEntityType
         val decompositionT: Option[Double] = conf.getDecompositionThreshold
         val startTime = Calendar.getInstance().getTimeInMillis
-
-        log.info(s"GridType: $gridType")
-        log.info(s"Relation: $relation")
-        log.info(s"Entity Type: $entityTypeType")
-        if(decompositionT.isDefined) log.info(s"Decomposition Threshold: ${decompositionT.get} ")
 
         // load datasets
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)

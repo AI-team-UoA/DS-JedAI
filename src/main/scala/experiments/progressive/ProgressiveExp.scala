@@ -51,6 +51,7 @@ object ProgressiveExp {
 			case Right(configuration) => Some(configuration)
 		}
 		val conf = configurationOpt.get
+		conf.printProgressive(log)
 
 		val partitions: Int = conf.getPartitions
 		val gridType: GridType.GridType = conf.getGridType
@@ -59,8 +60,6 @@ object ProgressiveExp {
 		val entityTypeType: EntityTypeENUM = conf.getEntityType
 		val approximationTypeOpt: Option[GeometryApproximationENUM] = conf.getApproximationType
 		val decompositionT: Option[Double] = conf.getDecompositionThreshold
-		log.info(s"Entity Type: $entityTypeType")
-		if(decompositionT.isDefined) log.info(s"Decomposition Threshold: ${decompositionT.get} ")
 
 		val weightingScheme: Constants.WeightingScheme =
 			if (progressiveAlg == ProgressiveAlgorithm.EARLY_STOPPING) Constants.THIN_MULTI_COMPOSITE
@@ -80,18 +79,6 @@ object ProgressiveExp {
 		val batchSize = conf.getBatchSize
 		val violations = conf.getViolations
 		val precisionLimit = conf.getPrecisionLimit
-		log.info(s"DS-JEDAI: Progressive Algorithm: ${progressiveAlg.toString}")
-		log.info(s"DS-JEDAI: Weighting Scheme: ${weightingScheme.value}")
-		log.info(s"DS-JEDAI: Input Budget: $budget")
-		log.info(s"DS-JEDAI: Main Weighting Function: ${mainWF.toString}")
-		if (secondaryWF.isDefined) log.info(s"DS-JEDAI: Secondary Weighting Function: ${secondaryWF.get.toString}")
-		if (progressiveAlg == ProgressiveAlgorithm.EARLY_STOPPING) {
-			log.info(s"DS-JEDAI: Last Weighting Function: MBRO")
-			log.info(s"DS-JEDAI: BATCH SIZE: $batchSize")
-			log.info(s"DS-JEDAI: PRECISION LIMIT: $precisionLimit")
-			log.info(s"DS-JEDAI: VIOLATIONS: $violations")
-		}
-
 		val startTime = Calendar.getInstance().getTimeInMillis
 
 		// load datasets
@@ -104,7 +91,7 @@ object ProgressiveExp {
 		// spatial partition
 		val decompositionTheta = decompositionT.map(dt => theta*dt)
 		val approximationTransformerOpt: Option[Geometry => GeometryApproximationT] = GeometryToApproximation.getTransformer(approximationTypeOpt, decompositionTheta.getOrElse(theta))
-		val geometry2entity: Geometry => EntityT = GeometryToEntity.getTransformer(EntityTypeENUM.SPATIAL_ENTITY, theta, decompositionTheta, None, approximationTransformerOpt)
+		val geometry2entity: Geometry => EntityT = GeometryToEntity.getTransformer(entityTypeType, theta, decompositionTheta, None, approximationTransformerOpt)
 		val sourceRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(sourceSpatialRDD, geometry2entity)
 		val targetRDD: RDD[(Int, EntityT)] = partitioner.distributeAndTransform(targetSpatialRDD, geometry2entity)
 		sourceRDD.persist(StorageLevel.MEMORY_AND_DISK)

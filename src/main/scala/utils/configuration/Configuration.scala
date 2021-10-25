@@ -1,5 +1,6 @@
 package utils.configuration
 
+import org.apache.log4j.Logger
 import org.joda.time.format.DateTimeFormat
 import utils.configuration.Constants.EntityTypeENUM.{DECOMPOSED_ENTITY, EntityTypeENUM}
 import utils.configuration.Constants.FileTypes.FileTypes
@@ -78,6 +79,35 @@ sealed trait ConfigurationT {
 
     def getPrecisionLimit: Float =  configurations.getOrElse(InputConfigurations.CONF_PRECISION_LIMIT, "0.1f").toFloat
 
+    def print(log: Logger): Unit = {
+        log.info(s"DS-JEDAI: GridType: $getGridType")
+        log.info(s"DS-JEDAI: Relation: $relation")
+        log.info(s"DS-JEDAI: Entity Type: $getEntityType")
+        log.info(s"DS-JEDAI: Geometry Approximation: ${getApproximationType.getOrElse(GeometryApproximationENUM.MBR)}")
+        getDecompositionThreshold.foreach(dcmpT => log.info(s"DS-JEDAI: Decomposition Threshold: $dcmpT"))
+    }
+
+
+    def printProgressive(log: Logger): Unit = {
+        print(log)
+        log.info(s"DS-JEDAI: Progressive Algorithm: $getProgressiveAlgorithm")
+        log.info(s"DS-JEDAI: Weighting Scheme: $getWS")
+        log.info(s"DS-JEDAI: Input Budget: $getBudget")
+        if (getProgressiveAlgorithm == ProgressiveAlgorithm.EARLY_STOPPING) {
+            log.info(s"DS-JEDAI: Main Weighting Function: JS")
+            log.info(s"DS-JEDAI: Secondary Weighting Function: CF")
+            log.info(s"DS-JEDAI: Last Weighting Function: MBRO")
+            log.info(s"DS-JEDAI: BATCH SIZE: $getBatchSize")
+            log.info(s"DS-JEDAI: PRECISION LIMIT: $getPrecisionLimit")
+            log.info(s"DS-JEDAI: VIOLATIONS: $getViolations")
+        }
+        else {
+            log.info(s"DS-JEDAI: Main Weighting Function: ${getMainWF}")
+            getSecondaryWF.foreach(swf => log.info(s"DS-JEDAI: Secondary Weighting Function: $swf"))
+        }
+
+
+    }
 }
 
 

@@ -47,7 +47,7 @@ object SpatialJoinExp {
             case Right(configuration) => Some(configuration)
         }
         val conf = configurationOpt.get
-
+        conf.print(log)
         val partitions: Int = conf.getPartitions
         val gridType: GridType.GridType = conf.getGridType
         val relation = conf.getRelation
@@ -56,10 +56,6 @@ object SpatialJoinExp {
         val decompositionT: Option[Double] = conf.getDecompositionThreshold
         val startTime = Calendar.getInstance().getTimeInMillis
 
-        log.info(s"GridType: $gridType")
-        log.info(s"Relation: $relation")
-        log.info(s"Entity Type: $entityTypeType")
-        if(decompositionT.isDefined) log.info(s"Decomposition Threshold: ${decompositionT.get} ")
 
         // load datasets
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)

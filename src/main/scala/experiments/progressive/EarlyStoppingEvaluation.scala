@@ -57,10 +57,12 @@ object EarlyStoppingEvaluation {
 			case Right(configuration) => Some(configuration)
 		}
 		val conf = configurationOpt.get
+		conf.printProgressive(log)
+
 		val partitions: Int = conf.getPartitions
 		val gridType: GridType.GridType = conf.getGridType
 		val inputBudget = conf.getBudget
-		log.info("DS-JEDAI: Input Budget: " + defaultBudget)
+
 		// load datasets
 		val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
 		val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)

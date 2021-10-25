@@ -57,11 +57,13 @@ object ProgressiveEvaluation {
 			case Right(configuration) => Some(configuration)
 		}
 		val conf = configurationOpt.get
+		conf.printProgressive(log)
+
 		val partitions: Int = conf.getPartitions
 		val gridType: GridType.GridType = conf.getGridType
 		val inputBudget = conf.getBudget
 		val budget = if (inputBudget > 0) inputBudget else defaultBudget
-		log.info("DS-JEDAI: Input Budget: " + budget)
+
 		// load datasets
 		val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
 		val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
