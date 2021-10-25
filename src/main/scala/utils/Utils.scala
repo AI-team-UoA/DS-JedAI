@@ -94,6 +94,6 @@ object Utils extends Serializable {
 			val sb = new StringBuilder()
 			pairIterator.foreach { case (sbj, obj) => sb.append(sbj + " " + predicate + " " + obj + " .\n")}
 			Iterator(sb.toString())
-		}.coalesce(numPartitions=1).saveAsTextFile(path)
+		}.coalesce(numPartitions=1).filter(_.nonEmpty).saveAsTextFile(path)
 	}
 }
