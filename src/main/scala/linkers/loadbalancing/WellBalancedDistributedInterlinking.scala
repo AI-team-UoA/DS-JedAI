@@ -1,17 +1,15 @@
 package linkers.loadbalancing
 
-import linkers.DistributedInterlinking.log
-import linkers.LinkerT
-import model.IM
+import linkers.{DistributedInterlinking, LinkerT}
+import model.{IM, TileGranularities}
 import model.entities.segmented.DecomposedEntity
 import model.entities.{EntityT, SpatialEntity}
-import model.{IM, TileGranularities}
 import model.structures.IndicesPrefixTrie
+import org.apache.log4j.Logger
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 import org.locationtech.jts.operation.union.UnaryUnionOp
-import utils.configuration.Constants.Relation
 
 import java.util.Calendar
 import scala.collection.JavaConverters._
@@ -20,6 +18,7 @@ import scala.collection.mutable.ListBuffer
 
 object WellBalancedDistributedInterlinking {
     val MAX_SIZE = 256
+    val log: Logger = DistributedInterlinking.log
 
 
     /**
@@ -56,7 +55,7 @@ object WellBalancedDistributedInterlinking {
         // partition based on z-score  and threshold
         val skewVerificationsCostRDD: RDD[(Double, String)] = approximateCostOfTargetVerificationsRDD.map{case (cost, id) => (zScore(cost), id)}.filter(_._1 > threshold)
         val skewVerificationsIDs: Set[String] = skewVerificationsCostRDD.map(_._2).collect().toSet
-        log.info(s"JEDAI: Total skew verifications ${skewVerificationsIDs.size}")
+        log.info(s"DS-JEDAI: Total skew verifications ${skewVerificationsIDs.size}")
 
         val cheapVerificationsRDD: RDD[List[EntityT]] = verificationsRDD.filter{ case(_, id) => !skewVerificationsIDs.contains(id)}.map(_._1)
         val skewVerificationsRDD: RDD[List[EntityT]] = verificationsRDD.filter{ case(_, id) => skewVerificationsIDs.contains(id)}.map(_._1)

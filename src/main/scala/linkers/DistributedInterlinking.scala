@@ -18,8 +18,8 @@ import scala.math.Numeric.IntIsIntegral
  */
 object DistributedInterlinking {
     val BATCH_SIZE = 4096
-    Logger.getLogger("org").setLevel(Level.ERROR)
-    Logger.getLogger("akka").setLevel(Level.ERROR)
+    Logger.getLogger("org").setLevel(Level.INFO)
+    Logger.getLogger("akka").setLevel(Level.INFO)
     val log: Logger = LogManager.getRootLogger
     log.setLevel(Level.INFO)
 
