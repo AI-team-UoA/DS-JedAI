@@ -25,8 +25,8 @@ import java.util.Calendar
 object GiantExp {
 
     def main(args: Array[String]): Unit = {
-        Logger.getLogger("org").setLevel(Level.INFO)
-        Logger.getLogger("akka").setLevel(Level.INFO)
+        Logger.getLogger("org").setLevel(Level.ERROR)
+        Logger.getLogger("akka").setLevel(Level.ERROR)
         val log = LogManager.getRootLogger
         log.setLevel(Level.INFO)
 
