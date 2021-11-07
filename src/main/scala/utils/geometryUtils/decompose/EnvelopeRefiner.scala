@@ -125,7 +125,6 @@ case class EnvelopeRefiner(theta: TileGranularities) extends GridDecomposerT[Env
             // find intermediate points, might be necessary for the borders of the envelopes.
             val intermediatePoints = findIntermediatePoints(c1, c2, verticalPoints, horizontalPoints)
             for (c <- c1 +: intermediatePoints :+ c2) {
-                //TODO instead of filter, try find and see if produces correct results
                 envelopes.filter(env => env.contains(c.x, c.y)).foreach(env => env.update(c.x, c.y))
             }
         }

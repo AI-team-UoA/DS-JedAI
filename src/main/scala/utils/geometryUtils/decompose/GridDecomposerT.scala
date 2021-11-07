@@ -5,6 +5,7 @@ import utils.geometryUtils.GeometryUtils
 import utils.geometryUtils.GeometryUtils.geomFactory
 
 import scala.collection.SortedSet
+import scala.util.Try
 
 /**
  * GridDecomposer Trait
@@ -22,10 +23,14 @@ trait GridDecomposerT[T] extends DecomposerT[T] {
     def getVerticalPoints(env: Envelope, thetaX: Double): Seq[Double] ={
         val minX = env.getMinX
         val maxX = env.getMaxX
-        val n = math.floor(minX / thetaX) + 1
-        val bladeStart: BigDecimal = BigDecimal(thetaX*n)
-
-        for (x <- bladeStart until maxX by thetaX)  yield  x.toDouble
+        val bladeStart = if (thetaX != 0){
+            val n = math.floor(minX / thetaX) + 1
+            BigDecimal(thetaX*n)
+        }
+        else
+            BigDecimal(minX)
+        val step = if (thetaX == 0) 1 else  thetaX
+        for (x <- bladeStart until maxX by step)  yield x.toDouble
     }
 
     /**
@@ -37,10 +42,14 @@ trait GridDecomposerT[T] extends DecomposerT[T] {
     def getHorizontalPoints(env: Envelope, thetaY: Double): Seq[Double] ={
         val minY = env.getMinY
         val maxY = env.getMaxY
-        val n = math.floor(minY/thetaY) + 1
-        val bladeStart: BigDecimal = BigDecimal(thetaY*n)
-
-        for (y <- bladeStart until maxY by thetaY) yield y.toDouble
+        val bladeStart = if (thetaY != 0){
+            val n = math.floor(minY / thetaY) + 1
+            BigDecimal(thetaY*n)
+        }
+        else
+            BigDecimal(minY)
+        val step = if (thetaY == 0) 1 else  thetaY
+        for (y <- bladeStart until maxY by step) yield y.toDouble
     }
 
     /**
