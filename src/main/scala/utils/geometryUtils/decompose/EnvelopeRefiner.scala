@@ -42,14 +42,14 @@ case class EnvelopeRefiner(theta: TileGranularities) extends GridDecomposerT[Env
      */
     def refine(geometry: Geometry, theta: TileGranularities): List[Envelope] ={
         val env = geometry.getEnvelopeInternal
-//        if (env.getWidth > theta.x || env.getHeight > theta.y) {
+        if (env.getWidth > theta.x || env.getHeight > theta.y) {
             geometry match {
                 case line: LineString => refineLineString(line, theta)
                 case _ => refineGeometry(geometry, theta)
             }
-//        }
-//        else
-//            List(env)
+        }
+        else
+            List(env)
     }
 
     /**
