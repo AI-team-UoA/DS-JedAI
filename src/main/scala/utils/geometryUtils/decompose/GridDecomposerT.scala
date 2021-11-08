@@ -5,7 +5,6 @@ import utils.geometryUtils.GeometryUtils
 import utils.geometryUtils.GeometryUtils.geomFactory
 
 import scala.collection.SortedSet
-import scala.util.Try
 
 /**
  * GridDecomposer Trait
@@ -29,7 +28,7 @@ trait GridDecomposerT[T] extends DecomposerT[T] {
         }
         else
             BigDecimal(minX)
-        val step = if (thetaX == 0) 1 else  thetaX
+        val step = if (thetaX == 0) 1 else thetaX
         for (x <- bladeStart until maxX by step)  yield x.toDouble
     }
 
@@ -48,7 +47,7 @@ trait GridDecomposerT[T] extends DecomposerT[T] {
         }
         else
             BigDecimal(minY)
-        val step = if (thetaY == 0) 1 else  thetaY
+        val step = if (thetaY == 0) 1 else thetaY
         for (y <- bladeStart until maxY by step) yield y.toDouble
     }
 
