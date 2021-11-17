@@ -52,11 +52,12 @@ object MeasureStats {
         val sourceSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.source)
         sourceSpatialRDD.rawSpatialRDD.persist(StorageLevel.MEMORY_AND_DISK)
         val sourceCount = sourceSpatialRDD.rawSpatialRDD.count()
-
+        log.info(s"DS-JEDAI: #SOURCE: $sourceCount")
 
         val targetSpatialRDD: SpatialRDD[Geometry] = Reader.read(conf.target)
         targetSpatialRDD.rawSpatialRDD.persist(StorageLevel.MEMORY_AND_DISK)
         val targetCount = targetSpatialRDD.rawSpatialRDD.count()
+        log.info(s"DS-JEDAI: #TARGET: $targetCount")
 
         // spatial partition
         val partitioner = GridPartitioner(sourceSpatialRDD, partitions, gridType)

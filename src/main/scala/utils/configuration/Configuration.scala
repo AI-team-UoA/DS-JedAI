@@ -12,6 +12,8 @@ import utils.configuration.Constants.ThetaOption.ThetaOption
 import utils.configuration.Constants.WeightingFunction.WeightingFunction
 import utils.configuration.Constants._
 
+import java.io.File
+
 /**
  * Configuration Interface
  */
@@ -155,7 +157,13 @@ case class DirtyConfiguration(source: DatasetConfigurations, relation: String, v
  */
 case class DatasetConfigurations(path: String, geometryField: String, realIdField: Option[String] = None, dateField: Option[String] = None, datePattern: Option[String] = None){
 
-    def getExtension: FileTypes = FileTypes.withName(path.split("\\.").last)
+    def getExtension: Option[FileTypes] = {
+        val extension = path.split("\\.").last
+        if(FileTypes.exists(extension))
+            Some(FileTypes.withName(extension))
+        else
+            None
+    }
 
     /**
      * check if the date field and pattern are specified, and if the pattern is valid
@@ -178,8 +186,9 @@ case class DatasetConfigurations(path: String, geometryField: String, realIdFiel
      * check id field
      * @return true if id is set correctly
      */
-    def checkIdField: Boolean = getExtension match {
-        case FileTypes.CSV | FileTypes.TSV | FileTypes.SHP | FileTypes.GEOJSON if realIdField.isEmpty => false
+    def checkIdField: Boolean =
+        getExtension match {
+        case Some(FileTypes.CSV) | Some(FileTypes.TSV) | Some(FileTypes.SHP) | Some(FileTypes.GEOJSON) if realIdField.isEmpty => false
         case _ => true
     }
 
@@ -188,7 +197,7 @@ case class DatasetConfigurations(path: String, geometryField: String, realIdFiel
      * @return true if geometry field is set correctly
      */
     def checkGeometryField: Boolean = getExtension match {
-        case FileTypes.SHP | FileTypes.GEOJSON => true
+        case Some(FileTypes.SHP) | Some(FileTypes.GEOJSON) => true
         case _ => geometryField.nonEmpty
     }
 

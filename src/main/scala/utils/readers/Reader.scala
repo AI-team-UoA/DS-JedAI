@@ -13,8 +13,10 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.{Geometry, GeometryFactory}
 import org.locationtech.jts.io.WKTReader
 import utils.configuration.Constants.FileTypes
+import utils.configuration.Constants.FileTypes.FileTypes
 import utils.configuration.DatasetConfigurations
 
+import java.io.File
 import scala.util.{Success, Try}
 
 object Reader {
@@ -26,28 +28,46 @@ object Reader {
     val spark: SparkSession = SparkSession.getActiveSession.get
     SedonaSQLRegistrator.registerAll(spark)
 
+    def getExtension(path: String): FileTypes = FileTypes.withName(path.split("\\.").last)
+
     /**
      * Load input as Spatial RDD
      * @param dc dataset configuration
      * @return the geometries as a SpatialRDD
      */
     def read(dc: DatasetConfigurations) : SpatialRDD[Geometry] = {
-        val extension = dc.getExtension
-        val srdd = extension match {
-            case FileTypes.CSV =>
-                loadDelimitedFile(dc.path, dc.realIdField.getOrElse("0"), dc.geometryField, dc.dateField, ",")
-            case FileTypes.TSV =>
-                loadDelimitedFile(dc.path, dc.realIdField.getOrElse("0"), dc.geometryField, dc.dateField, "\t")
-            case FileTypes.GEOJSON =>
-                loadGeoJSON(dc.path, dc.realIdField.getOrElse("id"), dc.dateField)
-            case FileTypes.SHP =>
-                loadSHP(dc.path, dc.realIdField.getOrElse("id"), dc.dateField)
-            case FileTypes.NTRIPLES =>
-                loadRdfAsTextual(dc.path, dc.geometryField)
+        val path: String = dc.path
+        readFile(path, dc.realIdField, dc.geometryField, dc.dateField)
+    }
+
+    def readFile(path: String, realIdField: Option[String], geometryField: String, dateField: Option[String]): SpatialRDD[Geometry]={
+        val file = new File(path)
+        if(!file.isDirectory) {
+            val extension = getExtension(path)
+            val srdd = extension match {
+                case FileTypes.CSV =>
+                    loadDelimitedFile(path, realIdField.getOrElse("0"), geometryField, dateField, ",")
+                case FileTypes.TSV =>
+                    loadDelimitedFile(path, realIdField.getOrElse("0"), geometryField, dateField, "\t")
+                case FileTypes.GEOJSON =>
+                    loadGeoJSON(path, realIdField.getOrElse("id"), dateField)
+                case FileTypes.SHP =>
+                    loadSHP(path, realIdField.getOrElse("id"), dateField)
+                case FileTypes.NTRIPLES =>
+                    loadRdfAsTextual(path, geometryField)
+            }
+            srdd.rawSpatialRDD = srdd.rawSpatialRDD
+                .rdd.filter(g => g.getGeometryType != Geometry.TYPENAME_GEOMETRYCOLLECTION && g.isValid && !g.isEmpty)
+            srdd
         }
-        srdd.rawSpatialRDD = srdd.rawSpatialRDD
-            .rdd.filter(g => g.getGeometryType != Geometry.TYPENAME_GEOMETRYCOLLECTION && g.isValid && !g.isEmpty)
-        srdd
+        else {
+            val spatialRDD = new SpatialRDD[Geometry]()
+            spatialRDD.rawSpatialRDD = file.listFiles
+                .filter(_.isFile)
+                .map(f => readFile(f.getPath,  realIdField, geometryField, dateField))
+                .foldLeft(sc.emptyRDD[Geometry])((baseRDD, srdd) => baseRDD.union(srdd.rawSpatialRDD.rdd))
+            spatialRDD
+        }
     }
 
 

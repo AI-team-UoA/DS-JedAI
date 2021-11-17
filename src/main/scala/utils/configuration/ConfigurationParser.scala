@@ -148,7 +148,6 @@ class ConfigurationParser {
 					nextOption(map ++ Map(InputConfigurations.CONF_QUALIFYING_PAIRS -> value), tail)
 				case "-dcmpT" :: value :: tail =>
 					nextOption(map ++ Map(InputConfigurations.CONF_DECOMPOSITION_THRESHOLD -> value), tail)
-
 				case "-batchSize" :: value :: tail =>
 					nextOption(map ++ Map(InputConfigurations.CONF_BATCH_SIZE -> value), tail)
 				case "-violations" :: value :: tail =>

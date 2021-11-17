@@ -45,8 +45,8 @@ object SedonaExp {
         val startTime = Calendar.getInstance().getTimeInMillis
 
         val delimiter = conf.source.getExtension match {
-            case FileTypes.CSV => ","
-            case FileTypes.TSV => "\t"
+            case Some(FileTypes.CSV) => ","
+            case Some(FileTypes.TSV) => "\t"
             case _ => ""
         }
 
