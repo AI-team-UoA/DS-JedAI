@@ -51,7 +51,7 @@ object SpatialJoinExp {
         val partitions: Int = conf.getPartitions
         val gridType: GridType.GridType = conf.getGridType
         val relation = conf.getRelation
-        val output: Option[String] = conf.getOutputPath
+        val output: Option[String] = conf.getExportPath
         val entityTypeType: EntityTypeENUM = conf.getEntityType
         val decompositionT: Option[Double] = conf.getDecompositionThreshold
         val startTime = Calendar.getInstance().getTimeInMillis

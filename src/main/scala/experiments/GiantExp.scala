@@ -51,7 +51,7 @@ object GiantExp {
         val partitions: Int = conf.getPartitions
         val gridType: GridType.GridType = conf.getGridType
         val measureStats = conf.measureStatistic
-        val output: Option[String] = conf.getOutputPath
+        val exportPath: Option[String] = conf.getExportPath
         val entityTypeType: EntityTypeENUM = conf.getEntityType
         val decompositionT: Option[Double] = conf.getDecompositionThreshold
         val startTime = Calendar.getInstance().getTimeInMillis
@@ -96,9 +96,9 @@ object GiantExp {
         val imRDD = DistributedInterlinking.computeIM(linkers)
 
         // export results as RDF
-        if (output.isDefined) {
+        if (exportPath.isDefined) {
             imRDD.persist(StorageLevel.MEMORY_AND_DISK)
-            Utils.exportRDF(imRDD, output.get)
+            Utils.exportRDF(imRDD, exportPath.get)
         }
         // log results
         val (totalContains, totalCoveredBy, totalCovers, totalCrosses, totalEquals, totalIntersects,

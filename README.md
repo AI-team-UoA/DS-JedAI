@@ -26,6 +26,7 @@ Some additional options are the following:
 
 - **-p N**: specify the number of partitions
 - **-gt type**: specify the grid type for the spatial partitioning. Accepted values are *KDBTREE* and *QUADTREE* (default)
+- **-export**: Define a path to store the spatial relations
 
 For the construction of the configuration file, advise the configuration template in `config/configurationTemplate.yaml`.
 

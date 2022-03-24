@@ -102,7 +102,7 @@ object Constants {
 		val CONF_PARTITIONS = "partitions"
 		val CONF_THETA_GRANULARITY = "thetaGranularity"
 		val CONF_GRID_TYPE = "gridType"
-		val CONF_OUTPUT = "outputPath"
+		val CONF_EXPORT_PATH = "exportPath"
 		val CONF_STATISTICS = "stats"
 		val CONF_UNRECOGNIZED = "unrecognized"
 

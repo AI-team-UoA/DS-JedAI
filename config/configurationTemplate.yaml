@@ -24,3 +24,4 @@ configurations:
   secondaryWF: "WF"                                     # specify secondary weighting function - allowed values: CF, JS, MBRO, PEARSON_X2, ISP
   progressiveAlgorithm : "PA"                           # specify progressive algorithm - allowed values: PROGRESSIVE_GIANT, TOPK, RECIPROCAL_TOPK & RANDOM
   budget: "BU"                                          # the budget of progressive algorithms
+  exportPath: "/path/to/results"                        # path to store the materialized relations

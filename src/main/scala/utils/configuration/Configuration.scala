@@ -51,7 +51,7 @@ sealed trait ConfigurationT {
 
     def getProgressiveAlgorithm: ProgressiveAlgorithm = ProgressiveAlgorithm.withName(configurations.getOrElse(InputConfigurations.CONF_PROGRESSIVE_ALG, "PROGRESSIVE_GIANT"))
 
-    def getOutputPath: Option[String] = configurations.get(InputConfigurations.CONF_OUTPUT)
+    def getExportPath: Option[String] = configurations.get(InputConfigurations.CONF_EXPORT_PATH)
 
     def getEntityType: EntityTypeENUM = EntityTypeENUM.withName(configurations.getOrElse(InputConfigurations.CONF_ENTITY_TYPE, "SPATIAL_ENTITY"))
 
@@ -87,7 +87,7 @@ sealed trait ConfigurationT {
         log.info(s"DS-JEDAI: Entity Type: $getEntityType")
         log.info(s"DS-JEDAI: Geometry Approximation: ${getApproximationType.getOrElse(GeometryApproximationENUM.MBR)}")
         getDecompositionThreshold.foreach(dcmpT => log.info(s"DS-JEDAI: Decomposition Threshold: $dcmpT"))
-        getOutputPath.foreach(path => log.info(s"DS-JEDAI: Export Path: $path"))
+        getExportPath.foreach(path => log.info(s"DS-JEDAI: Export Path: $path"))
     }
 
 

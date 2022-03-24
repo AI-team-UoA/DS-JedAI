@@ -126,8 +126,8 @@ class ConfigurationParser {
 					nextOption(map ++ Map(InputConfigurations.CONF_GRID_TYPE -> value), tail)
 				case "-stats" :: tail =>
 					nextOption(map ++ Map(InputConfigurations.CONF_STATISTICS -> "true"), tail)
-				case "-o" :: value :: tail =>
-					nextOption(map ++ Map(InputConfigurations.CONF_OUTPUT -> value), tail)
+				case "-export" :: value :: tail =>
+					nextOption(map ++ Map(InputConfigurations.CONF_EXPORT_PATH -> value), tail)
 				case "-et" :: value :: tail =>
 					nextOption(map ++ Map(InputConfigurations.CONF_ENTITY_TYPE -> value), tail)
 				case "-gat" :: value :: tail =>
